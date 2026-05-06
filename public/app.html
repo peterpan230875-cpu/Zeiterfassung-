@@ -1612,19 +1612,6 @@ async function handleLogout() {
 const originalSaveState = saveState;
 saveState = function() {
   originalSaveState();
-
-  // Speichere Einstellungen auf den Server
-  fetch('/api/user-settings', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      wochenstunden: state.wochenstunden || 38.5,
-      darkMode: state.darkMode || false,
-      emailTo: state.emailTo || '',
-      employees: state.employees || []
-    })
-  }).catch(err => console.error('Settings-Sync-Fehler:', err));
-
   // Speichere alle Einträge auf den Server
   const emp = curEmp();
   Object.keys(emp.entries).forEach(date => {
@@ -1643,25 +1630,6 @@ saveState = function() {
     }).catch(err => console.error('Sync-Fehler:', err));
   });
 };
-
-// Beim Laden: Lade Einstellungen vom Server
-async function loadSettingsFromServer() {
-  try {
-    const res = await fetch('/api/user-settings');
-    if (!res.ok) return false;
-
-    const settings = await res.json();
-    state.wochenstunden = settings.wochenstunden || 38.5;
-    state.darkMode = settings.darkMode || false;
-    state.emailTo = settings.emailTo || '';
-    state.employees = settings.employees || state.employees;
-
-    return true;
-  } catch (err) {
-    console.error('Fehler beim Laden der Einstellungen:', err);
-    return false;
-  }
-}
 
 // Beim Laden: Lade Einträge vom Server
 async function loadEntriesFromServer() {
@@ -1698,20 +1666,15 @@ buildSelects();
 initVoice();
 applyDark(state.darkMode||false);
 
-// Lade: Benutzerinfo → Einstellungen → Einträge
-loadUserInfo()
-  .then(() => loadSettingsFromServer())
-  .then(() => {
-    applyDark(state.darkMode||false);
-    return loadEntriesFromServer();
-  })
-  .then(() => {
-    render();
-  })
-  .catch(err => {
-    console.error('Fehler beim Laden:', err);
-    render();
-  });
+// Lade erst Benutzerinfo, dann Einträge vom Server
+loadUserInfo().then(() => {
+  return loadEntriesFromServer();
+}).then(() => {
+  render();
+}).catch(err => {
+  console.error('Fehler beim Laden:', err);
+  render();
+});
 </script>
 </body>
 </html>
