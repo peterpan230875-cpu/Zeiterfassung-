@@ -45,13 +45,22 @@ app.get('/test', (req, res) => {
 
 // Login-Seite
 app.get('/', (req, res) => {
-  console.log('Route / aufgerufen');
+  console.log('Route / aufgerufen, __dirname:', __dirname);
   if (req.session.userId) {
     res.redirect('/app');
   } else {
+    // Versuche zuerst die Datei zu lesen
     const loginPath = path.join(__dirname, 'public', 'login.html');
-    console.log('Sende login.html von:', loginPath);
-    res.sendFile(loginPath);
+    console.log('Versuche login.html zu laden von:', loginPath);
+
+    try {
+      const fileContent = fs.readFileSync(loginPath, 'utf8');
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(fileContent);
+    } catch (err) {
+      console.error('Fehler beim Laden der login.html:', err.message);
+      res.status(500).send('Fehler: login.html nicht gefunden. ' + err.message);
+    }
   }
 });
 
