@@ -1203,6 +1203,9 @@ function saveEntry(){
 function deleteEntry(){
   if(!sheetDay)return;
   delete curEmp().entries[sheetDay];
+  // Lösche auch auf dem Server
+  fetch(`/api/entry/${sheetDay}`, { method: 'DELETE' })
+    .catch(err => console.error('Fehler beim Löschen:', err));
   saveState();render();closeSheet();
 }
 
@@ -1211,8 +1214,20 @@ function delEntryKey(key){delete curEmp().entries[key];saveState();render();}
 function quickSetTyp(key,typ){
   const emp=curEmp();
   const cur=emp.entries[key];
-  if(cur&&cur.typ===typ){delete emp.entries[key];}
-  else{emp.entries[key]={von:"",bis:"",pause:"",bemerkung:"",typ};}
+  if(cur&&cur.typ===typ){
+    delete emp.entries[key];
+    // Lösche auf dem Server
+    fetch(`/api/entry/${key}`, { method: 'DELETE' })
+      .catch(err => console.error('Fehler beim Löschen:', err));
+  } else {
+    emp.entries[key]={von:"",bis:"",pause:"",bemerkung:"",typ};
+    // Speichere auf dem Server
+    fetch('/api/entry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: key, type: typ, von: '', bis: '', pause: 0, bemerkung: '' })
+    }).catch(err => console.error('Fehler beim Speichern:', err));
+  }
   saveState();render();
 }
 
@@ -1592,12 +1607,70 @@ async function handleLogout() {
   }
 }
 
+// ── SERVER SYNC ──────────────────────────────────────────────────────────
+// Überschreibe saveState() um auch auf den Server zu speichern
+const originalSaveState = saveState;
+saveState = function() {
+  originalSaveState();
+  // Speichere alle Einträge auf den Server
+  const emp = curEmp();
+  Object.keys(emp.entries).forEach(date => {
+    const entry = emp.entries[date];
+    fetch('/api/entry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date: date,
+        type: entry.typ || 'normal',
+        von: entry.von || '',
+        bis: entry.bis || '',
+        pause: entry.pause || 0,
+        bemerkung: entry.bemerkung || ''
+      })
+    }).catch(err => console.error('Sync-Fehler:', err));
+  });
+};
+
+// Beim Laden: Lade Einträge vom Server
+async function loadEntriesFromServer() {
+  try {
+    const res = await fetch('/api/entries');
+    if (!res.ok) return false;
+
+    const data = await res.json();
+    const emp = curEmp();
+    emp.entries = {};
+
+    if (data.entries) {
+      data.entries.forEach(entry => {
+        emp.entries[entry.date] = {
+          von: entry.von || '',
+          bis: entry.bis || '',
+          pause: entry.pause || 0,
+          bemerkung: entry.bemerkung || '',
+          typ: entry.type || 'normal'
+        };
+      });
+    }
+
+    render();
+    return true;
+  } catch (err) {
+    console.error('Fehler beim Laden vom Server:', err);
+    return false;
+  }
+}
+
 // ── INIT ─────────────────────────────────────────────────────────────────────
 buildSelects();
 initVoice();
 applyDark(state.darkMode||false);
 loadUserInfo();
-render();
+
+// Lade Einträge vom Server
+loadEntriesFromServer().then(() => {
+  render();
+});
 </script>
 </body>
 </html>
