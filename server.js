@@ -198,6 +198,43 @@ app.delete('/api/entry/:date', (req, res) => {
   res.json({ success: true });
 });
 
+// API: Benutzer-Einstellungen speichern
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+
+app.post('/api/user-settings', (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Nicht authentifiziert' });
+  }
+
+  const { wochenstunden, darkMode, emailTo, employees } = req.body;
+
+  let settings = loadData(SETTINGS_FILE);
+  const userId = req.session.userId;
+
+  settings[userId] = {
+    wochenstunden: wochenstunden || 38.5,
+    darkMode: darkMode || false,
+    emailTo: emailTo || '',
+    employees: employees || []
+  };
+
+  saveData(SETTINGS_FILE, settings);
+  res.json({ success: true, settings: settings[userId] });
+});
+
+// API: Benutzer-Einstellungen laden
+app.get('/api/user-settings', (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Nicht authentifiziert' });
+  }
+
+  const userId = req.session.userId;
+  let settings = loadData(SETTINGS_FILE);
+  const userSettings = settings[userId] || {};
+
+  res.json(userSettings);
+});
+
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✓ Zeiterfassung-App läuft auf http://0.0.0.0:${PORT}`);
   console.log(`  Login: http://localhost:${PORT}`);

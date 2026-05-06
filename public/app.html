@@ -1608,27 +1608,85 @@ async function handleLogout() {
 }
 
 // ── SERVER SYNC ──────────────────────────────────────────────────────────
-// Überschreibe saveState() um auch auf den Server zu speichern
+// Speichere Einstellungen auf dem Server
+async function syncSettingsToServer() {
+  try {
+    const payload = {
+      wochenstunden: state.wochenstunden,
+      darkMode: state.darkMode,
+      emailTo: state.emailTo,
+      employees: state.employees
+    };
+
+    console.log('Sende Einstellungen zum Server:', payload);
+
+    const res = await fetch('/api/user-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      console.error('Server Fehler beim Speichern:', res.status);
+      return false;
+    }
+
+    const result = await res.json();
+    console.log('✓ Einstellungen auf Server gespeichert:', result);
+    return true;
+  } catch (err) {
+    console.error('✗ Fehler beim Speichern der Einstellungen:', err);
+    return false;
+  }
+}
+
+// Lade Einstellungen vom Server
+async function loadSettingsFromServer() {
+  try {
+    const res = await fetch('/api/user-settings');
+    if (!res.ok) {
+      console.warn('Fehler beim Abrufen von Einstellungen, Status:', res.status);
+      return;
+    }
+
+    const settings = await res.json();
+    console.log('Einstellungen vom Server geladen:', settings);
+
+    if (Object.keys(settings).length === 0) {
+      console.log('Keine Einstellungen auf dem Server gefunden');
+      return;
+    }
+
+    // Überschreibe state mit Server-Einstellungen
+    if (settings.wochenstunden) state.wochenstunden = settings.wochenstunden;
+    if (settings.darkMode !== undefined) state.darkMode = settings.darkMode;
+    if (settings.emailTo) state.emailTo = settings.emailTo;
+    if (settings.employees && Array.isArray(settings.employees) && settings.employees.length > 0) {
+      state.employees = settings.employees;
+      // Stelle sicher, dass selEmp gültig ist
+      if (state.selEmp >= state.employees.length) {
+        state.selEmp = 0;
+      }
+    }
+
+    // Speichere die neuen Einstellungen lokal
+    localStorage.setItem("zt_v3", JSON.stringify(state));
+    console.log('✓ Einstellungen aktualisiert:', {
+      wochenstunden: state.wochenstunden,
+      darkMode: state.darkMode,
+      emailTo: state.emailTo,
+      employees: state.employees.map(e => e.name)
+    });
+  } catch (err) {
+    console.error('Fehler beim Laden der Einstellungen vom Server:', err);
+  }
+}
+
+// Überschreibe saveState() um auch Einstellungen auf den Server zu speichern
 const originalSaveState = saveState;
 saveState = function() {
   originalSaveState();
-  // Speichere alle Einträge auf den Server
-  const emp = curEmp();
-  Object.keys(emp.entries).forEach(date => {
-    const entry = emp.entries[date];
-    fetch('/api/entry', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        date: date,
-        type: entry.typ || 'normal',
-        von: entry.von || '',
-        bis: entry.bis || '',
-        pause: entry.pause || 0,
-        bemerkung: entry.bemerkung || ''
-      })
-    }).catch(err => console.error('Sync-Fehler:', err));
-  });
+  syncSettingsToServer();
 };
 
 // Beim Laden: Lade Einträge vom Server
@@ -1666,15 +1724,25 @@ buildSelects();
 initVoice();
 applyDark(state.darkMode||false);
 
-// Lade erst Benutzerinfo, dann Einträge vom Server
-loadUserInfo().then(() => {
-  return loadEntriesFromServer();
-}).then(() => {
-  render();
-}).catch(err => {
-  console.error('Fehler beim Laden:', err);
-  render();
-});
+// Lade erst Benutzerinfo, dann Einstellungen und Einträge vom Server
+(async () => {
+  try {
+    await loadUserInfo();
+    console.log('✓ Benutzerinfo geladen');
+
+    await loadSettingsFromServer();
+    console.log('✓ Einstellungen vom Server geladen');
+
+    await loadEntriesFromServer();
+    console.log('✓ Einträge vom Server geladen');
+
+    render();
+    console.log('✓ UI gerendert');
+  } catch (err) {
+    console.error('Fehler beim Laden:', err);
+    render();
+  }
+})();
 </script>
 </body>
 </html>
