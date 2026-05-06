@@ -1661,8 +1661,29 @@ async function loadSettingsFromServer() {
     if (settings.wochenstunden) state.wochenstunden = settings.wochenstunden;
     if (settings.darkMode !== undefined) state.darkMode = settings.darkMode;
     if (settings.emailTo) state.emailTo = settings.emailTo;
+
+    // Merge Mitarbeiter: Behalte existierende Einträge
     if (settings.employees && Array.isArray(settings.employees) && settings.employees.length > 0) {
-      state.employees = settings.employees;
+      const newEmployees = {};
+      const oldEmployees = {};
+
+      // Erstelle Map der alten Mitarbeiter nach ID
+      state.employees.forEach(e => {
+        oldEmployees[e.id] = e;
+      });
+
+      // Merge: Nutze neue Mitarbeiter-Info, aber behalte alte Einträge
+      settings.employees.forEach(newEmp => {
+        const oldEmp = oldEmployees[newEmp.id];
+        newEmployees[newEmp.id] = {
+          ...newEmp,
+          entries: oldEmp ? oldEmp.entries : {}
+        };
+      });
+
+      // Konvertiere back zu Array
+      state.employees = Object.values(newEmployees);
+
       // Stelle sicher, dass selEmp gültig ist
       if (state.selEmp >= state.employees.length) {
         state.selEmp = 0;
