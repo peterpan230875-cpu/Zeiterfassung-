@@ -189,8 +189,12 @@ app.delete('/api/entry/:date', (req, res) => {
   res.json({ success: true });
 });
 
-app.listen(PORT, () => {
-  console.log(`\n✓ Zeiterfassung-App läuft auf http://localhost:${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n✓ Zeiterfassung-App läuft auf http://0.0.0.0:${PORT}`);
   console.log(`  Login: http://localhost:${PORT}`);
   console.log(`  Daten werden in: ${DATA_DIR} gespeichert\n`);
+});
+
+server.on('error', (err) => {
+  console.error('Server Fehler:', err);
 });
