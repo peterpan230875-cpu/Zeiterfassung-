@@ -1665,10 +1665,14 @@ async function loadEntriesFromServer() {
 buildSelects();
 initVoice();
 applyDark(state.darkMode||false);
-loadUserInfo();
 
-// Lade Einträge vom Server
-loadEntriesFromServer().then(() => {
+// Lade erst Benutzerinfo, dann Einträge vom Server
+loadUserInfo().then(() => {
+  return loadEntriesFromServer();
+}).then(() => {
+  render();
+}).catch(err => {
+  console.error('Fehler beim Laden:', err);
   render();
 });
 </script>
