@@ -38,12 +38,20 @@ function saveData(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
+// Test-Route
+app.get('/test', (req, res) => {
+  res.json({ status: 'ok', message: 'Server läuft!' });
+});
+
 // Login-Seite
 app.get('/', (req, res) => {
+  console.log('Route / aufgerufen');
   if (req.session.userId) {
     res.redirect('/app');
   } else {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+    const loginPath = path.join(__dirname, 'public', 'login.html');
+    console.log('Sende login.html von:', loginPath);
+    res.sendFile(loginPath);
   }
 });
 
