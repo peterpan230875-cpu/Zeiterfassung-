@@ -1197,7 +1197,10 @@ function saveEntry(){
   const bem=document.getElementById("inp-bem").value.trim();
   const curTyp=emp.entries[sheetDay]?emp.entries[sheetDay].typ||"normal":"normal";
   emp.entries[sheetDay]={von,bis,pause,bemerkung:bem,typ:curTyp};
-  saveState();render();closeSheet();toast("✓ Gespeichert");
+  saveState();
+  // Sende Eintrag zum Server
+  syncEntryToServer(sheetDay, emp.entries[sheetDay]);
+  render();closeSheet();toast("✓ Gespeichert");
 }
 
 function deleteEntry(){
@@ -1209,7 +1212,13 @@ function deleteEntry(){
   saveState();render();closeSheet();
 }
 
-function delEntryKey(key){delete curEmp().entries[key];saveState();render();}
+function delEntryKey(key){
+  delete curEmp().entries[key];
+  // Lösche auch auf dem Server
+  fetch(`/api/entry/${key}`, { method: 'DELETE' })
+    .catch(err => console.error('Fehler beim Löschen:', err));
+  saveState();render();
+}
 
 function quickSetTyp(key,typ){
   const emp=curEmp();
@@ -1608,6 +1617,35 @@ async function handleLogout() {
 }
 
 // ── SERVER SYNC ──────────────────────────────────────────────────────────
+// Speichere einen Eintrag auf dem Server
+async function syncEntryToServer(date, entryData) {
+  try {
+    const res = await fetch('/api/entry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date: date,
+        type: entryData.typ || 'normal',
+        von: entryData.von || '',
+        bis: entryData.bis || '',
+        pause: entryData.pause || 0,
+        bemerkung: entryData.bemerkung || ''
+      })
+    });
+
+    if (!res.ok) {
+      console.error('Fehler beim Speichern des Eintrags:', res.status);
+      return false;
+    }
+
+    console.log('✓ Eintrag auf Server gespeichert:', date);
+    return true;
+  } catch (err) {
+    console.error('Fehler beim Sync des Eintrags:', err);
+    return false;
+  }
+}
+
 // Speichere Einstellungen auf dem Server
 async function syncSettingsToServer() {
   try {
