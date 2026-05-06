@@ -140,6 +140,48 @@ app.get('/api/user', (req, res) => {
   });
 });
 
+// API: Benutzer-Einstellungen laden
+app.get('/api/user-settings', (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Nicht authentifiziert' });
+  }
+
+  let users = loadData(USERS_FILE);
+  const user = users[req.session.username];
+
+  if (!user || !user.settings) {
+    return res.json({ wochenstunden: 38.5, darkMode: false, emailTo: '', employees: [] });
+  }
+
+  res.json(user.settings);
+});
+
+// API: Benutzer-Einstellungen speichern
+app.post('/api/user-settings', (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Nicht authentifiziert' });
+  }
+
+  const { wochenstunden, darkMode, emailTo, employees } = req.body;
+
+  let users = loadData(USERS_FILE);
+  const user = users[req.session.username];
+
+  if (!user) {
+    return res.status(400).json({ error: 'Benutzer nicht gefunden' });
+  }
+
+  user.settings = {
+    wochenstunden: wochenstunden || 38.5,
+    darkMode: darkMode || false,
+    emailTo: emailTo || '',
+    employees: employees || []
+  };
+
+  saveData(USERS_FILE, users);
+  res.json({ success: true });
+});
+
 // API: Eintrag speichern
 app.post('/api/entry', (req, res) => {
   if (!req.session.userId) {
