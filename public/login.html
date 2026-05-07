@@ -216,8 +216,13 @@
         <div class="form-group">
           <label>Passwort</label>
           <input type="password" id="registerPassword" placeholder="Mindestens 6 Zeichen" autocomplete="new-password">
+          <small style="font-size:12px;color:#999;margin-top:4px;display:block;">Mindestens 6 Zeichen</small>
         </div>
-        <button class="btn btn-primary" onclick="handleRegister()">Registrieren</button>
+        <div class="form-group">
+          <label>Passwort bestätigen</label>
+          <input type="password" id="registerPasswordConfirm" placeholder="Passwort wiederholen" autocomplete="new-password">
+        </div>
+        <button class="btn btn-primary" onclick="handleRegister()">Konto erstellen</button>
         <div class="toggle-text">
           Bereits Mitglied? <a onclick="toggleForm()">Jetzt anmelden</a>
         </div>
@@ -285,14 +290,20 @@
       const name = document.getElementById('registerName').value.trim();
       const username = document.getElementById('registerUsername').value.trim();
       const password = document.getElementById('registerPassword').value;
+      const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
 
-      if (!name || !username || !password) {
+      if (!name || !username || !password || !passwordConfirm) {
         showMessage('Bitte alle Felder ausfüllen', 'error');
         return;
       }
 
       if (password.length < 6) {
         showMessage('Passwort muss mindestens 6 Zeichen lang sein', 'error');
+        return;
+      }
+
+      if (password !== passwordConfirm) {
+        showMessage('Passwörter stimmen nicht überein', 'error');
         return;
       }
 

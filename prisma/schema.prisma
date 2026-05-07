@@ -45,6 +45,7 @@ model Settings {
   wochenstunden  Float    @default(38.5)
   darkMode       Boolean  @default(false)
   emailTo        String   @default("")
+  setupDone      Boolean  @default(false)
   employees      Json     @default("[]")
 
   createdAt      DateTime @default(now())

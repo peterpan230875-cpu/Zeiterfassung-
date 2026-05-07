@@ -520,6 +520,44 @@ tr.r-k{background:var(--red-bg);}
   .sc-val{font-size:12px;}
   #main{padding:10px 10px 100px;}
 }
+
+/* Setup Wizard */
+#setup-wizard{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.6);backdrop-filter:blur(8px);
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+#setup-wizard.open{display:flex;}
+.sw-card{
+  background:var(--sur);border-radius:20px;
+  padding:32px 28px;width:100%;max-width:420px;
+  box-shadow:0 20px 60px rgba(0,0,0,.3);
+}
+.sw-icon{font-size:40px;text-align:center;margin-bottom:12px;}
+.sw-title{font-size:22px;font-weight:800;text-align:center;margin-bottom:4px;letter-spacing:-.3px;}
+.sw-sub{font-size:14px;color:var(--txt2);text-align:center;margin-bottom:24px;}
+.sw-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px;}
+.sw-inp{
+  width:100%;padding:14px;border:1.5px solid var(--brd);border-radius:var(--rs);
+  font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600;
+  background:var(--bg);color:var(--txt);outline:none;text-align:center;
+  transition:border-color .15s;margin-bottom:20px;
+}
+.sw-inp:focus{border-color:var(--blue);}
+.sw-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;}
+.sw-pill{
+  padding:8px 14px;border:1.5px solid var(--brd);border-radius:var(--rs);
+  background:var(--bg);font-family:'JetBrains Mono',monospace;font-size:13px;
+  font-weight:500;cursor:pointer;transition:all .12s;color:var(--txt2);
+}
+.sw-pill.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+.sw-btn{
+  width:100%;padding:16px;border:none;border-radius:var(--r);
+  background:var(--blue);color:#fff;font-family:'Figtree',sans-serif;
+  font-size:16px;font-weight:700;cursor:pointer;
+  box-shadow:0 4px 16px rgba(37,99,235,.3);transition:all .15s;
+}
+.sw-btn:hover{background:#1D4ED8;transform:translateY(-1px);}
 </style>
 </head>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -587,6 +625,27 @@ tr.r-k{background:var(--red-bg);}
 
 <!-- MIC FAB -->
 <button id="mic-fab" onclick="toggleVoice()">🎤</button>
+
+<!-- SETUP WIZARD -->
+<div id="setup-wizard">
+  <div class="sw-card">
+    <div class="sw-icon">👋</div>
+    <div class="sw-title">Willkommen!</div>
+    <div class="sw-sub">Hallo <strong id="setup-name"></strong>, richte deine App ein.</div>
+    <div class="sw-lbl">Wochenstunden (Soll)</div>
+    <input class="sw-inp" id="setup-wh" type="number" min="1" max="60" step="0.5" value="38.5"/>
+    <div class="sw-lbl">Standard-Pause (optional)</div>
+    <div class="sw-pills">
+      <button class="sw-pill active" onclick="selectSetupPause(0, this)">Keine</button>
+      <button class="sw-pill" onclick="selectSetupPause(15, this)">15'</button>
+      <button class="sw-pill" onclick="selectSetupPause(30, this)">30'</button>
+      <button class="sw-pill" onclick="selectSetupPause(36, this)">36'</button>
+      <button class="sw-pill" onclick="selectSetupPause(45, this)">45'</button>
+      <button class="sw-pill" onclick="selectSetupPause(60, this)">60'</button>
+    </div>
+    <button class="sw-btn" onclick="completeSetup()">Einrichtung abschließen</button>
+  </div>
+</div>
 
 <!-- OVERLAY -->
 <div id="ov" onclick="closeAll()"></div>
@@ -845,10 +904,7 @@ function renderTabs(){
     b.onclick=()=>{state.selEmp=i;saveState();render();};
     el.appendChild(b);
   });
-  const add=document.createElement("button");
-  add.className="emp-tab-add";add.textContent="+";add.title="Mitarbeiter";
-  add.onclick=openEmpSheet;
-  el.appendChild(add);
+  // Team-Verwaltung ist in den Einstellungen ausgeblendet; kein + Button mehr
 }
 
 function renderMonthLabel(){
@@ -1763,6 +1819,7 @@ async function loadUserInfo() {
       return;
     }
     const user = await res.json();
+    state.name = user.name;
     document.getElementById('user-name').textContent = user.name;
   } catch (err) {
     console.error('Fehler beim Laden der Benutzerinfo:', err);
@@ -1811,13 +1868,48 @@ async function syncEntryToServer(date, entryData) {
   }
 }
 
+// Setup Wizard
+let setupPause = 0;
+
+function selectSetupPause(val, el) {
+  setupPause = val;
+  document.querySelectorAll('.sw-pill').forEach(p => p.classList.remove('active'));
+  if(el) el.classList.add('active');
+}
+
+async function completeSetup() {
+  const wh = parseFloat(document.getElementById('setup-wh').value) || 38.5;
+  state.wochenstunden = wh;
+  if(setupPause > 0) state.defaultPause = setupPause;
+
+  const ok = await syncSettingsToServer(true); // pass true = setupDone
+  if(ok !== false) {
+    document.getElementById('setup-wizard').classList.remove('open');
+    toast('✓ Einrichtung abgeschlossen!');
+    render();
+  }
+}
+
+function checkSetupWizard(settings) {
+  if(!settings.setupDone) {
+    // Pre-fill name
+    const nameEl = document.getElementById('setup-name');
+    if(nameEl) nameEl.textContent = state.name || '';
+    // Pre-fill wochenstunden
+    const whEl = document.getElementById('setup-wh');
+    if(whEl) whEl.value = state.wochenstunden || 38.5;
+    document.getElementById('setup-wizard').classList.add('open');
+  }
+}
+
 // Speichere Einstellungen auf dem Server
-async function syncSettingsToServer() {
+async function syncSettingsToServer(setupDone) {
   try {
     const payload = {
       wochenstunden: state.wochenstunden,
       darkMode: state.darkMode,
       emailTo: state.emailTo,
+      setupDone: setupDone === true,
       employees: state.employees
     };
 
@@ -1901,6 +1993,9 @@ async function loadSettingsFromServer() {
       emailTo: state.emailTo,
       employees: state.employees.map(e => e.name)
     });
+
+    // Zeige Setup-Wizard falls noch nicht eingerichtet
+    checkSetupWizard(settings);
   } catch (err) {
     console.error('Fehler beim Laden der Einstellungen vom Server:', err);
   }

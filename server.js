@@ -92,9 +92,9 @@ app.post('/api/register', async (req, res) => {
         wochenstunden: 38.5,
         darkMode: false,
         emailTo: '',
+        setupDone: false,
         employees: JSON.stringify([
-          { id: 1, name: 'Max Müller', entries: {} },
-          { id: 2, name: 'Anna Schmidt', entries: {} }
+          { id: 1, name: user.name, entries: {} }
         ])
       }
     });
@@ -185,11 +185,11 @@ app.delete('/api/entry/:date', async (req, res) => {
 app.post('/api/user-settings', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
   try {
-    const { wochenstunden, darkMode, emailTo, employees } = req.body;
+    const { wochenstunden, darkMode, emailTo, employees, setupDone } = req.body;
     const settings = await prisma.settings.upsert({
       where: { userId: req.session.userId },
-      update: { wochenstunden: wochenstunden || 38.5, darkMode: !!darkMode, emailTo: emailTo || '', employees: JSON.stringify(employees || []) },
-      create: { userId: req.session.userId, wochenstunden: wochenstunden || 38.5, darkMode: !!darkMode, emailTo: emailTo || '', employees: JSON.stringify(employees || []) }
+      update: { wochenstunden: wochenstunden || 38.5, darkMode: !!darkMode, emailTo: emailTo || '', setupDone: setupDone === true, employees: JSON.stringify(employees || []) },
+      create: { userId: req.session.userId, wochenstunden: wochenstunden || 38.5, darkMode: !!darkMode, emailTo: emailTo || '', setupDone: setupDone === true, employees: JSON.stringify(employees || []) }
     });
     res.json({ success: true, settings });
   } catch (err) {
@@ -206,6 +206,7 @@ app.get('/api/user-settings', async (req, res) => {
       wochenstunden: settings.wochenstunden,
       darkMode: settings.darkMode,
       emailTo: settings.emailTo,
+      setupDone: settings.setupDone,
       employees: JSON.parse(settings.employees || '[]')
     });
   } catch (err) {
