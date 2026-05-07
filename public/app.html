@@ -1831,6 +1831,7 @@ async function handleLogout() {
   if (confirm('Möchtest du dich abmelden?')) {
     try {
       await fetch('/api/logout', { method: 'POST' });
+      localStorage.removeItem('zt_v3'); // State löschen damit nächster User sauber startet
       window.location.href = '/';
     } catch (err) {
       console.error('Logout-Fehler:', err);
@@ -1957,27 +1958,10 @@ async function loadSettingsFromServer() {
     if (settings.darkMode !== undefined) state.darkMode = settings.darkMode;
     if (settings.emailTo) state.emailTo = settings.emailTo;
 
-    // Merge Mitarbeiter: Behalte existierende Einträge
+    // Mitarbeiter vom Server immer vollständig übernehmen (nie mit lokalem Cache mischen)
+    // Einträge kommen separat via loadEntriesFromServer()
     if (settings.employees && Array.isArray(settings.employees) && settings.employees.length > 0) {
-      const newEmployees = {};
-      const oldEmployees = {};
-
-      // Erstelle Map der alten Mitarbeiter nach ID
-      state.employees.forEach(e => {
-        oldEmployees[e.id] = e;
-      });
-
-      // Merge: Nutze neue Mitarbeiter-Info, aber behalte alte Einträge
-      settings.employees.forEach(newEmp => {
-        const oldEmp = oldEmployees[newEmp.id];
-        newEmployees[newEmp.id] = {
-          ...newEmp,
-          entries: oldEmp ? oldEmp.entries : {}
-        };
-      });
-
-      // Konvertiere back zu Array
-      state.employees = Object.values(newEmployees);
+      state.employees = settings.employees.map(e => ({ ...e, entries: {} }));
 
       // Stelle sicher, dass selEmp gültig ist
       if (state.selEmp >= state.employees.length) {
