@@ -1504,9 +1504,8 @@ function buildPrintHTML(){
   const istMin=totalMin+(urlaub+krank)*ts*60; // ZA zählt nicht
   const sollMin=sollArbeitstage*ts*60;
   const saldo=istMin-sollMin;
-  const saldoAbs=Math.abs(saldo);
   const saldoSign=saldo>0?"+":saldo<0?"-":"±";
-  const saldoStr=`${saldoSign}${Math.floor(saldoAbs/60)}h ${Math.round(saldoAbs%60)}m`;
+  const saldoStr=`${saldoSign}${Math.abs(saldo/60).toFixed(2).replace(".",",")} h`;
   const saldoColor=saldo>0?"#16A34A":saldo<0?"#DC2626":"#888";
   const hasData=work>0||urlaub>0||krank>0||za>0;
 
