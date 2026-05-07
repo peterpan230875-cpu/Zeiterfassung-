@@ -492,6 +492,8 @@ tr.r-k{background:var(--red-bg);}
 }
 </style>
 </head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <body>
 
 <div id="toast"></div>
@@ -1601,91 +1603,74 @@ function printMonth(){
   closePdfSheet();
 }
 
-function sendEmail(){
+async function sendEmail(){
   const email=document.getElementById("pdf-email").value.trim();
   if(!email){toast("⚠ Bitte E-Mail-Adresse eingeben");return;}
   if(email!==state.emailTo){state.emailTo=email;saveState();}
 
   const emp=curEmp();const y=state.year,m=state.month;
-  const days=daysIn(y,m);
-  const wh=parseFloat(state.wochenstunden)||38.5;
-  const ts=wh/5;
-  const tLabels={urlaub:"Urlaub",zeitausgleich:"Zeitausgleich",krank:"Krank"};
-  let work=0,urlaub=0,za=0,krank=0,totalMin=0;
-  const SEP="─".repeat(52);
-  const lines=[];
+  const filename=`Zeiterfassung_${MON[m]}_${y}_${emp.name.replace(/\s+/g,"_")}.pdf`;
+  const subject=`Zeiterfassung ${MON[m]} ${y} — ${emp.name}`;
 
-  for(let d=1;d<=days;d++){
-    const key=dk(y,m,d);
-    const dayWT=wtDay(y,m,d);
-    const holiday=FEIERTAGE[key]||null;
-    const sun=isSun(y,m,d);
-    const sat=isSat(y,m,d);
-    const entry=emp.entries[key]||null;
-    const typ=entry?entry.typ||"normal":"normal";
-    let von="",bis="",pause="",bem="",netto="";
+  toast("⏳ PDF wird erstellt…");
 
-    if(sun||sat){
-      continue; // Wochenenden immer überspringen (auch Feiertage wie Pfingstsonntag)
-    } else if(holiday){
-      von=holiday;
-      netto=ts.toFixed(2).replace(".",",")+" h";
-    } else if(typ!=="normal"){
-      von=tLabels[typ]||"";
-      if(typ==="urlaub"){urlaub++;netto=ts.toFixed(2).replace(".",",")+" h";}
-      else if(typ==="zeitausgleich")za++;
-      else if(typ==="krank"){krank++;netto=ts.toFixed(2).replace(".",",")+" h";}
-    } else if(entry&&entry.von&&entry.bis){
-      von=entry.von;bis=entry.bis;
-      pause=entry.pause?(entry.pause+"'"):"";
-      bem=entry.bemerkung||"";
-      const [vh,vm2]=entry.von.split(":").map(Number);
-      const [bh,bm2]=entry.bis.split(":").map(Number);
-      const total=(bh*60+bm2)-(vh*60+vm2);
-      const p=parseInt(entry.pause||"0")||0;
-      const net=Math.max(0,total-p);
-      if(net>0){work++;totalMin+=net;netto=(net/60).toFixed(2).replace(".",",")+" h";}
+  try {
+    // Print-HTML generieren und Teile extrahieren
+    const html=buildPrintHTML();
+    const styleMatch=html.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+    const bodyMatch=html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+
+    // Temporären Container im aktuellen Dokument anlegen
+    const wrapper=document.createElement("div");
+    wrapper.style.cssText="position:fixed;top:-19999px;left:-9999px;width:794px;background:#fff;padding:0;margin:0;z-index:-1;";
+
+    const styleEl=document.createElement("style");
+    styleEl.textContent=(styleMatch?styleMatch[1]:"");
+    wrapper.appendChild(styleEl);
+
+    const content=document.createElement("div");
+    content.style.cssText="padding:34px 28px;"; // entspricht 12mm 10mm bei 72dpi
+    content.innerHTML=(bodyMatch?bodyMatch[1]:"");
+    wrapper.appendChild(content);
+    document.body.appendChild(wrapper);
+
+    await new Promise(r=>setTimeout(r,400)); // Render abwarten
+
+    const canvas=await html2canvas(wrapper,{
+      scale:2,backgroundColor:"#ffffff",
+      width:794,useCORS:true,logging:false
+    });
+    document.body.removeChild(wrapper);
+
+    // Canvas → jsPDF
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+    const pw=doc.internal.pageSize.getWidth();
+    const ph=doc.internal.pageSize.getHeight();
+    const imgW=pw;
+    const imgH=(canvas.height*pw)/canvas.width;
+    doc.addImage(canvas.toDataURL("image/jpeg",0.93),"JPEG",0,0,imgW,Math.min(imgH,ph));
+
+    const pdfBase64=doc.output("datauristring").split(",")[1];
+
+    // An Server senden
+    toast("⏳ E-Mail wird gesendet…");
+    const res=await fetch("/api/send-email",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({to:email,subject,pdfBase64,filename})
+    });
+    const data=await res.json();
+    if(data.success){
+      toast("✉ E-Mail erfolgreich gesendet!");
+      closePdfSheet();
     } else {
-      continue; // leere Arbeitstage überspringen
+      toast("⚠ "+( data.error||"Fehler beim Senden"));
     }
-
-    const tag=String(d).padStart(2);
-    lines.push(
-      `${tag}  ${dayWT}   ${von.padEnd(16)}${bis.padEnd(7)}${pause.padEnd(6)}${netto.padEnd(9)}${bem}`
-    );
+  } catch(err){
+    console.error("sendEmail error:",err);
+    toast("⚠ Fehler: "+err.message);
   }
-
-  // Saldo: nur bis heute (laufender Monat) oder bis Monatsende (vergangene Monate)
-  const today=new Date();
-  const isCurrentMonth=(y===today.getFullYear()&&m===today.getMonth()+1);
-  const countUntil=isCurrentMonth?today.getDate():days;
-  let sollAT=0;
-  for(let d=1;d<=countUntil;d++){
-    const k=dk(y,m,d);
-    if(!isSun(y,m,d)&&!isSat(y,m,d)&&!FEIERTAGE[k]) sollAT++;
-  }
-  const istMin=totalMin+(urlaub+krank)*ts*60;
-  const sollMin=sollAT*ts*60;
-  const saldo=istMin-sollMin;
-  const saldoSign=saldo>0?"+":saldo<0?"-":"±";
-  const saldoStr=saldoSign+Math.abs(saldo/60).toFixed(2).replace(".",",")+" h"+(isCurrentMonth?" (bis heute)":"");
-
-  let body=`ZEITERFASSUNG  ${MON[m].toUpperCase()} ${y}\n`;
-  body+=`${emp.name}  |  Soll: ${wh} h/Wo  |  Tagessoll: ${ts.toFixed(2).replace(".",",")} h\n`;
-  body+=SEP+"\n";
-  body+=`Tag WT   Von              Bis    Pause  Netto\n`;
-  body+=SEP+"\n";
-  body+=lines.join("\n")+"\n";
-  body+=SEP+"\n";
-  const totalStr=totalMin>0?(totalMin/60).toFixed(2).replace(".",",")+" h":"—";
-  body+=`Gesamt: ${totalStr.padEnd(10)}  Saldo: ${saldoStr}\n`;
-  body+=`Arbeitstage: ${work}   Urlaub: ${urlaub}   Zeitausgleich: ${za}   Krank: ${krank}\n`;
-  body+=SEP+"\n";
-  body+=`Erstellt am ${new Date().toLocaleDateString("de-AT")}`;
-
-  const subject=encodeURIComponent(`Zeiterfassung ${MON[m]} ${y} — ${emp.name}`);
-  window.location.href="mailto:"+email+"?subject="+subject+"&body="+encodeURIComponent(body);
-  toast("✉ E-Mail-App wird geöffnet…");closePdfSheet();
 }
 
 // ── VOICE ────────────────────────────────────────────────────────────────────

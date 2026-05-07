@@ -3,6 +3,7 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const bcryptjs = require('bcryptjs');
 const path = require('path');
+const nodemailer = require('nodemailer');
 const { PrismaClient } = require('@prisma/client');
 
 const app = express();
@@ -209,6 +210,45 @@ app.get('/api/user-settings', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: 'Fehler beim Laden' });
+  }
+});
+
+// ── E-MAIL MIT PDF-ANHANG ─────────────────────────────────────────────────────
+app.post('/api/send-email', async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
+  try {
+    const { to, subject, pdfBase64, filename } = req.body;
+    if (!to || !pdfBase64) return res.status(400).json({ error: 'Fehlende Parameter' });
+
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    if (!smtpUser || !smtpPass) {
+      return res.status(500).json({ error: 'SMTP nicht konfiguriert. Bitte SMTP_USER und SMTP_PASS in den Vercel-Umgebungsvariablen setzen.' });
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: { user: smtpUser, pass: smtpPass }
+    });
+
+    await transporter.sendMail({
+      from: `"Zeiterfassung" <${smtpUser}>`,
+      to,
+      subject,
+      text: 'Zeiterfassung im Anhang als PDF.',
+      attachments: [{
+        filename: filename || 'zeiterfassung.pdf',
+        content: Buffer.from(pdfBase64, 'base64'),
+        contentType: 'application/pdf'
+      }]
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Email error:', err);
+    res.status(500).json({ error: 'Fehler beim Senden: ' + err.message });
   }
 });
 
