@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "build": "prisma generate",
+    "postinstall": "prisma generate"
   },
   "keywords": [
     "zeiterfassung",
