@@ -142,10 +142,14 @@ app.post('/api/entry', async (req, res) => {
     const { date, type, von, bis, pause, bemerkung } = req.body;
     if (!date) return res.status(400).json({ error: 'Datum erforderlich' });
 
+    const pauseInt = parseInt(pause) || 0;
+    const vonVal = von && von !== '' ? von : null;
+    const bisVal = bis && bis !== '' ? bis : null;
+
     const entry = await prisma.entry.upsert({
       where: { userId_date: { userId: req.session.userId, date } },
-      update: { type: type || 'normal', von: von || null, bis: bis || null, pause: pause || 0, bemerkung: bemerkung || '' },
-      create: { userId: req.session.userId, date, type: type || 'normal', von: von || null, bis: bis || null, pause: pause || 0, bemerkung: bemerkung || '' }
+      update: { type: type || 'normal', von: vonVal, bis: bisVal, pause: pauseInt, bemerkung: bemerkung || '' },
+      create: { userId: req.session.userId, date, type: type || 'normal', von: vonVal, bis: bisVal, pause: pauseInt, bemerkung: bemerkung || '' }
     });
     res.json({ success: true, entry });
   } catch (err) {
