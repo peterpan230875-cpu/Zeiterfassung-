@@ -2,67 +2,34 @@ const express = require('express');
 const session = require('express-session');
 const bodyParser = require('body-parser');
 const bcryptjs = require('bcryptjs');
-const fs = require('fs');
 const path = require('path');
+const { PrismaClient } = require('@prisma/client');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DATA_DIR = path.join(__dirname, 'data');
+const prisma = new PrismaClient();
 
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
+// Session speichern in Memory (für Vercel)
+const sessions = {};
 
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
-const ENTRIES_FILE = path.join(DATA_DIR, 'entries.json');
-const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
-
-// Einfacher Session-Store mit JSON-Persistierung
-class FileSessionStore extends session.Store {
-  constructor() {
-    super();
-    this.sessions = this.loadSessions();
-  }
-
-  loadSessions() {
-    try {
-      if (fs.existsSync(SESSIONS_FILE)) {
-        return JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
-      }
-    } catch (err) {
-      console.error('Fehler beim Laden von Sessions:', err);
-    }
-    return {};
-  }
-
-  saveSessions() {
-    try {
-      fs.writeFileSync(SESSIONS_FILE, JSON.stringify(this.sessions, null, 2));
-    } catch (err) {
-      console.error('Fehler beim Speichern von Sessions:', err);
-    }
-  }
-
+class MemorySessionStore extends session.Store {
   get(sid, callback) {
-    const sess = this.sessions[sid];
+    const sess = sessions[sid];
     callback(null, sess);
   }
 
   set(sid, sess, callback) {
-    this.sessions[sid] = sess;
-    this.saveSessions();
+    sessions[sid] = sess;
     callback(null);
   }
 
   destroy(sid, callback) {
-    delete this.sessions[sid];
-    this.saveSessions();
+    delete sessions[sid];
     callback(null);
   }
 
   clear(callback) {
-    this.sessions = {};
-    this.saveSessions();
+    Object.keys(sessions).forEach(key => delete sessions[key]);
     callback(null);
   }
 }
@@ -72,27 +39,16 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
-  store: new FileSessionStore(),
+  store: new MemorySessionStore(),
   secret: process.env.SESSION_SECRET || 'zeiterfassung-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
     secure: false,
     httpOnly: true,
-    maxAge: 30 * 24 * 60 * 60 * 1000  // 30 Tage
+    maxAge: 30 * 24 * 60 * 60 * 1000
   }
 }));
-
-// JSON-Datei laden
-function loadData(file) {
-  if (!fs.existsSync(file)) return {};
-  return JSON.parse(fs.readFileSync(file, 'utf8'));
-}
-
-// JSON-Datei speichern
-function saveData(file, data) {
-  fs.writeFileSync(file, JSON.stringify(data, null, 2));
-}
 
 // Test-Route
 app.get('/test', (req, res) => {
@@ -101,21 +57,17 @@ app.get('/test', (req, res) => {
 
 // Login-Seite
 app.get('/', (req, res) => {
-  console.log('Route / aufgerufen, __dirname:', __dirname);
   if (req.session.userId) {
     res.redirect('/app');
   } else {
-    // Versuche zuerst die Datei zu lesen
     const loginPath = path.join(__dirname, 'public', 'login.html');
-    console.log('Versuche login.html zu laden von:', loginPath);
-
     try {
+      const fs = require('fs');
       const fileContent = fs.readFileSync(loginPath, 'utf8');
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.send(fileContent);
     } catch (err) {
-      console.error('Fehler beim Laden der login.html:', err.message);
-      res.status(500).send('Fehler: login.html nicht gefunden. ' + err.message);
+      res.status(500).send('Fehler: login.html nicht gefunden');
     }
   }
 });
@@ -130,51 +82,79 @@ app.get('/app', (req, res) => {
 });
 
 // API: Registrierung
-app.post('/api/register', (req, res) => {
-  const { username, password, name } = req.body;
+app.post('/api/register', async (req, res) => {
+  try {
+    const { username, password, name } = req.body;
 
-  if (!username || !password || !name) {
-    return res.status(400).json({ error: 'Alle Felder erforderlich' });
+    if (!username || !password || !name) {
+      return res.status(400).json({ error: 'Alle Felder erforderlich' });
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { username }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'Benutzer existiert bereits' });
+    }
+
+    const hash = bcryptjs.hashSync(password, 10);
+    const user = await prisma.user.create({
+      data: {
+        username,
+        name,
+        password: hash
+      }
+    });
+
+    // Erstelle Standard-Settings
+    await prisma.settings.create({
+      data: {
+        userId: user.id,
+        wochenstunden: 38.5,
+        darkMode: false,
+        emailTo: '',
+        employees: JSON.stringify([
+          { id: 1, name: "Max Müller" },
+          { id: 2, name: "Anna Schmidt" },
+          { id: 3, name: "Peter Weber" }
+        ])
+      }
+    });
+
+    res.json({ success: true, message: 'Registrierung erfolgreich' });
+  } catch (error) {
+    console.error('Registrierungsfehler:', error);
+    res.status(500).json({ error: 'Fehler bei Registrierung' });
   }
-
-  let users = loadData(USERS_FILE);
-
-  if (users[username]) {
-    return res.status(400).json({ error: 'Benutzer existiert bereits' });
-  }
-
-  const hash = bcryptjs.hashSync(password, 10);
-  users[username] = {
-    id: Date.now().toString(),
-    name: name,
-    password: hash,
-    createdAt: new Date().toISOString()
-  };
-
-  saveData(USERS_FILE, users);
-  res.json({ success: true, message: 'Registrierung erfolgreich' });
 });
 
 // API: Login
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
 
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Benutzername und Passwort erforderlich' });
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Benutzername und Passwort erforderlich' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { username }
+    });
+
+    if (!user || !bcryptjs.compareSync(password, user.password)) {
+      return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
+    }
+
+    req.session.userId = user.id;
+    req.session.username = username;
+    req.session.name = user.name;
+
+    res.json({ success: true, message: 'Login erfolgreich', user: { username, name: user.name } });
+  } catch (error) {
+    console.error('Loginfehler:', error);
+    res.status(500).json({ error: 'Fehler bei Login' });
   }
-
-  let users = loadData(USERS_FILE);
-  const user = users[username];
-
-  if (!user || !bcryptjs.compareSync(password, user.password)) {
-    return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
-  }
-
-  req.session.userId = user.id;
-  req.session.username = username;
-  req.session.name = user.name;
-
-  res.json({ success: true, message: 'Login erfolgreich', user: { username, name: user.name } });
 });
 
 // API: Logout
@@ -184,119 +164,181 @@ app.post('/api/logout', (req, res) => {
 });
 
 // API: Benutzerinfo
-app.get('/api/user', (req, res) => {
+app.get('/api/user', async (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ error: 'Nicht authentifiziert' });
   }
 
-  res.json({
-    userId: req.session.userId,
-    username: req.session.username,
-    name: req.session.name
-  });
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.session.userId }
+    });
+
+    res.json({
+      userId: user.id,
+      username: req.session.username,
+      name: user.name
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Fehler beim Laden der Benutzerinfo' });
+  }
 });
 
 // API: Eintrag speichern
-app.post('/api/entry', (req, res) => {
+app.post('/api/entry', async (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ error: 'Nicht authentifiziert' });
   }
 
-  const { date, type, von, bis, pause, bemerkung } = req.body;
+  try {
+    const { date, type, von, bis, pause, bemerkung } = req.body;
 
-  if (!date) {
-    return res.status(400).json({ error: 'Datum erforderlich' });
+    if (!date) {
+      return res.status(400).json({ error: 'Datum erforderlich' });
+    }
+
+    const entry = await prisma.entry.upsert({
+      where: {
+        userId_date: {
+          userId: req.session.userId,
+          date: date
+        }
+      },
+      update: {
+        type: type || 'normal',
+        von: von || null,
+        bis: bis || null,
+        pause: pause || 0,
+        bemerkung: bemerkung || ''
+      },
+      create: {
+        userId: req.session.userId,
+        date: date,
+        type: type || 'normal',
+        von: von || null,
+        bis: bis || null,
+        pause: pause || 0,
+        bemerkung: bemerkung || ''
+      }
+    });
+
+    res.json({ success: true, entry });
+  } catch (error) {
+    console.error('Fehler beim Speichern des Eintrags:', error);
+    res.status(500).json({ error: 'Fehler beim Speichern' });
   }
-
-  let entries = loadData(ENTRIES_FILE);
-  const entryKey = `${req.session.userId}_${date}`;
-
-  entries[entryKey] = {
-    userId: req.session.userId,
-    username: req.session.username,
-    date: date,
-    type: type || 'normal',
-    von: von,
-    bis: bis,
-    pause: pause || 0,
-    bemerkung: bemerkung || '',
-    savedAt: new Date().toISOString()
-  };
-
-  saveData(ENTRIES_FILE, entries);
-  res.json({ success: true, entry: entries[entryKey] });
 });
 
 // API: Einträge laden
-app.get('/api/entries', (req, res) => {
+app.get('/api/entries', async (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ error: 'Nicht authentifiziert' });
   }
 
-  let entries = loadData(ENTRIES_FILE);
-  const userEntries = Object.values(entries).filter(e => e.userId === req.session.userId);
+  try {
+    const entries = await prisma.entry.findMany({
+      where: { userId: req.session.userId }
+    });
 
-  res.json({ entries: userEntries });
+    res.json({ entries });
+  } catch (error) {
+    res.status(500).json({ error: 'Fehler beim Laden der Einträge' });
+  }
 });
 
 // API: Eintrag löschen
-app.delete('/api/entry/:date', (req, res) => {
+app.delete('/api/entry/:date', async (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ error: 'Nicht authentifiziert' });
   }
 
-  const entryKey = `${req.session.userId}_${req.params.date}`;
-  let entries = loadData(ENTRIES_FILE);
+  try {
+    await prisma.entry.delete({
+      where: {
+        userId_date: {
+          userId: req.session.userId,
+          date: req.params.date
+        }
+      }
+    });
 
-  delete entries[entryKey];
-  saveData(ENTRIES_FILE, entries);
-
-  res.json({ success: true });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Fehler beim Löschen:', error);
+    res.status(500).json({ error: 'Fehler beim Löschen' });
+  }
 });
 
-// API: Benutzer-Einstellungen speichern
-const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
-
-app.post('/api/user-settings', (req, res) => {
+// API: Einstellungen speichern
+app.post('/api/user-settings', async (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ error: 'Nicht authentifiziert' });
   }
 
-  const { wochenstunden, darkMode, emailTo, employees } = req.body;
+  try {
+    const { wochenstunden, darkMode, emailTo, employees } = req.body;
 
-  let settings = loadData(SETTINGS_FILE);
-  const userId = req.session.userId;
+    const settings = await prisma.settings.upsert({
+      where: { userId: req.session.userId },
+      update: {
+        wochenstunden: wochenstunden || 38.5,
+        darkMode: darkMode || false,
+        emailTo: emailTo || '',
+        employees: JSON.stringify(employees || [])
+      },
+      create: {
+        userId: req.session.userId,
+        wochenstunden: wochenstunden || 38.5,
+        darkMode: darkMode || false,
+        emailTo: emailTo || '',
+        employees: JSON.stringify(employees || [])
+      }
+    });
 
-  settings[userId] = {
-    wochenstunden: wochenstunden || 38.5,
-    darkMode: darkMode || false,
-    emailTo: emailTo || '',
-    employees: employees || []
-  };
-
-  saveData(SETTINGS_FILE, settings);
-  res.json({ success: true, settings: settings[userId] });
+    res.json({ success: true, settings });
+  } catch (error) {
+    console.error('Fehler beim Speichern der Einstellungen:', error);
+    res.status(500).json({ error: 'Fehler beim Speichern' });
+  }
 });
 
-// API: Benutzer-Einstellungen laden
-app.get('/api/user-settings', (req, res) => {
+// API: Einstellungen laden
+app.get('/api/user-settings', async (req, res) => {
   if (!req.session.userId) {
     return res.status(401).json({ error: 'Nicht authentifiziert' });
   }
 
-  const userId = req.session.userId;
-  let settings = loadData(SETTINGS_FILE);
-  const userSettings = settings[userId] || {};
+  try {
+    const settings = await prisma.settings.findUnique({
+      where: { userId: req.session.userId }
+    });
 
-  res.json(userSettings);
+    if (!settings) {
+      return res.json({});
+    }
+
+    res.json({
+      wochenstunden: settings.wochenstunden,
+      darkMode: settings.darkMode,
+      emailTo: settings.emailTo,
+      employees: JSON.parse(settings.employees || '[]')
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Fehler beim Laden der Einstellungen' });
+  }
 });
 
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✓ Zeiterfassung-App läuft auf http://0.0.0.0:${PORT}`);
   console.log(`  Login: http://localhost:${PORT}`);
-  console.log(`  Daten werden in: ${DATA_DIR} gespeichert\n`);
 });
 
 server.on('error', (err) => {
   console.error('Server Fehler:', err);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
 });
