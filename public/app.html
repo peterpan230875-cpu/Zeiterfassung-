@@ -1444,69 +1444,141 @@ function buildPrintHTML(){
   const emp=curEmp();const y=state.year,m=state.month;const days=daysIn(y,m);
   const wh=parseFloat(state.wochenstunden)||38.5;const ts=wh/5;
   const tLabels={urlaub:"Urlaub",zeitausgleich:"Zeitausgleich",krank:"Krank"};
-  let work=0,urlaub=0,za=0,krank=0;
+  let work=0,urlaub=0,za=0,krank=0,totalMin=0;
   let rows="";
+
   for(let d=1;d<=days;d++){
     const key=dk(y,m,d);const dayWT=wtDay(y,m,d);
-    const holiday=FEIERTAGE[key]||null;const sun=isSun(y,m,d);
+    const holiday=FEIERTAGE[key]||null;const sun=isSun(y,m,d);const sat=isSat(y,m,d);
     const entry=emp.entries[key]||null;const typ=entry?entry.typ||"normal":"normal";
-    let bg="#fff";
-    if(holiday||sun)bg="#FEE2E2";
-    else if(typ==="urlaub")bg="#EFF6FF";
-    else if(typ==="zeitausgleich")bg="#F0FDF4";
-    else if(typ==="krank")bg="#FEF2F2";
-    let von="",bis="",pause="",bem="",netto="";
-    if(holiday){von="<strong>"+holiday+"</strong>";netto=ts.toFixed(2).replace(".",",")+" h";}
+
+    let bg="";
+    if(holiday||sun)bg="background:#FEE2E2;";
+    else if(sat)bg="background:#FFF7ED;";
+    else if(typ==="urlaub")bg="background:#EFF6FF;";
+    else if(typ==="zeitausgleich")bg="background:#F0FDF4;";
+    else if(typ==="krank")bg="background:#FEF2F2;";
+
+    let von="",bis="",pause="",bem="",netto="",nettoColor="#2563EB";
+    if(holiday){von=holiday;netto=ts.toFixed(2).replace(".",",");}
     else if(sun){von="Sonntag";}
+    else if(sat){von="Samstag";}
     else if(typ!=="normal"){
-      von="<strong>"+(tLabels[typ]||"")+"</strong>";
-      if(typ==="urlaub"){urlaub++;netto=ts.toFixed(2).replace(".",",")+" h";}
+      von=tLabels[typ]||"";
+      if(typ==="urlaub"){urlaub++;netto=ts.toFixed(2).replace(".",",");nettoColor="#2563EB";}
       else if(typ==="zeitausgleich")za++;
-      else if(typ==="krank"){krank++;netto=ts.toFixed(2).replace(".",",")+" h";}
+      else if(typ==="krank"){krank++;netto=ts.toFixed(2).replace(".",",");nettoColor="#DC2626";}
     } else if(entry){
-      von=entry.von||"";bis=entry.bis||"";pause=entry.pause?(entry.pause+"'"):"";bem=entry.bemerkung||"";
+      von=entry.von||"";bis=entry.bis||"";
+      pause=entry.pause?(entry.pause+"'"):"";
+      bem=entry.bemerkung||"";
       if(entry.von&&entry.bis){
-        const [vh,vm]=entry.von.split(":").map(Number);
-        const [bh,bm]=entry.bis.split(":").map(Number);
-        const total=(bh*60+bm)-(vh*60+vm);const p=parseInt(entry.pause||"0")||0;
+        const [vh,vm2]=entry.von.split(":").map(Number);
+        const [bh,bm2]=entry.bis.split(":").map(Number);
+        const total=(bh*60+bm2)-(vh*60+vm2);const p=parseInt(entry.pause||"0")||0;
         const net=Math.max(0,total-p);
-        if(net>0){work++;netto=(net/60).toFixed(2).replace(".",",")+" h";}
+        if(net>0){work++;totalMin+=net;netto=(net/60).toFixed(2).replace(".",",");}
       }
     }
-    rows+=`<tr style="background:${bg};border-bottom:1px solid #E5E7EB;">
-      <td style="padding:6px 10px;font-weight:600;font-family:monospace;width:32px;">${d}</td>
-      <td style="padding:6px 10px;color:#6B7280;font-size:12px;width:28px;">${dayWT}</td>
-      <td style="padding:6px 10px;font-family:monospace;">${von}</td>
-      <td style="padding:6px 10px;font-family:monospace;">${bis}</td>
-      <td style="padding:6px 10px;font-family:monospace;color:#6B7280;">${pause}</td>
-      <td style="padding:6px 10px;font-size:12px;">${bem}</td>
-      <td style="padding:6px 10px;font-family:monospace;font-weight:600;color:#2563EB;">${netto}</td>
+
+    const bold=(holiday||typ!=="normal"&&!sun&&!sat)?"font-weight:600;":"";
+    rows+=`<tr style="${bg}">
+      <td class="c num">${d}</td>
+      <td class="c wt" style="color:#888;">${dayWT}</td>
+      <td class="c" style="${bold}">${von}</td>
+      <td class="c mono">${bis}</td>
+      <td class="c mono" style="color:#888;">${pause}</td>
+      <td class="c bem">${bem}</td>
+      <td class="c mono" style="color:${nettoColor};font-weight:600;">${netto?netto+" h":""}</td>
     </tr>`;
   }
+
+  const totalH=totalMin>0?`${Math.floor(totalMin/60)}h ${totalMin%60}m`:"";
+  const saldo=totalMin-(work*ts*60);
+  const saldoStr=saldo>=0?`+${(saldo/60).toFixed(2).replace(".",",")} h`:`${(saldo/60).toFixed(2).replace(".",",")} h`;
+  const saldoColor=saldo>=0?"#16A34A":"#DC2626";
+
   return `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"/>
 <title>Zeiterfassung ${MON[m]} ${y} — ${emp.name}</title>
-<style>body{font-family:Arial,sans-serif;font-size:14px;color:#111;margin:0;padding:20px;}
-h1{font-size:20px;font-weight:800;margin-bottom:2px;}
-.sub{color:#6B7280;font-size:13px;margin-bottom:16px;}
-.stats{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
-.stat{border:1px solid #E5E7EB;border-radius:8px;padding:10px 16px;}
-.sl{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#9CA3AF;margin-bottom:2px;}
-.sv{font-size:22px;font-weight:700;font-family:monospace;}
-table{width:100%;border-collapse:collapse;border:1px solid #E5E7EB;}
-th{background:#F9FAFB;padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#9CA3AF;border-bottom:2px solid #E5E7EB;}
-@media print{body{padding:8px;}}</style></head><body>
-<h1>Zeiterfassung</h1>
-<div class="sub">${MON[m]} ${y} · ${emp.name}</div>
-<div class="stats">
-  <div class="stat"><div class="sl">Arbeitstage</div><div class="sv">${work}</div></div>
-  <div class="stat"><div class="sl">Urlaub</div><div class="sv">${urlaub}</div></div>
-  <div class="stat"><div class="sl">Zeitausgleich</div><div class="sv">${za}</div></div>
-  <div class="stat"><div class="sl">Krank</div><div class="sv">${krank}</div></div>
+<style>
+@page{size:A4 portrait;margin:12mm 10mm;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,Helvetica,sans-serif;font-size:9pt;color:#111;background:#fff;}
+
+/* HEADER */
+.hdr{display:flex;justify-content:space-between;align-items:flex-end;
+  border-bottom:2px solid #111;padding-bottom:4px;margin-bottom:6px;}
+.hdr-left h1{font-size:15pt;font-weight:800;letter-spacing:-.3px;line-height:1;}
+.hdr-left .sub{font-size:8.5pt;color:#555;margin-top:1px;}
+.hdr-right{font-size:8pt;color:#888;text-align:right;}
+
+/* STATS */
+.stats{display:flex;gap:6px;margin-bottom:6px;}
+.stat{border:1px solid #ddd;border-radius:4px;padding:3px 8px;min-width:70px;}
+.stat-lbl{font-size:6.5pt;text-transform:uppercase;letter-spacing:.4px;color:#999;}
+.stat-val{font-size:13pt;font-weight:700;font-family:monospace;line-height:1.2;}
+.stat-val.blue{color:#2563EB;}.stat-val.green{color:#16A34A;}.stat-val.red{color:#DC2626;}
+.stat-val.amber{color:#D97706;}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;font-size:8.5pt;}
+thead tr{background:#F3F4F6;}
+th{padding:3px 5px;text-align:left;font-size:7pt;text-transform:uppercase;
+  letter-spacing:.5px;color:#777;border-bottom:1.5px solid #ccc;white-space:nowrap;}
+td{padding:2.5px 5px;border-bottom:.5px solid #E5E7EB;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+.c{white-space:nowrap;}.num{font-weight:700;width:22px;font-family:monospace;}
+.wt{width:20px;font-size:8pt;}.mono{font-family:monospace;}
+.bem{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#555;}
+
+/* TOTALS ROW */
+.total-row td{border-top:1.5px solid #111;font-weight:700;font-size:9pt;padding:4px 5px;}
+
+/* FOOTER */
+.footer{margin-top:5px;display:flex;justify-content:space-between;
+  font-size:7pt;color:#999;border-top:1px solid #eee;padding-top:3px;}
+
+@media print{
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .no-print{display:none;}
+}
+</style></head><body>
+
+<div class="hdr">
+  <div class="hdr-left">
+    <h1>Zeiterfassung</h1>
+    <div class="sub">${MON[m]} ${y} &nbsp;·&nbsp; ${emp.name}</div>
+  </div>
+  <div class="hdr-right">
+    Wochenstunden: ${wh} h &nbsp;·&nbsp; Tagessoll: ${ts.toFixed(2).replace(".",",")} h
+  </div>
 </div>
-<table><thead><tr>
+
+<div class="stats">
+  <div class="stat"><div class="stat-lbl">Arbeitstage</div><div class="stat-val blue">${work}</div></div>
+  <div class="stat"><div class="stat-lbl">Urlaub</div><div class="stat-val amber">${urlaub}</div></div>
+  <div class="stat"><div class="stat-lbl">Zeitausgleich</div><div class="stat-val green">${za}</div></div>
+  <div class="stat"><div class="stat-lbl">Krank</div><div class="stat-val red">${krank}</div></div>
+  <div class="stat"><div class="stat-lbl">Gesamt</div><div class="stat-val blue">${totalH||"—"}</div></div>
+  <div class="stat"><div class="stat-lbl">Saldo</div><div class="stat-val" style="color:${saldoColor};">${work>0?saldoStr:"—"}</div></div>
+</div>
+
+<table>
+<thead><tr>
   <th>Tag</th><th>WT</th><th>Von</th><th>Bis</th><th>Pause</th><th>Bemerkung</th><th>Netto</th>
-</tr></thead><tbody>${rows}</tbody></table>
-<div style="margin-top:14px;font-size:11px;color:#9CA3AF;">Erstellt am ${new Date().toLocaleDateString("de-AT")} · Zeiterfassung v2.0</div>
+</tr></thead>
+<tbody>${rows}</tbody>
+<tfoot><tr class="total-row">
+  <td colspan="6" style="text-align:right;color:#555;font-size:8pt;">Gesamtstunden im Monat:</td>
+  <td style="color:#2563EB;">${totalH||"—"}</td>
+</tr></tfoot>
+</table>
+
+<div class="footer">
+  <span>Erstellt am ${new Date().toLocaleDateString("de-AT")} · Zeiterfassung v2.0</span>
+  <span>Seite 1/1</span>
+</div>
+
 </body></html>`;
 }
 
