@@ -1239,7 +1239,7 @@ function openSheet(key){
   document.getElementById("sb-m").value=bm||"";
 
   // Pause
-  const pval=entry.pause||"30";
+  const pval=entry.pause||String(state.defaultPause||30);
   const isPill=PAUSES.includes(pval);
   document.querySelectorAll("#pause-row .ppill").forEach(b=>b.classList.toggle("pa",b.dataset.val===pval));
   document.getElementById("inp-pause-custom").value=isPill?"":pval;
