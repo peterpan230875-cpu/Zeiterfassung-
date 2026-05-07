@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>Zeiterfassung v2.0</title>
+<title>Zeiterfassung v2.1</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -38,6 +38,7 @@ body.dark {
 }
 
 *{box-sizing:border-box;margin:0;padding:0;}
+html,body{overflow-x:hidden;max-width:100%;}
 body{font-family:'Figtree',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:15px;-webkit-font-smoothing:antialiased;}
 
 /* ── HEADER ─────────────────────────────────────────────────────────────── */
@@ -452,43 +453,72 @@ tr.r-k{background:var(--red-bg);}
   font-size:15px;cursor:pointer;
 }
 
+/* Desktop: user-info Trenner */
+#user-info{display:flex;align-items:center;gap:8px;margin-left:12px;padding-left:12px;border-left:1px solid var(--brd);}
+
 /* ── RESPONSIVE ─────────────────────────────────────────────────────────── */
+
+/* Tablet ≤700px: Tabelle → Mobile-Karten */
 @media(max-width:700px){
-  #stats{grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px;}
-  .sc{padding:5px 6px;}
-  .sc-lbl{font-size:7px;margin-bottom:1px;}
-  .sc-val{font-size:12px;}
-  .sc-sub{font-size:7px;margin-top:1px;}
   #tbl-wrap{display:none;}
   #mob-list{display:block;background:var(--sur);border:1px solid var(--brd);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);}
-  #app-title{font-size:16px;}
-  #month-lbl{min-width:100px;font-size:11px;}
-  #hdr-version{display:none;}
-  #hdr-top{padding:10px 12px 8px;}
+  .td-b,.td-p{display:none;}
   #main{padding:12px 12px 120px;}
-}
-@media(max-width:500px){
-  #stats{grid-template-columns:repeat(2,1fr);gap:6px;}
-  .sc{padding:4px 5px;}
-  .sc-lbl{font-size:6px;margin-bottom:1px;}
-  .sc-val{font-size:11px;}
-  .hbtn span{display:none;}
-  .hbtn{padding:5px 6px;font-size:11px;}
-  #main{padding:10px 10px 120px;}
-  #app-title{font-size:15px;}
-}
-@media(max-width:380px){
-  #stats{grid-template-columns:1fr 1fr;gap:5px;}
-  .sc:nth-child(5){grid-column:span 2;}
-  .sc{padding:3px 4px;}
-  .sc-lbl{font-size:6px;}
-  .sc-val{font-size:10px;}
-  #app-title{font-size:13px;}
-  #hdr-top{padding:8px 10px 6px;gap:4px;}
-  #hdr-btns{gap:3px;}
 }
 @media(min-width:701px){
   .td-b,.td-p{display:table-cell;}
+}
+
+/* Handy ≤600px: 3-zeiliger Header */
+@media(max-width:600px){
+  #hdr-top{flex-wrap:wrap;padding:10px 14px 0;gap:0;align-items:center;}
+
+  /* Zeile 1: Titel + Abstand + Logout */
+  #app-title{order:1;font-size:16px;flex-shrink:0;}
+  #hdr-version{order:1;flex-shrink:0;}
+  #hdr-spacer{order:1;flex:1;}
+  #user-info{order:1;margin-left:0!important;padding-left:0!important;border-left:none!important;gap:4px;}
+  #user-name{display:none!important;}
+
+  /* Zeile 2: Monatsnavigation – zentriert, volle Breite */
+  #month-nav{
+    order:2;width:100%;justify-content:center;
+    padding:8px 0;gap:10px;
+    border-top:1px solid var(--brd);margin-top:8px;
+  }
+  #month-lbl{font-size:14px;min-width:160px;padding:9px 16px;}
+  .nav-btn{width:42px;height:42px;font-size:18px;}
+
+  /* Zeile 3: Aktions-Buttons – volle Breite, fingerfreundlich */
+  #hdr-btns{
+    order:3;width:100%;
+    display:grid;grid-template-columns:1fr 1fr 48px;
+    gap:6px;padding:6px 0 8px;
+    border-top:1px solid var(--brd);margin-top:2px;
+  }
+  .hbtn{height:46px;padding:8px 10px;font-size:13px;justify-content:center;}
+  .hbtn span{display:inline!important;}
+
+  /* Stats: 3 Spalten */
+  #stats{grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px;}
+  .sc{padding:6px 7px;}
+  .sc-lbl{font-size:7px;margin-bottom:1px;}
+  .sc-val{font-size:13px;}
+  .sc-sub{font-size:7px;margin-top:1px;}
+  #main{padding:12px 12px 120px;}
+}
+
+/* Kleines Handy ≤400px */
+@media(max-width:400px){
+  #month-lbl{font-size:13px;min-width:140px;padding:8px 12px;}
+  .nav-btn{width:38px;height:38px;font-size:16px;}
+  #hdr-btns{grid-template-columns:1fr 1fr 44px;gap:5px;}
+  .hbtn{height:44px;font-size:12px;}
+  #stats{grid-template-columns:repeat(2,1fr);gap:5px;}
+  .sc:nth-child(5){grid-column:span 2;}
+  .sc{padding:5px 6px;}
+  .sc-val{font-size:12px;}
+  #main{padding:10px 10px 100px;}
 }
 </style>
 </head>
@@ -502,7 +532,7 @@ tr.r-k{background:var(--red-bg);}
 <div id="hdr">
   <div id="hdr-top">
     <div id="app-title">Zeiterfassung</div>
-    <span id="hdr-version">v2.0</span>
+    <span id="hdr-version">v2.1</span>
     <div id="hdr-spacer"></div>
     <div id="month-nav">
       <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
@@ -513,10 +543,10 @@ tr.r-k{background:var(--red-bg);}
       <button class="hbtn hbtn-blue" onclick="openWeekSheet()">📅 <span>Woche</span></button>
       <button class="hbtn hbtn-green" onclick="openPdfSheet()">📤 <span>Export</span></button>
       <button class="hbtn" onclick="openSettingsSheet()">⚙️</button>
-      <div id="user-info" style="display:flex;align-items:center;gap:8px;margin-left:12px;padding-left:12px;border-left:1px solid var(--brd);">
-        <span id="user-name" style="font-size:12px;font-weight:500;color:var(--txt2);"></span>
-        <button class="hbtn" onclick="handleLogout()" title="Logout">🚪</button>
-      </div>
+    </div>
+    <div id="user-info">
+      <span id="user-name" style="font-size:12px;font-weight:500;color:var(--txt2);"></span>
+      <button class="hbtn" onclick="handleLogout()" title="Logout">🚪</button>
     </div>
   </div>
   <div id="emp-tabs"></div>
