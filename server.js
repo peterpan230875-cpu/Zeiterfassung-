@@ -1,6 +1,5 @@
 const express = require('express');
 const session = require('express-session');
-const SQLiteStore = require('connect-sqlite3')(session);
 const bodyParser = require('body-parser');
 const bcryptjs = require('bcryptjs');
 const fs = require('fs');
@@ -16,13 +15,64 @@ if (!fs.existsSync(DATA_DIR)) {
 
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const ENTRIES_FILE = path.join(DATA_DIR, 'entries.json');
+const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
+
+// Einfacher Session-Store mit JSON-Persistierung
+class FileSessionStore extends session.Store {
+  constructor() {
+    super();
+    this.sessions = this.loadSessions();
+  }
+
+  loadSessions() {
+    try {
+      if (fs.existsSync(SESSIONS_FILE)) {
+        return JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+      }
+    } catch (err) {
+      console.error('Fehler beim Laden von Sessions:', err);
+    }
+    return {};
+  }
+
+  saveSessions() {
+    try {
+      fs.writeFileSync(SESSIONS_FILE, JSON.stringify(this.sessions, null, 2));
+    } catch (err) {
+      console.error('Fehler beim Speichern von Sessions:', err);
+    }
+  }
+
+  get(sid, callback) {
+    const sess = this.sessions[sid];
+    callback(null, sess);
+  }
+
+  set(sid, sess, callback) {
+    this.sessions[sid] = sess;
+    this.saveSessions();
+    callback(null);
+  }
+
+  destroy(sid, callback) {
+    delete this.sessions[sid];
+    this.saveSessions();
+    callback(null);
+  }
+
+  clear(callback) {
+    this.sessions = {};
+    this.saveSessions();
+    callback(null);
+  }
+}
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
-  store: new SQLiteStore({ db: path.join(DATA_DIR, 'sessions.db') }),
+  store: new FileSessionStore(),
   secret: process.env.SESSION_SECRET || 'zeiterfassung-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
