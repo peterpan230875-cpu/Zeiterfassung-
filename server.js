@@ -202,12 +202,13 @@ app.get('/api/user-settings', async (req, res) => {
   try {
     const settings = await prisma.settings.findUnique({ where: { userId: req.session.userId } });
     if (!settings) return res.json({});
+    // Erster Mitarbeiter ist immer der eingeloggte Benutzer (korrigiert falsche DB-Einträge)
     res.json({
       wochenstunden: settings.wochenstunden,
       darkMode: settings.darkMode,
       emailTo: settings.emailTo,
       setupDone: settings.setupDone,
-      employees: JSON.parse(settings.employees || '[]')
+      employees: [{ id: 1, name: req.session.name, entries: {} }]
     });
   } catch (err) {
     res.status(500).json({ error: 'Fehler beim Laden' });
