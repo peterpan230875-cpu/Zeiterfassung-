@@ -1177,7 +1177,10 @@ function setTyp(typ){
   const emp=curEmp();
   const cur=emp.entries[sheetDay]||{};
   emp.entries[sheetDay]={...cur,von:"",bis:"",pause:"",typ};
-  saveState();render();closeSheet();
+  saveState();
+  // Sende Typ-Änderung zum Server
+  syncEntryToServer(sheetDay, emp.entries[sheetDay]);
+  render();closeSheet();
   const labels={urlaub:"🏖 Urlaub",zeitausgleich:"🔄 Zeitausgleich",krank:"🤒 Krank"};
   toast("✓ "+labels[typ]);
 }
