@@ -1637,7 +1637,7 @@ async function sendEmail(){
     await new Promise(r=>setTimeout(r,400)); // Render abwarten
 
     const canvas=await html2canvas(wrapper,{
-      scale:2,backgroundColor:"#ffffff",
+      scale:1.5,backgroundColor:"#ffffff",
       width:794,useCORS:true,logging:false
     });
     document.body.removeChild(wrapper);
@@ -1649,7 +1649,7 @@ async function sendEmail(){
     const ph=doc.internal.pageSize.getHeight();
     const imgW=pw;
     const imgH=(canvas.height*pw)/canvas.width;
-    doc.addImage(canvas.toDataURL("image/jpeg",0.93),"JPEG",0,0,imgW,Math.min(imgH,ph));
+    doc.addImage(canvas.toDataURL("image/jpeg",0.82),"JPEG",0,0,imgW,Math.min(imgH,ph));
 
     const pdfBase64=doc.output("datauristring").split(",")[1];
 
