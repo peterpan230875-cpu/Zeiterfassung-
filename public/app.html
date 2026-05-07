@@ -1493,10 +1493,22 @@ function buildPrintHTML(){
     </tr>`;
   }
 
-  const totalH=totalMin>0?`${Math.floor(totalMin/60)}h ${totalMin%60}m`:"";
-  const saldo=totalMin-(work*ts*60);
-  const saldoStr=saldo>=0?`+${(saldo/60).toFixed(2).replace(".",",")} h`:`${(saldo/60).toFixed(2).replace(".",",")} h`;
-  const saldoColor=saldo>=0?"#16A34A":"#DC2626";
+  const totalH=totalMin>0?`${Math.floor(totalMin/60)}h ${Math.round(totalMin%60)}m`:"";
+
+  // Soll-Arbeitstage: alle Mo-Fr die kein Feiertag sind
+  let sollArbeitstage=0;
+  for(let d=1;d<=days;d++){
+    const key=dk(y,m,d);
+    if(!isSun(y,m,d)&&!isSat(y,m,d)&&!FEIERTAGE[key]) sollArbeitstage++;
+  }
+  const istMin=totalMin+(urlaub+krank)*ts*60; // ZA zählt nicht
+  const sollMin=sollArbeitstage*ts*60;
+  const saldo=istMin-sollMin;
+  const saldoAbs=Math.abs(saldo);
+  const saldoSign=saldo>0?"+":saldo<0?"-":"±";
+  const saldoStr=`${saldoSign}${Math.floor(saldoAbs/60)}h ${Math.round(saldoAbs%60)}m`;
+  const saldoColor=saldo>0?"#16A34A":saldo<0?"#DC2626":"#888";
+  const hasData=work>0||urlaub>0||krank>0||za>0;
 
   return `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"/>
 <title>Zeiterfassung ${MON[m]} ${y} — ${emp.name}</title>
@@ -1560,7 +1572,7 @@ tr:last-child td{border-bottom:none;}
   <div class="stat"><div class="stat-lbl">Zeitausgleich</div><div class="stat-val green">${za}</div></div>
   <div class="stat"><div class="stat-lbl">Krank</div><div class="stat-val red">${krank}</div></div>
   <div class="stat"><div class="stat-lbl">Gesamt</div><div class="stat-val blue">${totalH||"—"}</div></div>
-  <div class="stat"><div class="stat-lbl">Saldo</div><div class="stat-val" style="color:${saldoColor};">${work>0?saldoStr:"—"}</div></div>
+  <div class="stat"><div class="stat-lbl">Saldo (Ist−Soll)</div><div class="stat-val" style="color:${saldoColor};font-size:11pt;">${hasData?saldoStr:"—"}</div></div>
 </div>
 
 <table>
