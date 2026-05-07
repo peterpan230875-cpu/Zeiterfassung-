@@ -859,7 +859,7 @@ const PAUSES=["0","15","30","36","45","60"];
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let state=loadState()||{
   year:2026,month:3,selEmp:0,
-  wochenstunden:38.5,darkMode:false,emailTo:"",
+  wochenstunden:38.5,darkMode:false,emailTo:"",defaultPause:30,
   employees:[{id:1,name:"",entries:{}}]
 };
 let sheetDay=null,recognition=null,listening=false,wkMonday=null,wkWeekDays=[];
@@ -1186,8 +1186,9 @@ function buildSelects(){
     MINS.forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;s.appendChild(o);});
   });
   const pr=document.getElementById("pause-row");if(pr){pr.innerHTML="";
+  const defP=String(state.defaultPause||30);
   PAUSES.forEach(p=>{
-    const b=document.createElement("button");b.className="ppill"+(p==="30"?" pa":"");
+    const b=document.createElement("button");b.className="ppill"+(p===defP?" pa":"");
     b.textContent=p+"'";b.dataset.val=p;
     b.onclick=()=>{document.querySelectorAll("#pause-row .ppill").forEach(x=>x.classList.remove("pa"));b.classList.add("pa");document.getElementById("inp-pause-custom").value="";};
     pr.appendChild(b);
@@ -1206,8 +1207,9 @@ function buildWeekSelects(){
     MINS.forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;s.appendChild(o);});
   });
   const pr=document.getElementById("wk-pause-row");if(pr){pr.innerHTML="";
+  const defP=String(state.defaultPause||30);
   PAUSES.forEach(p=>{
-    const b=document.createElement("button");b.className="ppill"+(p==="30"?" pa":"");
+    const b=document.createElement("button");b.className="ppill"+(p===defP?" pa":"");
     b.textContent=p+"'";b.dataset.val=p;
     b.onclick=()=>{document.querySelectorAll("#wk-pause-row .ppill").forEach(x=>x.classList.remove("pa"));b.classList.add("pa");document.getElementById("wk-pause-custom").value="";};
     pr.appendChild(b);
@@ -1910,6 +1912,7 @@ async function syncSettingsToServer(setupDone) {
       darkMode: state.darkMode,
       emailTo: state.emailTo,
       setupDone: setupDone === true,
+      defaultPause: state.defaultPause || 30,
       employees: state.employees
     };
 
@@ -1956,6 +1959,7 @@ async function loadSettingsFromServer() {
     if (settings.wochenstunden) state.wochenstunden = settings.wochenstunden;
     if (settings.darkMode !== undefined) state.darkMode = settings.darkMode;
     if (settings.emailTo) state.emailTo = settings.emailTo;
+    if (settings.defaultPause) state.defaultPause = settings.defaultPause;
 
     // Mitarbeiter vom Server immer vollständig übernehmen (nie mit lokalem Cache mischen)
     // Einträge kommen separat via loadEntriesFromServer()

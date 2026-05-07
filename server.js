@@ -185,11 +185,13 @@ app.delete('/api/entry/:date', async (req, res) => {
 app.post('/api/user-settings', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
   try {
-    const { wochenstunden, darkMode, emailTo, employees, setupDone } = req.body;
+    const { wochenstunden, darkMode, emailTo, employees, setupDone, defaultPause } = req.body;
+    // defaultPause im employees-JSON mitgespeichert (kein extra Schema-Feld nötig)
+    const empData = JSON.stringify([{ id: 1, name: req.session.name, defaultPause: parseInt(defaultPause) || 30 }]);
     const settings = await prisma.settings.upsert({
       where: { userId: req.session.userId },
-      update: { wochenstunden: wochenstunden || 38.5, darkMode: !!darkMode, emailTo: emailTo || '', setupDone: setupDone === true, employees: JSON.stringify(employees || []) },
-      create: { userId: req.session.userId, wochenstunden: wochenstunden || 38.5, darkMode: !!darkMode, emailTo: emailTo || '', setupDone: setupDone === true, employees: JSON.stringify(employees || []) }
+      update: { wochenstunden: wochenstunden || 38.5, darkMode: !!darkMode, emailTo: emailTo || '', setupDone: setupDone === true, employees: empData },
+      create: { userId: req.session.userId, wochenstunden: wochenstunden || 38.5, darkMode: !!darkMode, emailTo: emailTo || '', setupDone: setupDone === true, employees: empData }
     });
     res.json({ success: true, settings });
   } catch (err) {
@@ -202,12 +204,14 @@ app.get('/api/user-settings', async (req, res) => {
   try {
     const settings = await prisma.settings.findUnique({ where: { userId: req.session.userId } });
     if (!settings) return res.json({});
-    // Erster Mitarbeiter ist immer der eingeloggte Benutzer (korrigiert falsche DB-Einträge)
+    const empArr = JSON.parse(settings.employees || '[]');
+    const defaultPause = (empArr[0] && empArr[0].defaultPause) || 30;
     res.json({
       wochenstunden: settings.wochenstunden,
       darkMode: settings.darkMode,
       emailTo: settings.emailTo,
       setupDone: settings.setupDone,
+      defaultPause,
       employees: [{ id: 1, name: req.session.name, entries: {} }]
     });
   } catch (err) {
