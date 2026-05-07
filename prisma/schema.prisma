@@ -16,7 +16,6 @@ model User {
 
   entries   Entry[]
   settings  Settings?
-  sessions  Session[]
 }
 
 model Entry {
@@ -54,10 +53,7 @@ model Settings {
 
 model Session {
   sid       String   @id
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  data      Json
+  data      String
   expiresAt DateTime
 
   createdAt DateTime @default(now())
