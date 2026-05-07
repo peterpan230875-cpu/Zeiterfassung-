@@ -1625,11 +1625,11 @@ function sendEmail(){
     const typ=entry?entry.typ||"normal":"normal";
     let von="",bis="",pause="",bem="",netto="";
 
-    if(holiday){
+    if(sun||sat){
+      continue; // Wochenenden immer überspringen (auch Feiertage wie Pfingstsonntag)
+    } else if(holiday){
       von=holiday;
       netto=ts.toFixed(2).replace(".",",")+" h";
-    } else if(sun||sat){
-      continue; // Wochenenden komplett überspringen
     } else if(typ!=="normal"){
       von=tLabels[typ]||"";
       if(typ==="urlaub"){urlaub++;netto=ts.toFixed(2).replace(".",",")+" h";}
@@ -1655,9 +1655,12 @@ function sendEmail(){
     );
   }
 
-  // Saldo
+  // Saldo: nur bis heute (laufender Monat) oder bis Monatsende (vergangene Monate)
+  const today=new Date();
+  const isCurrentMonth=(y===today.getFullYear()&&m===today.getMonth()+1);
+  const countUntil=isCurrentMonth?today.getDate():days;
   let sollAT=0;
-  for(let d=1;d<=days;d++){
+  for(let d=1;d<=countUntil;d++){
     const k=dk(y,m,d);
     if(!isSun(y,m,d)&&!isSat(y,m,d)&&!FEIERTAGE[k]) sollAT++;
   }
@@ -1665,7 +1668,7 @@ function sendEmail(){
   const sollMin=sollAT*ts*60;
   const saldo=istMin-sollMin;
   const saldoSign=saldo>0?"+":saldo<0?"-":"±";
-  const saldoStr=saldoSign+Math.abs(saldo/60).toFixed(2).replace(".",",")+" h";
+  const saldoStr=saldoSign+Math.abs(saldo/60).toFixed(2).replace(".",",")+" h"+(isCurrentMonth?" (bis heute)":"");
 
   let body=`ZEITERFASSUNG  ${MON[m].toUpperCase()} ${y}\n`;
   body+=`${emp.name}  |  Soll: ${wh} h/Wo  |  Tagessoll: ${ts.toFixed(2).replace(".",",")} h\n`;
