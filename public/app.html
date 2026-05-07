@@ -860,11 +860,7 @@ const PAUSES=["0","15","30","36","45","60"];
 let state=loadState()||{
   year:2026,month:3,selEmp:0,
   wochenstunden:38.5,darkMode:false,emailTo:"",
-  employees:[
-    {id:1,name:"Max Müller",entries:{}},
-    {id:2,name:"Anna Schmidt",entries:{}},
-    {id:3,name:"Peter Weber",entries:{}}
-  ]
+  employees:[{id:1,name:"",entries:{}}]
 };
 let sheetDay=null,recognition=null,listening=false,wkMonday=null,wkWeekDays=[];
 
@@ -1821,6 +1817,9 @@ async function loadUserInfo() {
     const user = await res.json();
     state.name = user.name;
     document.getElementById('user-name').textContent = user.name;
+    // Namen sofort im Tab setzen (bevor Server-Einstellungen laden)
+    if(state.employees.length === 1) state.employees[0].name = user.name;
+    localStorage.removeItem('zt_v3'); // Alten Cache löschen → immer frische Server-Daten
   } catch (err) {
     console.error('Fehler beim Laden der Benutzerinfo:', err);
     window.location.href = '/';
