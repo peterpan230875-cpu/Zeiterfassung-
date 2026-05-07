@@ -1335,6 +1335,8 @@ function saveWeek(){
     if(d.skip||d.blocked)return;
     if(wkTyp==="normal"){if(!von)return;emp.entries[d.key]={von,bis,pause,bemerkung:"",typ:"normal"};}
     else{emp.entries[d.key]={von:"",bis:"",pause:"",bemerkung:"",typ:wkTyp};}
+    // Sende jeden Eintrag zum Server
+    syncEntryToServer(d.key, emp.entries[d.key]);
     count++;
   });
   saveState();render();closeWeekSheet();toast("✓ "+count+" Tage eingetragen");

@@ -1,5 +1,6 @@
 const express = require('express');
 const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
 const bodyParser = require('body-parser');
 const bcryptjs = require('bcryptjs');
 const fs = require('fs');
@@ -21,10 +22,15 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
+  store: new SQLiteStore({ db: path.join(DATA_DIR, 'sessions.db') }),
   secret: process.env.SESSION_SECRET || 'zeiterfassung-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 }
+  cookie: {
+    secure: false,
+    httpOnly: true,
+    maxAge: 30 * 24 * 60 * 60 * 1000  // 30 Tage
+  }
 }));
 
 // JSON-Datei laden
