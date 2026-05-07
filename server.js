@@ -226,10 +226,12 @@ app.post('/api/send-email', async (req, res) => {
       return res.status(500).json({ error: 'SMTP nicht konfiguriert. Bitte SMTP_USER und SMTP_PASS in den Vercel-Umgebungsvariablen setzen.' });
     }
 
+    const smtpHost = process.env.SMTP_HOST || 'smtp.mail.yahoo.com';
+    const smtpPort = parseInt(process.env.SMTP_PORT) || 465;
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT) || 587,
-      secure: false,
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,   // 465 = SSL, 587 = STARTTLS
       auth: { user: smtpUser, pass: smtpPass }
     });
 
