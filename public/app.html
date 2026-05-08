@@ -558,6 +558,13 @@ tr.r-k{background:var(--red-bg);}
   box-shadow:0 4px 16px rgba(37,99,235,.3);transition:all .15s;
 }
 .sw-btn:hover{background:#1D4ED8;transform:translateY(-1px);}
+.sw-inp2{
+  width:100%;padding:11px 13px;border:1.5px solid var(--brd);border-radius:var(--rs);
+  font-family:'Figtree',sans-serif;font-size:14px;background:var(--bg);
+  color:var(--txt);outline:none;transition:border-color .15s;margin-bottom:8px;
+}
+.sw-inp2:focus{border-color:var(--blue);}
+.sw-divider{border:none;border-top:1px solid var(--brd);margin:20px 0;}
 </style>
 </head>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -643,6 +650,11 @@ tr.r-k{background:var(--red-bg);}
       <button class="sw-pill" onclick="selectSetupPause(45, this)">45'</button>
       <button class="sw-pill" onclick="selectSetupPause(60, this)">60'</button>
     </div>
+    <hr class="sw-divider"/>
+    <div class="sw-lbl">E-Mail Versand — Absender (optional)</div>
+    <p style="font-size:12px;color:var(--txt2);margin-bottom:10px;">Deine Absender-E-Mail und App-Passwort für den PDF-Versand.</p>
+    <input class="sw-inp2" id="setup-smtp-user" type="email" placeholder="deine@email.at" autocomplete="username"/>
+    <input class="sw-inp2" id="setup-smtp-pass" type="password" placeholder="App-Passwort (z. B. Yahoo App-Passwort)" autocomplete="new-password"/>
     <button class="sw-btn" onclick="completeSetup()">Einrichtung abschließen</button>
   </div>
 </div>
@@ -829,11 +841,21 @@ tr.r-k{background:var(--red-bg);}
     </div>
     <hr class="divider"/>
     <div class="sec">
+      <div class="sec-lbl">E-Mail Versand — Absender</div>
+      <p style="font-size:13px;color:var(--txt2);margin-bottom:4px;">Deine Absender-Adresse und App-Passwort für den PDF-Versand. Jeder Nutzer hat eigene Zugangsdaten.</p>
+      <input class="set-inp" id="inp-smtp-user" type="email" placeholder="deine@email.at" autocomplete="username"/>
+      <input class="set-inp" id="inp-smtp-pass" type="password" placeholder="App-Passwort" style="margin-top:8px;" autocomplete="new-password"/>
+      <p id="smtp-pass-hint" style="display:none;font-size:12px;color:var(--green);margin-top:4px;">✓ Passwort gespeichert — leer lassen zum Behalten</p>
+      <button onclick="saveSmtpSettings()" style="margin-top:10px;width:100%;padding:12px;border:none;border-radius:var(--rs);background:var(--blue);color:#fff;font-family:'Figtree',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">💾 Zugangsdaten speichern</button>
+      <div id="smtp-badge" style="display:none" class="saved-badge">✓ Gespeichert</div>
+    </div>
+    <hr class="divider"/>
+    <div class="sec">
       <div class="sec-lbl">Über diese App</div>
       <div style="font-size:13px;color:var(--txt2);line-height:1.8;">
-        Zeiterfassung v2.0<br>
-        Daten werden lokal im Browser gespeichert.<br>
-        Keine Übertragung an externe Server.
+        Zeiterfassung v2.1<br>
+        Daten werden sicher auf dem Server gespeichert.<br>
+        E-Mail-Einstellungen sind pro Nutzer getrennt.
       </div>
     </div>
   </div>
@@ -859,7 +881,7 @@ const PAUSES=["0","15","30","36","45","60"];
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let state=loadState()||{
   year:2026,month:3,selEmp:0,
-  wochenstunden:38.5,darkMode:false,emailTo:"",defaultPause:30,
+  wochenstunden:38.5,darkMode:false,emailTo:"",defaultPause:30,smtpUser:"",
   employees:[{id:1,name:"",entries:{}}]
 };
 let sheetDay=null,recognition=null,listening=false,wkMonday=null,wkWeekDays=[];
@@ -1470,6 +1492,12 @@ function openSettingsSheet(){
   document.getElementById("toggle-dark").checked=!!state.darkMode;
   document.getElementById("inp-email").value=state.emailTo||"";
   document.getElementById("email-badge").style.display="none";
+  // SMTP-Felder füllen
+  document.getElementById("inp-smtp-user").value=state.smtpUser||"";
+  document.getElementById("inp-smtp-pass").value=""; // Passwort nie zurückschreiben
+  const hint=document.getElementById("smtp-pass-hint");
+  hint.style.display=state.smtpPassSet?"block":"none";
+  document.getElementById("smtp-badge").style.display="none";
   openOv();document.getElementById("set-sheet").classList.add("open");
 }
 function closeSettingsSheet(){document.getElementById("set-sheet").classList.remove("open");closeOv();}
@@ -1884,11 +1912,78 @@ async function completeSetup() {
   state.wochenstunden = wh;
   if(setupPause > 0) state.defaultPause = setupPause;
 
-  const ok = await syncSettingsToServer(true); // pass true = setupDone
-  if(ok !== false) {
-    document.getElementById('setup-wizard').classList.remove('open');
-    toast('✓ Einrichtung abgeschlossen!');
-    render();
+  const smtpUser = (document.getElementById('setup-smtp-user').value || '').trim();
+  const smtpPass = (document.getElementById('setup-smtp-pass').value || '').trim();
+  if(smtpUser) state.smtpUser = smtpUser;
+
+  // Payload explizit bauen um smtpPass mitzuschicken wenn angegeben
+  const payload = {
+    wochenstunden: state.wochenstunden,
+    darkMode: state.darkMode,
+    emailTo: state.emailTo,
+    setupDone: true,
+    defaultPause: state.defaultPause || 30,
+    smtpUser: state.smtpUser || '',
+    employees: state.employees
+  };
+  if(smtpPass) payload.smtpPass = smtpPass;
+
+  try {
+    const res = await fetch('/api/user-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if(res.ok) {
+      if(smtpPass) state.smtpPassSet = true;
+      saveState();
+      document.getElementById('setup-wizard').classList.remove('open');
+      toast('✓ Einrichtung abgeschlossen!');
+      render();
+    }
+  } catch(err) {
+    toast('⚠ Fehler: ' + err.message);
+  }
+}
+
+async function saveSmtpSettings() {
+  const smtpUser = document.getElementById('inp-smtp-user').value.trim();
+  const smtpPass = document.getElementById('inp-smtp-pass').value;
+  if(!smtpUser) { toast('⚠ Bitte Absender-E-Mail eingeben'); return; }
+
+  state.smtpUser = smtpUser;
+
+  const payload = {
+    wochenstunden: state.wochenstunden,
+    darkMode: state.darkMode,
+    emailTo: state.emailTo,
+    setupDone: true,
+    defaultPause: state.defaultPause || 30,
+    smtpUser,
+    employees: state.employees
+  };
+  if(smtpPass.trim()) payload.smtpPass = smtpPass.trim();
+
+  try {
+    const res = await fetch('/api/user-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if(res.ok) {
+      if(smtpPass.trim()) {
+        document.getElementById('inp-smtp-pass').value = '';
+        document.getElementById('smtp-pass-hint').style.display = 'block';
+        state.smtpPassSet = true;
+      }
+      saveState();
+      document.getElementById('smtp-badge').style.display = 'inline-flex';
+      toast('✓ E-Mail-Einstellungen gespeichert');
+    } else {
+      toast('⚠ Fehler beim Speichern');
+    }
+  } catch(err) {
+    toast('⚠ ' + err.message);
   }
 }
 
@@ -1913,6 +2008,7 @@ async function syncSettingsToServer(setupDone) {
       emailTo: state.emailTo,
       setupDone: setupDone === true,
       defaultPause: state.defaultPause || 30,
+      smtpUser: state.smtpUser || '',
       employees: state.employees
     };
 
@@ -1960,6 +2056,8 @@ async function loadSettingsFromServer() {
     if (settings.darkMode !== undefined) state.darkMode = settings.darkMode;
     if (settings.emailTo) state.emailTo = settings.emailTo;
     if (settings.defaultPause) state.defaultPause = settings.defaultPause;
+    if (settings.smtpUser !== undefined) state.smtpUser = settings.smtpUser || '';
+    state.smtpPassSet = !!settings.smtpPassSet;
 
     // Mitarbeiter vom Server immer vollständig übernehmen (nie mit lokalem Cache mischen)
     // Einträge kommen separat via loadEntriesFromServer()

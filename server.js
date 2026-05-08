@@ -185,13 +185,25 @@ app.delete('/api/entry/:date', async (req, res) => {
 app.post('/api/user-settings', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
   try {
-    const { wochenstunden, darkMode, emailTo, employees, setupDone, defaultPause } = req.body;
+    const { wochenstunden, darkMode, emailTo, employees, setupDone, defaultPause, smtpUser, smtpPass } = req.body;
     // defaultPause im employees-JSON mitgespeichert (kein extra Schema-Feld nötig)
     const empData = JSON.stringify([{ id: 1, name: req.session.name, defaultPause: parseInt(defaultPause) || 30 }]);
+
+    const updateData = {
+      wochenstunden: wochenstunden || 38.5,
+      darkMode: !!darkMode,
+      emailTo: emailTo || '',
+      setupDone: setupDone === true,
+      employees: empData
+    };
+    if (smtpUser !== undefined) updateData.smtpUser = smtpUser || '';
+    // Passwort nur überschreiben wenn explizit mitgesendet (nicht leer lassen = behalten)
+    if (smtpPass && smtpPass.trim() !== '') updateData.smtpPass = smtpPass.trim();
+
     const settings = await prisma.settings.upsert({
       where: { userId: req.session.userId },
-      update: { wochenstunden: wochenstunden || 38.5, darkMode: !!darkMode, emailTo: emailTo || '', setupDone: setupDone === true, employees: empData },
-      create: { userId: req.session.userId, wochenstunden: wochenstunden || 38.5, darkMode: !!darkMode, emailTo: emailTo || '', setupDone: setupDone === true, employees: empData }
+      update: updateData,
+      create: { userId: req.session.userId, ...updateData }
     });
     res.json({ success: true, settings });
   } catch (err) {
@@ -212,6 +224,8 @@ app.get('/api/user-settings', async (req, res) => {
       emailTo: settings.emailTo,
       setupDone: settings.setupDone,
       defaultPause,
+      smtpUser: settings.smtpUser || '',
+      smtpPassSet: !!(settings.smtpPass && settings.smtpPass.trim()),
       employees: [{ id: 1, name: req.session.name, entries: {} }]
     });
   } catch (err) {
@@ -226,10 +240,17 @@ app.post('/api/send-email', async (req, res) => {
     const { to, subject, pdfBase64, filename } = req.body;
     if (!to || !pdfBase64) return res.status(400).json({ error: 'Fehlende Parameter' });
 
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
+    // Nutzer-eigene SMTP-Einstellungen laden, Fallback auf Umgebungsvariablen
+    const userSettings = await prisma.settings.findUnique({ where: { userId: req.session.userId } });
+    const smtpUser = (userSettings && userSettings.smtpUser && userSettings.smtpUser.trim())
+      || process.env.SMTP_USER;
+    const smtpPass = (userSettings && userSettings.smtpPass && userSettings.smtpPass.trim())
+      || process.env.SMTP_PASS;
+
     if (!smtpUser || !smtpPass) {
-      return res.status(500).json({ error: 'SMTP nicht konfiguriert. Bitte SMTP_USER und SMTP_PASS in den Vercel-Umgebungsvariablen setzen.' });
+      return res.status(500).json({
+        error: 'E-Mail nicht konfiguriert. Bitte Absender-E-Mail und App-Passwort in den Einstellungen hinterlegen.'
+      });
     }
 
     const smtpHost = process.env.SMTP_HOST || 'smtp.mail.yahoo.com';

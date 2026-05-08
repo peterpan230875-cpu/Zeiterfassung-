@@ -47,6 +47,8 @@ model Settings {
   emailTo        String   @default("")
   setupDone      Boolean  @default(false)
   employees      Json     @default("[]")
+  smtpUser       String   @default("")
+  smtpPass       String   @default("")
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
