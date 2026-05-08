@@ -1034,6 +1034,8 @@ function renderTable(){
       tdS.innerHTML=`<span class="badge b-hol">${holiday}</span>`;
     } else if(isSun(y,m,d)){
       tdS.innerHTML=`<span class="badge b-we">Sonntag</span>`;
+    } else if(isSat(y,m,d)){
+      tdS.innerHTML=`<span class="badge" style="background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-m);">Samstag</span>`;
     } else {
       const wrap=document.createElement("div");
       wrap.style.cssText="display:flex;gap:3px;";
@@ -1071,8 +1073,8 @@ function renderMobile(){
     const holiday=FEIERTAGE[key]||null;
     const entry=emp.entries[key]||null;
     const typ=entry?entry.typ||"normal":"normal";
-    const blocked=!!(holiday||isSun(y,m,d));
     const sat=isSat(y,m,d);
+    const blocked=!!(holiday||isSun(y,m,d)||sat);
 
     const card=document.createElement("div");
     card.className="mob-card";
