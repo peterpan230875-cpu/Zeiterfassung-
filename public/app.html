@@ -1567,12 +1567,37 @@ function buildPrintHTML(){
     const holiday=FEIERTAGE[key]||null;const sun=isSun(y,m,d);const sat=isSat(y,m,d);
     const entry=emp.entries[key]||null;const typ=entry?entry.typ||"normal":"normal";
 
-    let bg="";
-    if(holiday||sun)bg="background:#FEE2E2;";
-    else if(sat)bg="background:#FFF7ED;";
-    else if(typ==="urlaub")bg="background:#EFF6FF;";
-    else if(typ==="zeitausgleich")bg="background:#F0FDF4;";
-    else if(typ==="krank")bg="background:#FEF2F2;";
+    // ── Farben exakt wie in der App ──────────────────────────────────────────
+    let bg="", vonColor="", numColor="#111", accentBorder="";
+    if(holiday){
+      bg="background:#FEE2E2;";
+      vonColor="color:#991B1B;font-weight:700;";
+      numColor="#991B1B";
+      accentBorder="border-left:3px solid #DC2626;padding-left:3px;";
+    } else if(sun){
+      bg="background:#FFF7ED;";
+      vonColor="color:#9A3412;font-weight:600;";
+      numColor="#9A3412";
+    } else if(sat){
+      bg="background:#FEF3C7;";
+      vonColor="color:#B45309;";
+      numColor="#B45309";
+    } else if(typ==="urlaub"){
+      bg="background:#EFF6FF;";
+      vonColor="color:#2563EB;font-weight:700;";
+      numColor="#2563EB";
+      accentBorder="border-left:3px solid #2563EB;padding-left:3px;";
+    } else if(typ==="zeitausgleich"){
+      bg="background:#F0FDF4;";
+      vonColor="color:#16A34A;font-weight:700;";
+      numColor="#16A34A";
+      accentBorder="border-left:3px solid #16A34A;padding-left:3px;";
+    } else if(typ==="krank"){
+      bg="background:#FEF2F2;";
+      vonColor="color:#DC2626;font-weight:700;";
+      numColor="#DC2626";
+      accentBorder="border-left:3px solid #DC2626;padding-left:3px;";
+    }
 
     let von="",bis="",pause="",bem="",netto="",nettoColor="#2563EB";
     if(holiday){von=holiday;netto=ts.toFixed(2).replace(".",",");}
@@ -1596,11 +1621,11 @@ function buildPrintHTML(){
       }
     }
 
-    const bold=(holiday||typ!=="normal"&&!sun&&!sat)?"font-weight:600;":"";
+    const wtStyle=holiday||sun||sat?`color:${numColor};`:"color:#888;";
     rows+=`<tr style="${bg}">
-      <td class="c num">${d}</td>
-      <td class="c wt" style="color:#888;">${dayWT}</td>
-      <td class="c" style="${bold}">${von}</td>
+      <td class="c num" style="color:${numColor};font-weight:700;${accentBorder}">${d}</td>
+      <td class="c wt"  style="${wtStyle}">${dayWT}</td>
+      <td class="c"     style="${vonColor}">${von}</td>
       <td class="c mono">${bis}</td>
       <td class="c mono" style="color:#888;">${pause}</td>
       <td class="c bem">${bem}</td>
@@ -1660,8 +1685,13 @@ tr:last-child td{border-bottom:none;}
 /* TOTALS ROW */
 .total-row td{border-top:1.5px solid #111;font-weight:700;font-size:9pt;padding:4px 5px;}
 
+/* LEGEND */
+.legend{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;margin-bottom:4px;}
+.leg-item{font-size:7pt;padding:2px 7px 2px 5px;border-radius:3px;border:1px solid rgba(0,0,0,.08);
+  font-weight:600;color:#333;}
+
 /* FOOTER */
-.footer{margin-top:5px;display:flex;justify-content:space-between;
+.footer{margin-top:4px;display:flex;justify-content:space-between;
   font-size:7pt;color:#999;border-top:1px solid #eee;padding-top:3px;}
 
 @media print{
@@ -1700,8 +1730,15 @@ tr:last-child td{border-bottom:none;}
 </tr></tfoot>
 </table>
 
+<div class="legend">
+  <span class="leg-item" style="background:#EFF6FF;border-left:3px solid #2563EB;">🏖 Urlaub</span>
+  <span class="leg-item" style="background:#F0FDF4;border-left:3px solid #16A34A;">🔄 Zeitausgleich</span>
+  <span class="leg-item" style="background:#FEF2F2;border-left:3px solid #DC2626;">🤒 Krank</span>
+  <span class="leg-item" style="background:#FEE2E2;border-left:3px solid #DC2626;color:#991B1B;">Feiertag</span>
+  <span class="leg-item" style="background:#FEF3C7;color:#B45309;">Samstag</span>
+</div>
 <div class="footer">
-  <span>Erstellt am ${new Date().toLocaleDateString("de-AT")} · Zeiterfassung v2.0</span>
+  <span>Erstellt am ${new Date().toLocaleDateString("de-AT")} · Zeiterfassung v2.1</span>
   <span>Seite 1/1</span>
 </div>
 
