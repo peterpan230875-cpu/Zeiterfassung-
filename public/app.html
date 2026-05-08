@@ -670,7 +670,7 @@ tr.r-k{background:var(--red-bg);}
     <button class="sh-close" onclick="closeSheet()">✕</button>
   </div>
   <div class="sh-body">
-    <div class="sec">
+    <div class="sec" id="sec-typ">
       <div class="sec-lbl">Tagestyp</div>
       <div class="type-grid">
         <button class="tbtn tb-u"  id="tb-u"  onclick="setTyp('urlaub')">🏖 Urlaub</button>
@@ -678,7 +678,7 @@ tr.r-k{background:var(--red-bg);}
         <button class="tbtn tb-k"  id="tb-k"  onclick="setTyp('krank')">🤒 Krank</button>
       </div>
     </div>
-    <hr class="divider"/>
+    <hr class="divider" id="divider-typ"/>
     <div class="sec">
       <div class="sec-lbl">Arbeitszeit</div>
       <div class="time-row">
@@ -1247,7 +1247,13 @@ function openSheet(key){
   const y2=parseInt(parts[0]),m2=parseInt(parts[1])-1,d2=parseInt(parts[2]);
   document.getElementById("sh-title").textContent=wtDay(y2,m2,d2)+" "+d2+"."+(m2+1)+"."+y2;
 
-  // Reset type buttons
+  // Typ-Buttons nur an normalen Werktagen anzeigen
+  const isWeekend=isSat(y2,m2,d2)||isSun(y2,m2,d2);
+  const isHol=!!FEIERTAGE[key];
+  const showTyp=!isWeekend&&!isHol;
+  document.getElementById("sec-typ").style.display=showTyp?"":"none";
+  document.getElementById("divider-typ").style.display=showTyp?"":"none";
+
   ["tb-u","tb-za","tb-k"].forEach(id=>document.getElementById(id).classList.remove("ta"));
   const typ=entry.typ||"normal";
   const tmap={urlaub:"tb-u",zeitausgleich:"tb-za",krank:"tb-k"};
