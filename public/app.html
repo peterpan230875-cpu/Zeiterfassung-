@@ -881,7 +881,8 @@ const PAUSES=["0","15","30","36","45","60"];
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let state=loadState()||{
   year:2026,month:3,selEmp:0,
-  wochenstunden:38.5,darkMode:false,emailTo:"",defaultPause:30,smtpUser:"",
+  wochenstunden:38.5,darkMode:false,emailTo:"",defaultPause:30,
+  smtpUser:"",smtpPassSet:false,setupDone:false,
   employees:[{id:1,name:"",entries:{}}]
 };
 let sheetDay=null,recognition=null,listening=false,wkMonday=null,wkWeekDays=[];
@@ -1935,6 +1936,7 @@ async function completeSetup() {
       body: JSON.stringify(payload)
     });
     if(res.ok) {
+      state.setupDone = true;
       if(smtpPass) state.smtpPassSet = true;
       saveState();
       document.getElementById('setup-wizard').classList.remove('open');
@@ -2006,7 +2008,7 @@ async function syncSettingsToServer(setupDone) {
       wochenstunden: state.wochenstunden,
       darkMode: state.darkMode,
       emailTo: state.emailTo,
-      setupDone: setupDone === true,
+      setupDone: setupDone === true || !!state.setupDone,
       defaultPause: state.defaultPause || 30,
       smtpUser: state.smtpUser || '',
       employees: state.employees
@@ -2058,6 +2060,7 @@ async function loadSettingsFromServer() {
     if (settings.defaultPause) state.defaultPause = settings.defaultPause;
     if (settings.smtpUser !== undefined) state.smtpUser = settings.smtpUser || '';
     state.smtpPassSet = !!settings.smtpPassSet;
+    if (settings.setupDone !== undefined) state.setupDone = !!settings.setupDone;
 
     // Mitarbeiter vom Server immer vollständig übernehmen (nie mit lokalem Cache mischen)
     // Einträge kommen separat via loadEntriesFromServer()
