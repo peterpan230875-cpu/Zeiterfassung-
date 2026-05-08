@@ -1075,7 +1075,8 @@ function renderMobile(){
     const entry=emp.entries[key]||null;
     const typ=entry?entry.typ||"normal":"normal";
     const sat=isSat(y,m,d);
-    const blocked=!!(holiday||isSun(y,m,d)||sat);
+    const blocked=!!(holiday||isSun(y,m,d)); // Samstag bleibt antippbar
+    const noTypBtn=!!(holiday||isSun(y,m,d)||sat); // Keine U/ZA/K-Buttons am WE
 
     const card=document.createElement("div");
     card.className="mob-card";
@@ -1099,6 +1100,7 @@ function renderMobile(){
 
     if(holiday){timeDiv.textContent=holiday;timeDiv.style.color="var(--hol-t)";timeDiv.style.fontFamily="'Figtree',sans-serif";}
     else if(isSun(y,m,d)){timeDiv.textContent="Sonntag";timeDiv.style.color="var(--sun-t)";}
+    else if(sat&&!entry?.von){timeDiv.textContent="Samstag";timeDiv.style.color="var(--amber)";}
     else if(typ==="urlaub"){timeDiv.textContent="Urlaub";timeDiv.style.color="var(--blue)";timeDiv.style.fontWeight="700";}
     else if(typ==="zeitausgleich"){timeDiv.textContent="Zeitausgleich";timeDiv.style.color="var(--green)";timeDiv.style.fontWeight="700";}
     else if(typ==="krank"){timeDiv.textContent="Krank";timeDiv.style.color="var(--red)";timeDiv.style.fontWeight="700";}
@@ -1121,8 +1123,8 @@ function renderMobile(){
       const nDiv=document.createElement("div");nDiv.className="mc-netto";nDiv.innerHTML=nettoEl;right.appendChild(nDiv);
     }
 
-    // Quick buttons (nur wenn nicht blocked)
-    if(!blocked){
+    // Quick buttons (nur an normalen Werktagen, nicht Sa/So/Feiertag)
+    if(!noTypBtn){
       const btns=document.createElement("div");btns.className="mc-btns";
       [["U","q-u","urlaub"],["ZA","q-za","zeitausgleich"],["K","q-k","krank"]].forEach(([lbl,cls,t])=>{
         const b=document.createElement("button");
