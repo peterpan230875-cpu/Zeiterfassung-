@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>Zeiterfassung v2.1</title>
+<title>Zeiterfassung v2.2</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -577,7 +577,7 @@ tr.r-k{background:var(--red-bg);}
 <div id="hdr">
   <div id="hdr-top">
     <div id="app-title">Zeiterfassung</div>
-    <span id="hdr-version">v2.1</span>
+    <span id="hdr-version">v2.2</span>
     <div id="hdr-spacer"></div>
     <div id="month-nav">
       <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
@@ -853,7 +853,7 @@ tr.r-k{background:var(--red-bg);}
     <div class="sec">
       <div class="sec-lbl">Über diese App</div>
       <div style="font-size:13px;color:var(--txt2);line-height:1.8;">
-        Zeiterfassung v2.1<br>
+        Zeiterfassung v2.2<br>
         Daten werden sicher auf dem Server gespeichert.<br>
         E-Mail-Einstellungen sind pro Nutzer getrennt.
       </div>
@@ -883,6 +883,7 @@ let state=loadState()||{
   year:2026,month:3,selEmp:0,
   wochenstunden:38.5,darkMode:false,emailTo:"",defaultPause:30,
   smtpUser:"",smtpPassSet:false,setupDone:false,
+  weekPatterns:{},
   employees:[{id:1,name:"",entries:{}}]
 };
 let sheetDay=null,recognition=null,listening=false,wkMonday=null,wkWeekDays=[];
@@ -1261,16 +1262,35 @@ function openSheet(key){
   const tmap={urlaub:"tb-u",zeitausgleich:"tb-za",krank:"tb-k"};
   if(tmap[typ])document.getElementById(tmap[typ]).classList.add("ta");
 
-  // Times
+  // Times + Smart Pre-fill
   const [vh,vm]=(entry.von||"").split(":");
   const [bh,bm]=(entry.bis||"").split(":");
-  document.getElementById("sv-h").value=vh||"";
-  document.getElementById("sv-m").value=vm||"";
-  document.getElementById("sb-h").value=bh||"";
-  document.getElementById("sb-m").value=bm||"";
+  const isNew=!entry.von&&!entry.bis&&(entry.typ||"normal")==="normal";
+  const dow2=new Date(y2,m2,d2).getDay();
 
-  // Pause
-  const pval=entry.pause||String(state.defaultPause||30);
+  let fvh=vh||"",fvm=vm||"",fbh=bh||"",fbm=bm||"",fpval="";
+  if(isNew){
+    if(isSat(y2,m2,d2)){
+      // Samstag: immer 08:00–12:00, 0 min
+      fvh="08";fvm="00";fbh="12";fbm="00";fpval="0";
+    } else {
+      const best=getBestPattern(dow2);
+      if(best){
+        const[pv,pb,pp]=best.split("|");
+        const[bvh,bvm2]=(pv||"").split(":");
+        const[bbh,bbm2]=(pb||"").split(":");
+        fvh=bvh||"";fvm=bvm2||"";fbh=bbh||"";fbm=bbm2||"";
+        fpval=pp||String(state.defaultPause||30);
+      }
+    }
+  }
+  document.getElementById("sv-h").value=fvh;
+  document.getElementById("sv-m").value=fvm;
+  document.getElementById("sb-h").value=fbh;
+  document.getElementById("sb-m").value=fbm;
+
+  // Pause – pre-filled oder aus Eintrag/Standard
+  const pval=fpval!==""?fpval:(entry.pause?String(entry.pause):String(state.defaultPause||30));
   const isPill=PAUSES.includes(pval);
   document.querySelectorAll("#pause-row .ppill").forEach(b=>b.classList.toggle("pa",b.dataset.val===pval));
   document.getElementById("inp-pause-custom").value=isPill?"":pval;
@@ -1317,6 +1337,8 @@ function saveEntry(){
   const bem=document.getElementById("inp-bem").value.trim();
   const curTyp=emp.entries[sheetDay]?emp.entries[sheetDay].typ||"normal":"normal";
   emp.entries[sheetDay]={von,bis,pause,bemerkung:bem,typ:curTyp};
+  // Lerneffekt: Muster für diesen Wochentag merken
+  if(von&&bis) learnEntry(sheetDay,von,bis,pause);
   saveState();
   // Sende Eintrag zum Server
   syncEntryToServer(sheetDay, emp.entries[sheetDay]);
@@ -1746,7 +1768,7 @@ tr:last-child td{border-bottom:none;}
   <span class="leg-item" style="background:#FEF3C7;color:#B45309;">Samstag</span>
 </div>
 <div class="footer">
-  <span>Erstellt am ${new Date().toLocaleDateString("de-AT")} · Zeiterfassung v2.1</span>
+  <span>Erstellt am ${new Date().toLocaleDateString("de-AT")} · Zeiterfassung v2.2</span>
   <span>Seite 1/1</span>
 </div>
 
@@ -1993,6 +2015,33 @@ async function completeSetup() {
   }
 }
 
+// ── LERNEFFEKT ───────────────────────────────────────────────────────────────
+function learnEntry(key, von, bis, pause) {
+  if(!von||!bis) return;
+  const parts=key.split("-");
+  const y=parseInt(parts[0]),m=parseInt(parts[1])-1,d=parseInt(parts[2]);
+  const dow=new Date(y,m,d).getDay();
+  if(dow===0||dow===6) return; // Wochenenden nicht lernen
+
+  if(!state.weekPatterns) state.weekPatterns={};
+  if(!state.weekPatterns[dow]) state.weekPatterns[dow]={};
+  const pk=`${von}|${bis}|${pause||"0"}`;
+  state.weekPatterns[dow][pk]=(state.weekPatterns[dow][pk]||0)+1;
+
+  // Nur top 10 Muster pro Wochentag behalten
+  const pats=state.weekPatterns[dow];
+  const keys=Object.keys(pats).sort((a,b)=>pats[b]-pats[a]);
+  if(keys.length>10) keys.slice(10).forEach(k=>delete pats[k]);
+}
+
+function getBestPattern(dow) {
+  const pats=state.weekPatterns&&state.weekPatterns[dow];
+  if(!pats) return null;
+  const keys=Object.keys(pats);
+  if(!keys.length) return null;
+  return keys.reduce((a,b)=>pats[a]>=pats[b]?a:b);
+}
+
 async function saveSmtpSettings() {
   const smtpUser = document.getElementById('inp-smtp-user').value.trim();
   const smtpPass = document.getElementById('inp-smtp-pass').value;
@@ -2056,6 +2105,7 @@ async function syncSettingsToServer(setupDone) {
       setupDone: setupDone === true || !!state.setupDone,
       defaultPause: state.defaultPause || 30,
       smtpUser: state.smtpUser || '',
+      weekPatterns: state.weekPatterns || {},
       employees: state.employees
     };
 
@@ -2106,6 +2156,7 @@ async function loadSettingsFromServer() {
     if (settings.smtpUser !== undefined) state.smtpUser = settings.smtpUser || '';
     state.smtpPassSet = !!settings.smtpPassSet;
     if (settings.setupDone !== undefined) state.setupDone = !!settings.setupDone;
+    if (settings.weekPatterns && typeof settings.weekPatterns === 'object') state.weekPatterns = settings.weekPatterns;
 
     // Mitarbeiter vom Server immer vollständig übernehmen (nie mit lokalem Cache mischen)
     // Einträge kommen separat via loadEntriesFromServer()
