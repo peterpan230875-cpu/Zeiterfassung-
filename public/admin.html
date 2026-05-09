@@ -124,6 +124,29 @@ tr.r-k{background:var(--k-bg);}
 .kw-badge{display:inline-block;font-size:10px;font-weight:700;color:var(--u-t);
   letter-spacing:.4px;margin-left:6px;background:var(--u-bg);border:1px solid var(--u-t);
   padding:1px 6px;border-radius:8px;line-height:1.4;vertical-align:middle;opacity:.85;}
+
+/* Lock Status */
+#lock-status{
+  display:none;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;
+  margin-bottom:14px;font-weight:700;font-size:14px;
+}
+#lock-status.locked{
+  display:flex;background:var(--za-bg);border:1.5px solid var(--za-t);color:var(--za-t);
+}
+#lock-status .spacer{flex:1;}
+.btn-release{
+  padding:8px 14px;border:none;border-radius:8px;cursor:pointer;
+  background:#DC2626;color:#fff;font-weight:700;font-size:13px;
+  font-family:'Figtree',sans-serif;
+}
+.btn-release:hover{background:#B91C1C;}
+.lock-info{font-size:12px;font-weight:500;opacity:.85;}
+
+/* Locks-Liste rechts oben */
+.user-item .lock-count{
+  display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;
+  background:var(--za-bg);color:var(--za-t);font-size:10px;font-weight:700;
+}
 </style>
 </head>
 <body>
@@ -150,6 +173,15 @@ tr.r-k{background:var(--k-bg);}
       <div id="month-lbl">—</div>
       <button onclick="changeMonth(1)">›</button>
     </div>
+    <div id="lock-status">
+      <span style="font-size:20px;">🔒</span>
+      <div>
+        <div>Monat abgeschlossen</div>
+        <div class="lock-info" id="lock-info"></div>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn-release" onclick="releaseMonth()">🔓 Wieder freigeben</button>
+    </div>
     <div id="stats" style="display:none;"></div>
     <div id="entries-area"></div>
   </div>
@@ -174,6 +206,7 @@ const WT=["So","Mo","Di","Mi","Do","Fr","Sa"];
 const MON=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 
 let users=[], selectedUserId=null, currentEntries=[], currentSettings=null;
+let currentLocks=[]; // MonthLocks des gewählten Mitarbeiters
 let viewYear=new Date().getFullYear(), viewMonth=new Date().getMonth();
 
 function dk(y,m,d){return y+"-"+String(m+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");}
@@ -223,14 +256,37 @@ async function selectUser(uid){
   document.getElementById('month-bar').style.display='flex';
   document.getElementById('stats').style.display='grid';
 
-  // Lade Einträge + Settings
-  const [eRes,sRes]=await Promise.all([
+  // Lade Einträge + Settings + Locks
+  const [eRes,sRes,lRes]=await Promise.all([
     fetch('/api/admin/entries/'+uid),
-    fetch('/api/admin/settings/'+uid)
+    fetch('/api/admin/settings/'+uid),
+    fetch('/api/admin/month-locks/'+uid)
   ]);
   if(eRes.ok){const d=await eRes.json();currentEntries=d.entries||[];}
   if(sRes.ok){const d=await sRes.json();currentSettings=d.settings||null;}
+  if(lRes.ok){const d=await lRes.json();currentLocks=d.locks||[];}
   renderMonth();
+}
+
+function isMonthLocked(y,m){
+  return currentLocks.some(l=>l.year===y && l.month===(m+1));
+}
+function getLock(y,m){
+  return currentLocks.find(l=>l.year===y && l.month===(m+1));
+}
+
+async function releaseMonth(){
+  if(!selectedUserId) return;
+  const lock=getLock(viewYear,viewMonth);
+  if(!lock){toast?.("Kein Lock");return;}
+  if(!confirm(`Monat ${MON[viewMonth]} ${viewYear} wieder freigeben?`)) return;
+  const res=await fetch(`/api/admin/month-lock/${selectedUserId}/${viewYear}/${viewMonth+1}`,{method:'DELETE'});
+  if(res.ok){
+    currentLocks=currentLocks.filter(l=>!(l.year===viewYear && l.month===(viewMonth+1)));
+    renderMonth();
+  } else {
+    alert('Fehler beim Freigeben');
+  }
 }
 
 function changeMonth(dir){
@@ -326,6 +382,18 @@ function renderMonth(){
       🔒 Read-Only · Wochenstunden Soll: ${wh} h · Tagessoll: ${ts.toFixed(2).replace('.',',')} h
     </p>
   `;
+
+  // Lock-Status-Banner
+  const ls=document.getElementById('lock-status');
+  if(isMonthLocked(viewYear,viewMonth)){
+    const l=getLock(viewYear,viewMonth);
+    const dt=l?.lockedAt?new Date(l.lockedAt).toLocaleDateString('de-DE'):'';
+    document.getElementById('lock-info').textContent=
+      `${MON[viewMonth]} ${viewYear}${dt?' · Mitarbeiter hat am '+dt+' abgeschlossen':''}`;
+    ls.classList.add('locked');
+  } else {
+    ls.classList.remove('locked');
+  }
 }
 
 async function logout(){

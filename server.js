@@ -154,6 +154,13 @@ app.post('/api/entry', async (req, res) => {
     const { date, type, von, bis, pause, bemerkung } = req.body;
     if (!date) return res.status(400).json({ error: 'Datum erforderlich' });
 
+    // Prüfe ob Monat gesperrt ist
+    const [yStr, mStr] = date.split('-');
+    const lock = await prisma.monthLock.findUnique({
+      where: { userId_year_month: { userId: req.session.userId, year: parseInt(yStr), month: parseInt(mStr) } }
+    });
+    if (lock) return res.status(403).json({ error: 'Monat ist abgeschlossen — keine Änderungen möglich' });
+
     const pauseInt = parseInt(pause) || 0;
     const vonVal = von && von !== '' ? von : null;
     const bisVal = bis && bis !== '' ? bis : null;
@@ -183,12 +190,52 @@ app.get('/api/entries', async (req, res) => {
 app.delete('/api/entry/:date', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
   try {
+    const date = req.params.date;
+    // Prüfe ob Monat gesperrt ist
+    const [yStr, mStr] = date.split('-');
+    const lock = await prisma.monthLock.findUnique({
+      where: { userId_year_month: { userId: req.session.userId, year: parseInt(yStr), month: parseInt(mStr) } }
+    });
+    if (lock) return res.status(403).json({ error: 'Monat ist abgeschlossen — keine Änderungen möglich' });
+
     await prisma.entry.deleteMany({
-      where: { userId: req.session.userId, date: req.params.date }
+      where: { userId: req.session.userId, date }
     });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Fehler beim Löschen' });
+  }
+});
+
+// ── MONATSABSCHLUSS ──────────────────────────────────────────────────────────
+app.post('/api/month-lock', async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
+  try {
+    const { year, month } = req.body;
+    if (!year || !month) return res.status(400).json({ error: 'Jahr und Monat erforderlich' });
+
+    const lock = await prisma.monthLock.upsert({
+      where: { userId_year_month: { userId: req.session.userId, year: parseInt(year), month: parseInt(month) } },
+      update: { lockedAt: new Date() },
+      create: { userId: req.session.userId, year: parseInt(year), month: parseInt(month) }
+    });
+    res.json({ success: true, lock });
+  } catch (err) {
+    console.error('Month-lock error:', err);
+    res.status(500).json({ error: 'Fehler beim Abschluss' });
+  }
+});
+
+app.get('/api/month-locks', async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
+  try {
+    const locks = await prisma.monthLock.findMany({
+      where: { userId: req.session.userId },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }]
+    });
+    res.json({ locks });
+  } catch (err) {
+    res.status(500).json({ error: 'Fehler beim Laden' });
   }
 });
 
@@ -362,6 +409,51 @@ app.get('/api/admin/settings/:userId', async (req, res) => {
     res.json({ settings });
   } catch (err) {
     res.status(500).json({ error: 'Fehler beim Laden der Einstellungen' });
+  }
+});
+
+// Admin: Alle Locks aller Mitarbeiter
+app.get('/api/admin/month-locks', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  try {
+    const locks = await prisma.monthLock.findMany({
+      include: { user: { select: { id: true, name: true, username: true } } },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }]
+    });
+    res.json({ locks });
+  } catch (err) {
+    res.status(500).json({ error: 'Fehler beim Laden' });
+  }
+});
+
+// Admin: Locks pro Mitarbeiter
+app.get('/api/admin/month-locks/:userId', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  try {
+    const locks = await prisma.monthLock.findMany({
+      where: { userId: req.params.userId },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }]
+    });
+    res.json({ locks });
+  } catch (err) {
+    res.status(500).json({ error: 'Fehler beim Laden' });
+  }
+});
+
+// Admin: Monat freigeben
+app.delete('/api/admin/month-lock/:userId/:year/:month', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  try {
+    await prisma.monthLock.deleteMany({
+      where: {
+        userId: req.params.userId,
+        year: parseInt(req.params.year),
+        month: parseInt(req.params.month)
+      }
+    });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Fehler beim Freigeben' });
   }
 });
 

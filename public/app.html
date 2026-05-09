@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>Zeiterfassung v2.2</title>
+<title>Zeiterfassung v2.5</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -574,6 +574,51 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
 }
 .sw-inp2:focus{border-color:var(--blue);}
 .sw-divider{border:none;border-top:1px solid var(--brd);margin:20px 0;}
+
+/* ── Lock & Confirm-Dialog ───────────────────────────────────────────────── */
+#lock-banner{
+  display:none;align-items:center;gap:12px;
+  background:var(--green-bg);border:1.5px solid var(--green-m);color:var(--green);
+  padding:12px 16px;margin:0 0 14px;border-radius:var(--r);
+  font-weight:700;font-size:14px;
+}
+#lock-banner.show{display:flex;}
+#lock-banner .lock-icon{font-size:22px;}
+.locked-row{opacity:.5;pointer-events:none;}
+#close-month-bar{
+  display:flex;justify-content:center;margin:18px 0;
+}
+.btn-close-month{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 28px;border:none;border-radius:var(--r);
+  background:linear-gradient(135deg,#16A34A 0%,#15803D 100%);color:#fff;
+  font-family:'Figtree',sans-serif;font-size:15px;font-weight:700;cursor:pointer;
+  box-shadow:0 4px 16px rgba(22,163,74,.3);transition:all .15s;
+}
+.btn-close-month:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(22,163,74,.4);}
+
+/* Confirm Modal */
+#confirm-modal{
+  position:fixed;inset:0;z-index:300;display:none;
+  align-items:center;justify-content:center;padding:20px;
+  background:rgba(0,0,0,.65);backdrop-filter:blur(8px);
+}
+#confirm-modal.open{display:flex;}
+.confirm-card{
+  background:var(--sur);border-radius:18px;padding:28px;
+  width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.4);
+}
+.confirm-icon{font-size:46px;text-align:center;margin-bottom:10px;}
+.confirm-title{font-size:20px;font-weight:800;text-align:center;margin-bottom:8px;}
+.confirm-msg{font-size:14px;color:var(--txt2);text-align:center;line-height:1.5;margin-bottom:22px;}
+.confirm-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.confirm-btn{
+  padding:14px;border:none;border-radius:var(--r);font-family:'Figtree',sans-serif;
+  font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;
+}
+.confirm-btn.cancel{background:var(--bg2);color:var(--txt2);border:1.5px solid var(--brd);}
+.confirm-btn.confirm{background:#DC2626;color:#fff;box-shadow:0 4px 12px rgba(220,38,38,.3);}
+.confirm-btn.confirm:hover{background:#B91C1C;}
 </style>
 </head>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -586,7 +631,7 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
 <div id="hdr">
   <div id="hdr-top">
     <div id="app-title">Zeiterfassung</div>
-    <span id="hdr-version">v2.2</span>
+    <span id="hdr-version">v2.5</span>
     <div id="hdr-spacer"></div>
     <div id="month-nav">
       <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
@@ -608,6 +653,15 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
 
 <!-- MAIN -->
 <div id="main">
+  <!-- Lock Banner -->
+  <div id="lock-banner">
+    <span class="lock-icon">🔒</span>
+    <div>
+      <div>Monat abgeschlossen</div>
+      <div style="font-size:12px;font-weight:500;opacity:.85;" id="lock-banner-sub"></div>
+    </div>
+  </div>
+
   <!-- Stats -->
   <div id="stats">
     <div class="sc"><div class="sc-lbl">Arbeitstage</div><div class="sc-val" id="st-work">—</div></div>
@@ -637,6 +691,27 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
 
   <!-- Mobile List -->
   <div id="mob-list"></div>
+
+  <!-- Monat abschließen -->
+  <div id="close-month-bar">
+    <button class="btn-close-month" onclick="askCloseMonth()">🔒 Monat abschließen</button>
+  </div>
+</div>
+
+<!-- Confirm-Dialog -->
+<div id="confirm-modal">
+  <div class="confirm-card">
+    <div class="confirm-icon">🔒</div>
+    <div class="confirm-title" id="confirm-title">Monat abschließen?</div>
+    <div class="confirm-msg" id="confirm-msg">
+      Möchtest du den Monat wirklich abschließen?<br>
+      Danach sind <strong>keine Änderungen mehr möglich</strong>.
+    </div>
+    <div class="confirm-row">
+      <button class="confirm-btn cancel" onclick="closeConfirmModal()">Abbrechen</button>
+      <button class="confirm-btn confirm" id="confirm-yes" onclick="doCloseMonth()">Ja, abschließen</button>
+    </div>
+  </div>
 </div>
 
 <!-- SETUP WIZARD -->
@@ -872,7 +947,7 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
     <div class="sec">
       <div class="sec-lbl">Über diese App</div>
       <div style="font-size:13px;color:var(--txt2);line-height:1.8;">
-        Zeiterfassung v2.2<br>
+        Zeiterfassung v2.5<br>
         Daten werden sicher auf dem Server gespeichert.<br>
         E-Mail-Einstellungen sind pro Nutzer getrennt.
       </div>
@@ -910,6 +985,8 @@ let state=loadState()||{
   weekPatterns:{},season:"auto",
   employees:[{id:1,name:"",entries:{}}]
 };
+// Monatsabschluss (lokal gehalten, vom Server geladen)
+let monthLocks=[]; // Array von { year, month, lockedAt }
 let sheetDay=null,wkMonday=null,wkWeekDays=[];
 
 // ── PERSIST ──────────────────────────────────────────────────────────────────
@@ -925,6 +1002,53 @@ function getKW(y,m,d){
   t.setUTCDate(t.getUTCDate()+4-(t.getUTCDay()||7));
   const yStart=new Date(Date.UTC(t.getUTCFullYear(),0,1));
   return Math.ceil((((t-yStart)/86400000)+1)/7);
+}
+
+// ── MONATSABSCHLUSS ──────────────────────────────────────────────────────────
+function isMonthLocked(y,m){
+  // m intern 0-11, Lock speichert 1-12
+  return monthLocks.some(l=>l.year===y && l.month===(m+1));
+}
+function getLockInfo(y,m){
+  return monthLocks.find(l=>l.year===y && l.month===(m+1));
+}
+async function loadMonthLocks(){
+  try{
+    const res=await fetch('/api/month-locks');
+    if(!res.ok) return;
+    const d=await res.json();
+    monthLocks=d.locks||[];
+  } catch(e){}
+}
+function askCloseMonth(){
+  if(isMonthLocked(state.year,state.month)){
+    toast("Monat ist bereits abgeschlossen");return;
+  }
+  document.getElementById('confirm-title').textContent=`Monat ${MON[state.month]} ${state.year} abschließen?`;
+  document.getElementById('confirm-modal').classList.add('open');
+}
+function closeConfirmModal(){
+  document.getElementById('confirm-modal').classList.remove('open');
+}
+async function doCloseMonth(){
+  closeConfirmModal();
+  try{
+    const res=await fetch('/api/month-lock',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({year:state.year,month:state.month+1})
+    });
+    if(res.ok){
+      const d=await res.json();
+      monthLocks.push(d.lock);
+      toast("✓ Monat abgeschlossen");
+      render();
+    } else {
+      const err=await res.json();
+      toast("⚠ "+(err.error||"Fehler beim Abschluss"));
+    }
+  } catch(e){
+    toast("⚠ "+e.message);
+  }
 }
 function isWE(y,m,d){const w=new Date(y,m,d).getDay();return w===0||w===6;}
 function isSun(y,m,d){return new Date(y,m,d).getDay()===0;}
@@ -943,7 +1067,27 @@ function nettoStr(nettoMin){
 }
 
 // ── RENDER ───────────────────────────────────────────────────────────────────
-function render(){renderTabs();renderMonthLabel();renderTable();renderMobile();renderStats();}
+function render(){renderTabs();renderMonthLabel();renderTable();renderMobile();renderStats();renderLockState();}
+
+function renderLockState(){
+  const locked=isMonthLocked(state.year,state.month);
+  const banner=document.getElementById('lock-banner');
+  const closeBar=document.getElementById('close-month-bar');
+  if(locked){
+    const info=getLockInfo(state.year,state.month);
+    const dt=info?.lockedAt?new Date(info.lockedAt).toLocaleDateString('de-DE'):'';
+    document.getElementById('lock-banner-sub').textContent=
+      `${MON[state.month]} ${state.year}${dt?' · abgeschlossen am '+dt:''}`;
+    banner.classList.add('show');
+    closeBar.style.display='none';
+    // Tabellenzeilen ausgrauen + Klicks deaktivieren
+    document.querySelectorAll('#tbody tr').forEach(tr=>tr.classList.add('locked-row'));
+    document.querySelectorAll('.mob-card').forEach(c=>c.classList.add('locked-row'));
+  } else {
+    banner.classList.remove('show');
+    closeBar.style.display='flex';
+  }
+}
 
 function renderTabs(){
   const el=document.getElementById("emp-tabs");el.innerHTML="";
@@ -1296,11 +1440,14 @@ function buildWeekSelects(){
 }
 
 function openSheet(key){
+  const parts=key.split("-");
+  const y2=parseInt(parts[0]),m2=parseInt(parts[1])-1,d2=parseInt(parts[2]);
+  if(isMonthLocked(y2,m2)){
+    toast("🔒 Monat ist abgeschlossen");return;
+  }
   sheetDay=key;
   const emp=curEmp();
   const entry=emp.entries[key]||{};
-  const parts=key.split("-");
-  const y2=parseInt(parts[0]),m2=parseInt(parts[1])-1,d2=parseInt(parts[2]);
   document.getElementById("sh-title").textContent=wtDay(y2,m2,d2)+" "+d2+"."+(m2+1)+"."+y2;
 
   // Schicht-Buttons nur an normalen Werktagen Mo-Fr (nicht Sa/So/Feiertag)
@@ -1404,6 +1551,10 @@ function deleteEntry(){
 }
 
 function delEntryKey(key){
+  const p=key.split("-");
+  if(isMonthLocked(parseInt(p[0]),parseInt(p[1])-1)){
+    toast("🔒 Monat ist abgeschlossen");return;
+  }
   delete curEmp().entries[key];
   // Lösche auch auf dem Server
   fetch(`/api/entry/${key}`, { method: 'DELETE' })
@@ -1412,6 +1563,10 @@ function delEntryKey(key){
 }
 
 function quickSetTyp(key,typ){
+  const p=key.split("-");
+  if(isMonthLocked(parseInt(p[0]),parseInt(p[1])-1)){
+    toast("🔒 Monat ist abgeschlossen");return;
+  }
   const emp=curEmp();
   const cur=emp.entries[key];
   if(cur&&cur.typ===typ){
@@ -1862,7 +2017,7 @@ tr:last-child td{border-bottom:none;}
   <span class="leg-item" style="background:#FEF3C7;color:#B45309;">Samstag</span>
 </div>
 <div class="footer">
-  <span>Erstellt am ${new Date().toLocaleDateString("de-AT")} · Zeiterfassung v2.2</span>
+  <span>Erstellt am ${new Date().toLocaleDateString("de-AT")} · Zeiterfassung v2.5</span>
   <span>Seite 1/1</span>
 </div>
 
@@ -2351,6 +2506,9 @@ applyDark(state.darkMode||false);
 
     await loadEntriesFromServer();
     console.log('✓ Einträge vom Server geladen');
+
+    await loadMonthLocks();
+    console.log('✓ Monatssperren vom Server geladen');
 
     render();
     console.log('✓ UI gerendert');

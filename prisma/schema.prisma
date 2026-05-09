@@ -15,8 +15,23 @@ model User {
   isAdmin   Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  entries   Entry[]
-  settings  Settings?
+  entries     Entry[]
+  settings    Settings?
+  monthLocks  MonthLock[]
+}
+
+model MonthLock {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  year      Int
+  month     Int       // 1-12
+
+  lockedAt  DateTime  @default(now())
+
+  @@unique([userId, year, month])
+  @@index([userId])
 }
 
 model Entry {
