@@ -188,20 +188,22 @@ body.dark tr.r-closed{background:#1F2937;}
 .sd-add:hover{background:#1D4ED8;}
 .sd-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
 .sd-item{
-  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  display:flex;align-items:center;gap:6px;padding:8px 10px;
   border:1px solid var(--brd);border-radius:8px;background:var(--sur2);
-  font-size:13px;
+  font-size:11px;flex-wrap:wrap;
 }
-.sd-item .sd-date{font-family:'JetBrains Mono',monospace;font-weight:700;flex-shrink:0;}
-.sd-item .sd-tag{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;flex-shrink:0;}
+.sd-item .sd-date{font-family:'JetBrains Mono',monospace;font-weight:700;flex-shrink:0;font-size:11px;}
+.sd-item .sd-tag{padding:1px 6px;border-radius:10px;font-size:10px;font-weight:700;flex-shrink:0;}
 .sd-item .sd-tag.inv{background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;}
 .sd-item .sd-tag.cls{background:#E5E7EB;color:#374151;border:1px solid #D1D5DB;}
 body.dark .sd-item .sd-tag.inv{background:#2A1E05;color:#FCD34D;border-color:#4A360A;}
 body.dark .sd-item .sd-tag.cls{background:#1F2937;color:#9CA3AF;border-color:#374151;}
-.sd-item .sd-lbl{flex:1;color:var(--txt2);}
+.sd-item .sd-lbl{flex:1;color:var(--txt2);min-width:0;font-size:11px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sd-item .sd-del{
-  padding:5px 10px;border:1px solid var(--brd);border-radius:6px;cursor:pointer;
-  background:var(--sur);color:var(--k-t);font-size:12px;font-weight:700;
+  padding:4px 8px;border:1px solid var(--brd);border-radius:6px;cursor:pointer;
+  background:var(--sur);color:var(--k-t);font-size:11px;font-weight:700;flex-shrink:0;
+  margin-left:auto;
 }
 </style>
 </head>
@@ -323,13 +325,14 @@ function renderSpecialDays(){
   specialDays.forEach(d=>{
     const div=document.createElement('div');div.className='sd-item';
     const dt=new Date(d.date+'T00:00:00');
-    const dateStr=dt.toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});
+    const wd=dt.toLocaleDateString('de-DE',{weekday:'short'}).replace('.','');
+    const dateStr=wd+' '+String(dt.getDate()).padStart(2,'0')+'.'+String(dt.getMonth()+1).padStart(2,'0')+'.'+String(dt.getFullYear()).slice(2);
     const typeCls=d.type==='inventur'?'inv':'cls';
-    const typeLbl=d.type==='inventur'?'📦 Inventur':'🔒 Geschlossen';
+    const typeLbl=d.type==='inventur'?'📦 Inv':'🔒 Zu';
     div.innerHTML=`<span class="sd-date">${dateStr}</span>
       <span class="sd-tag ${typeCls}">${typeLbl}</span>
       <span class="sd-lbl">${d.label||''}</span>
-      <button class="sd-del" onclick="deleteSpecialDay('${d.date}')">✕ Löschen</button>`;
+      <button class="sd-del" onclick="deleteSpecialDay('${d.date}')" title="Löschen">✕</button>`;
     el.appendChild(div);
   });
 }
