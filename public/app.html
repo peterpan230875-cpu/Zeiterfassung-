@@ -270,6 +270,14 @@ tr.r-k{background:var(--red-bg);}
 .tb-u.ta{background:var(--blue);color:#fff;box-shadow:0 4px 12px rgba(37,99,235,.35);}
 .tb-za.ta{background:var(--green);color:#fff;box-shadow:0 4px 12px rgba(22,163,74,.35);}
 .tb-k.ta{background:var(--red);color:#fff;box-shadow:0 4px 12px rgba(220,38,38,.35);}
+.tb-fr{background:var(--amber-bg);color:#B45309;border-color:var(--amber-m);}
+.tb-sp{background:#EEF2FF;color:#4338CA;border-color:#C7D2FE;}
+.tb-fr.ta{background:var(--amber);color:#fff;box-shadow:0 4px 12px rgba(217,119,6,.35);}
+.tb-sp.ta{background:#4338CA;color:#fff;box-shadow:0 4px 12px rgba(67,56,202,.35);}
+body.dark .tb-sp{background:#1E1B4B;color:#A5B4FC;border-color:#3730A3;}
+body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
+.shift-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.wk-shift-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;}
 
 /* Time pickers */
 .time-row{display:flex;gap:8px;margin-bottom:12px;}
@@ -670,15 +678,14 @@ tr.r-k{background:var(--red-bg);}
     <button class="sh-close" onclick="closeSheet()">✕</button>
   </div>
   <div class="sh-body">
-    <div class="sec" id="sec-typ">
-      <div class="sec-lbl">Tagestyp</div>
-      <div class="type-grid">
-        <button class="tbtn tb-u"  id="tb-u"  onclick="setTyp('urlaub')">🏖 Urlaub</button>
-        <button class="tbtn tb-za" id="tb-za" onclick="setTyp('zeitausgleich')">🔄 Zeitausgleich</button>
-        <button class="tbtn tb-k"  id="tb-k"  onclick="setTyp('krank')">🤒 Krank</button>
+    <div class="sec" id="sec-shift">
+      <div class="sec-lbl">Schicht</div>
+      <div class="shift-grid">
+        <button class="tbtn tb-fr" id="tb-fr" onclick="applyShift('frueh')">🌅 Frühschicht</button>
+        <button class="tbtn tb-sp" id="tb-sp" onclick="applyShift('spaet')">🌆 Spätschicht</button>
       </div>
     </div>
-    <hr class="divider" id="divider-typ"/>
+    <hr class="divider" id="divider-shift"/>
     <div class="sec">
       <div class="sec-lbl">Arbeitszeit</div>
       <div class="time-row">
@@ -722,12 +729,15 @@ tr.r-k{background:var(--red-bg);}
     </div>
     <div id="wk-info"></div>
     <div class="sec">
-      <div class="sec-lbl">Tagestyp</div>
+      <div class="sec-lbl">Was eintragen?</div>
+      <div class="wk-shift-grid">
+        <button class="tbtn tb-fr" id="wk-fr"  onclick="wkSetTyp('frueh')">🌅 Frühschicht</button>
+        <button class="tbtn tb-sp" id="wk-sp"  onclick="wkSetTyp('spaet')">🌆 Spätschicht</button>
+      </div>
       <div class="wk-type-grid">
         <button class="tbtn tb-u"  id="wk-tu"  onclick="wkSetTyp('urlaub')">🏖 Urlaub</button>
         <button class="tbtn tb-za" id="wk-tza" onclick="wkSetTyp('zeitausgleich')">🔄 ZA</button>
         <button class="tbtn tb-k"  id="wk-tk"  onclick="wkSetTyp('krank')">🤒 Krank</button>
-        <button class="tbtn" id="wk-tn" onclick="wkSetTyp('normal')" style="background:var(--bg);border:1.5px solid var(--brd);color:var(--txt2);font-weight:700;">⏱ Arbeit</button>
       </div>
     </div>
     <hr class="divider"/>
@@ -1037,24 +1047,18 @@ function renderTable(){
       tdS.innerHTML=`<span class="badge b-we">Sonntag</span>`;
     } else if(isSat(y,m,d)){
       tdS.innerHTML=`<span class="badge" style="background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-m);">Samstag</span>`;
-    } else {
-      const wrap=document.createElement("div");
-      wrap.style.cssText="display:flex;gap:3px;";
-      wrap.onclick=e=>e.stopPropagation();
-      [["U","q-u","urlaub"],["ZA","q-za","zeitausgleich"],["K","q-k","krank"]].forEach(([lbl,cls,t])=>{
-        const b=document.createElement("button");
-        b.className="qbtn "+cls+(typ===t?" qa":"");
-        b.textContent=lbl;b.title=t;
-        b.onclick=e=>{e.stopPropagation();quickSetTyp(key,t);};
-        wrap.appendChild(b);
-      });
-      if(entry){
-        const del=document.createElement("button");
-        del.style.cssText="background:var(--bg2);border:1px solid var(--brd);border-radius:5px;width:22px;height:24px;cursor:pointer;font-size:11px;color:var(--muted);";
-        del.textContent="✕";del.onclick=e=>{e.stopPropagation();delEntryKey(key);};
-        wrap.appendChild(del);
-      }
-      tdS.appendChild(wrap);
+    } else if(typ==="urlaub"){
+      tdS.innerHTML=`<span class="badge" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-m);">🏖 Urlaub</span>`;
+    } else if(typ==="zeitausgleich"){
+      tdS.innerHTML=`<span class="badge" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-m);">🔄 ZA</span>`;
+    } else if(typ==="krank"){
+      tdS.innerHTML=`<span class="badge" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-m);">🤒 Krank</span>`;
+    } else if(entry){
+      const del=document.createElement("button");
+      del.style.cssText="background:var(--bg2);border:1px solid var(--brd);border-radius:5px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--muted);";
+      del.textContent="✕ Löschen";del.onclick=e=>{e.stopPropagation();delEntryKey(key);};
+      del.onmouseover=e=>e.stopPropagation();
+      tdS.appendChild(del);
     }
     tr.appendChild(tdS);
     tbody.appendChild(tr);
@@ -1123,17 +1127,14 @@ function renderMobile(){
       const nDiv=document.createElement("div");nDiv.className="mc-netto";nDiv.innerHTML=nettoEl;right.appendChild(nDiv);
     }
 
-    // Quick buttons (nur an normalen Werktagen, nicht Sa/So/Feiertag)
-    if(!noTypBtn){
-      const btns=document.createElement("div");btns.className="mc-btns";
-      [["U","q-u","urlaub"],["ZA","q-za","zeitausgleich"],["K","q-k","krank"]].forEach(([lbl,cls,t])=>{
-        const b=document.createElement("button");
-        b.className="qbtn "+cls+(typ===t?" qa":"");
-        b.textContent=lbl;
-        b.onclick=()=>quickSetTyp(key,t);
-        btns.appendChild(b);
-      });
-      right.appendChild(btns);
+    // Löschen-Knopf wenn Eintrag vorhanden
+    if(entry&&!noTypBtn){
+      const del=document.createElement("button");
+      del.className="qbtn";
+      del.style.cssText="background:var(--bg2);border:1px solid var(--brd);color:var(--muted);font-size:14px;padding:6px 10px;";
+      del.textContent="✕";
+      del.onclick=()=>delEntryKey(key);
+      right.appendChild(del);
     }
 
     card.appendChild(dayDiv);card.appendChild(wtDiv);
@@ -1252,17 +1253,15 @@ function openSheet(key){
   const y2=parseInt(parts[0]),m2=parseInt(parts[1])-1,d2=parseInt(parts[2]);
   document.getElementById("sh-title").textContent=wtDay(y2,m2,d2)+" "+d2+"."+(m2+1)+"."+y2;
 
-  // Typ-Buttons nur an normalen Werktagen anzeigen
+  // Schicht-Buttons nur an normalen Werktagen Mo-Fr (nicht Sa/So/Feiertag)
   const isWeekend=isSat(y2,m2,d2)||isSun(y2,m2,d2);
   const isHol=!!FEIERTAGE[key];
-  const showTyp=!isWeekend&&!isHol;
-  document.getElementById("sec-typ").style.display=showTyp?"":"none";
-  document.getElementById("divider-typ").style.display=showTyp?"":"none";
+  const showShift=!isWeekend&&!isHol;
+  document.getElementById("sec-shift").style.display=showShift?"":"none";
+  document.getElementById("divider-shift").style.display=showShift?"":"none";
+  ["tb-fr","tb-sp"].forEach(id=>document.getElementById(id).classList.remove("ta"));
 
-  ["tb-u","tb-za","tb-k"].forEach(id=>document.getElementById(id).classList.remove("ta"));
   const typ=entry.typ||"normal";
-  const tmap={urlaub:"tb-u",zeitausgleich:"tb-za",krank:"tb-k"};
-  if(tmap[typ])document.getElementById(tmap[typ]).classList.add("ta");
 
   // Times + Smart Pre-fill
   const [vh,vm]=(entry.von||"").split(":");
@@ -1437,10 +1436,36 @@ function wkRenderWeek(){
 
 function wkSetTyp(typ){
   wkTyp=typ;
-  ["wk-tu","wk-tza","wk-tk","wk-tn"].forEach(id=>document.getElementById(id)?.classList.remove("ta"));
-  const map={urlaub:"wk-tu",zeitausgleich:"wk-tza",krank:"wk-tk",normal:"wk-tn"};
+  ["wk-tu","wk-tza","wk-tk","wk-fr","wk-sp"].forEach(id=>document.getElementById(id)?.classList.remove("ta"));
+  const map={urlaub:"wk-tu",zeitausgleich:"wk-tza",krank:"wk-tk",frueh:"wk-fr",spaet:"wk-sp"};
   if(map[typ])document.getElementById(map[typ]).classList.add("ta");
-  document.getElementById("wk-time-sec").style.display=typ==="normal"?"block":"none";
+
+  // Bei Frühschicht/Spätschicht: Zeiten automatisch berechnen und Zeitfeld zeigen
+  if(typ==="frueh"||typ==="spaet"){
+    const s=calcShift(typ);
+    const [vh,vm]=s.von.split(":");
+    const [bh,bm]=s.bis.split(":");
+    document.getElementById("wv-h").value=vh;
+    document.getElementById("wv-m").value=vm;
+    document.getElementById("wb-h").value=bh;
+    document.getElementById("wb-m").value=bm;
+    document.querySelectorAll("#wk-pause-row .ppill").forEach(b=>b.classList.toggle("pa",b.dataset.val===s.pause));
+    document.getElementById("wk-pause-custom").value=PAUSES.includes(s.pause)?"":s.pause;
+    document.getElementById("wk-time-sec").style.display="block";
+  } else {
+    document.getElementById("wk-time-sec").style.display="none";
+  }
+
+  // Tage-Checkboxen: Bei Krank/Urlaub/ZA alle nicht-blockierten Tage anhaken
+  const allChecked=(typ==="urlaub"||typ==="krank"||typ==="zeitausgleich");
+  wkWeekDays.forEach((d,i)=>{
+    if(d.blocked) return;
+    if(allChecked) d.skip=false;        // alle anhaken
+    else d.skip=(d.date.getDay()===6);  // Sa abhaken bei Schicht
+  });
+  // Checkboxen UI aktualisieren
+  const cbs=document.querySelectorAll("#wk-day-checks input[type=checkbox]");
+  cbs.forEach((cb,i)=>{ if(wkWeekDays[i]&&!wkWeekDays[i].blocked) cb.checked=!wkWeekDays[i].skip; });
 }
 
 function wkCustomPause(val){
@@ -1455,9 +1480,8 @@ function openWeekSheet(){
   else refDate=new Date(y,m,1);
   wkMonday=getMondayOf(refDate);
   wkRenderWeek();
-  wkSetTyp("normal");
   buildWeekSelects();
-  ["wv-h","wv-m","wb-h","wb-m"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  wkSetTyp("frueh"); // Default: Frühschicht
   openOv();document.getElementById("wk-sheet").classList.add("open");
 }
 
@@ -1475,11 +1499,18 @@ function saveWeek(){
   const customPause=document.getElementById("wk-pause-custom").value.trim();
   const pause=customPause?customPause:(activePause?activePause.dataset.val:"30");
   let count=0;
+  const isShift=(wkTyp==="frueh"||wkTyp==="spaet");
   wkWeekDays.forEach(d=>{
     if(d.skip||d.blocked)return;
-    if(wkTyp==="normal"){if(!von)return;emp.entries[d.key]={von,bis,pause,bemerkung:"",typ:"normal"};}
-    else{emp.entries[d.key]={von:"",bis:"",pause:"",bemerkung:"",typ:wkTyp};}
-    // Sende jeden Eintrag zum Server
+    if(isShift){
+      if(!von)return;
+      emp.entries[d.key]={von,bis,pause,bemerkung:"",typ:"normal"};
+      // Schichten auch lernen
+      learnEntry(d.key,von,bis,pause);
+    }
+    else{
+      emp.entries[d.key]={von:"",bis:"",pause:"",bemerkung:"",typ:wkTyp};
+    }
     syncEntryToServer(d.key, emp.entries[d.key]);
     count++;
   });
@@ -2015,6 +2046,41 @@ async function completeSetup() {
   } catch(err) {
     toast('⚠ Fehler: ' + err.message);
   }
+}
+
+// ── SCHICHT-BERECHNUNG ───────────────────────────────────────────────────────
+function calcShift(shiftType){
+  const wh=parseFloat(state.wochenstunden)||38.5;
+  const pause=parseInt(state.defaultPause)||30;
+  const dailyMin=Math.round(wh*60/5);          // Arbeitsminuten/Tag
+  const totalMin=dailyMin+pause;                // inkl. Pause
+  const startH=shiftType==="frueh"?6:14;
+  const endTotal=startH*60+totalMin;
+  const endH=Math.floor(endTotal/60)%24;
+  const endM=endTotal%60;
+  return {
+    von: String(startH).padStart(2,"0")+":00",
+    bis: String(endH).padStart(2,"0")+":"+String(endM).padStart(2,"0"),
+    pause: String(pause)
+  };
+}
+
+function applyShift(shiftType){
+  const s=calcShift(shiftType);
+  const [vh,vm]=s.von.split(":");
+  const [bh,bm]=s.bis.split(":");
+  document.getElementById("sv-h").value=vh;
+  document.getElementById("sv-m").value=vm;
+  document.getElementById("sb-h").value=bh;
+  document.getElementById("sb-m").value=bm;
+  // Pause setzen
+  const isPill=PAUSES.includes(s.pause);
+  document.querySelectorAll("#pause-row .ppill").forEach(b=>b.classList.toggle("pa",b.dataset.val===s.pause));
+  document.getElementById("inp-pause-custom").value=isPill?"":s.pause;
+  // Aktiven Button markieren
+  ["tb-fr","tb-sp"].forEach(id=>document.getElementById(id).classList.remove("ta"));
+  document.getElementById(shiftType==="frueh"?"tb-fr":"tb-sp").classList.add("ta");
+  toast(shiftType==="frueh"?"🌅 Frühschicht "+s.von+"–"+s.bis:"🌆 Spätschicht "+s.von+"–"+s.bis);
 }
 
 // ── LERNEFFEKT ───────────────────────────────────────────────────────────────
