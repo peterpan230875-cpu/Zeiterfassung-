@@ -1993,16 +1993,43 @@ tr:last-child td{border-bottom:none;}
 }
 
 function printMonth(){
-  const html=buildPrintHTML();
-  const w=window.open("","_blank","width=900,height=700");
-  w.document.write(html);w.document.close();
-  // Title explizit setzen → Browser schlägt diesen Namen beim "Als PDF speichern" vor
   const fname=`${MON[state.month]} ${state.year}`;
-  try{ w.document.title=fname; }catch(e){}
+  const html=buildPrintHTML();
+
+  // Vorhandenes Print-IFrame entfernen
+  const old=document.getElementById('print-iframe');
+  if(old) old.remove();
+
+  // Verstecktes IFrame erzeugen (für sauberen PDF-Dateinamen)
+  const iframe=document.createElement('iframe');
+  iframe.id='print-iframe';
+  iframe.name=fname; // manche Browser nehmen den iframe-name als Dateiname
+  iframe.title=fname;
+  iframe.style.cssText='position:absolute;left:-99999px;top:0;width:1px;height:1px;border:0;';
+  document.body.appendChild(iframe);
+
+  iframe.contentDocument.open();
+  iframe.contentDocument.write(html);
+  iframe.contentDocument.close();
+  // Title im iframe sicher setzen
+  try{ iframe.contentDocument.title=fname; }catch(e){}
+
+  // Parent-Title temporär überschreiben — manche Browser nehmen den
+  // Parent-Title als PDF-Dateinamen wenn aus IFrame gedruckt wird
+  const origTitle=document.title;
+  document.title=fname;
+
   setTimeout(()=>{
-    try{ w.document.title=fname; }catch(e){}
-    w.focus();w.print();
-  },400);
+    try{ iframe.contentDocument.title=fname; }catch(e){}
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    // Nach Druck: Title und IFrame zurücksetzen
+    setTimeout(()=>{
+      document.title=origTitle;
+      iframe.remove();
+    }, 2000);
+  }, 500);
+
   closePdfSheet();
 }
 
