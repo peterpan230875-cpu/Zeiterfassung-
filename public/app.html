@@ -226,7 +226,13 @@ tr.r-k{background:var(--red-bg);}
 .mc-info{flex:1;min-width:0;}
 .mc-time{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;}
 .mc-bem{font-size:12px;color:var(--txt2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mc-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.mc-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.mc-summary{display:flex;flex-direction:column;align-items:flex-end;gap:3px;}
+.mc-pause{
+  font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;
+  color:var(--txt);background:var(--bg2);padding:2px 8px;
+  border:1px solid var(--brd);border-radius:6px;white-space:nowrap;
+}
 .mc-netto{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;}
 .mc-btns{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;}
 
@@ -1314,10 +1320,19 @@ function renderMobile(){
     const right=document.createElement("div");right.className="mc-right";
     right.onclick=e=>e.stopPropagation();
 
-    // Netto
-    if(nettoEl){
-      const nDiv=document.createElement("div");nDiv.className="mc-netto";nDiv.innerHTML=nettoEl;right.appendChild(nDiv);
+    // Pause + Netto vertikal gestapelt: Pause oben, Tagesarbeitszeit unten
+    const summary=document.createElement("div");summary.className="mc-summary";
+    const isNormalWork=entry&&entry.von&&entry.bis&&(!entry.typ||entry.typ==="normal");
+    if(isNormalWork && entry.pause){
+      const pDiv=document.createElement("div");pDiv.className="mc-pause";
+      pDiv.textContent="🍴 "+entry.pause+"'";
+      summary.appendChild(pDiv);
     }
+    if(nettoEl){
+      const nDiv=document.createElement("div");nDiv.className="mc-netto";nDiv.innerHTML=nettoEl;
+      summary.appendChild(nDiv);
+    }
+    if(summary.children.length>0) right.appendChild(summary);
 
     // Schnell-Buttons U/ZA/K + ggf. Löschen (nur an normalen Werktagen)
     if(!noTypBtn){
