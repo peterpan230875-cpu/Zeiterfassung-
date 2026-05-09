@@ -185,12 +185,13 @@ app.delete('/api/entry/:date', async (req, res) => {
 app.post('/api/user-settings', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
   try {
-    const { wochenstunden, darkMode, emailTo, employees, setupDone, defaultPause, smtpUser, smtpPass, weekPatterns } = req.body;
-    // defaultPause + weekPatterns im employees-JSON mitgespeichert
+    const { wochenstunden, darkMode, emailTo, employees, setupDone, defaultPause, smtpUser, smtpPass, weekPatterns, season } = req.body;
+    // defaultPause + weekPatterns + season im employees-JSON mitgespeichert
     const empData = JSON.stringify([{
       id: 1, name: req.session.name,
       defaultPause: parseInt(defaultPause) || 30,
-      weekPatterns: weekPatterns || {}
+      weekPatterns: weekPatterns || {},
+      season: season || 'auto'
     }]);
 
     const updateData = {
@@ -223,6 +224,7 @@ app.get('/api/user-settings', async (req, res) => {
     const empArr = JSON.parse(settings.employees || '[]');
     const defaultPause = (empArr[0] && empArr[0].defaultPause) || 30;
     const weekPatterns  = (empArr[0] && empArr[0].weekPatterns)  || {};
+    const season        = (empArr[0] && empArr[0].season)        || 'auto';
     res.json({
       wochenstunden: settings.wochenstunden,
       darkMode: settings.darkMode,
@@ -232,6 +234,7 @@ app.get('/api/user-settings', async (req, res) => {
       smtpUser: settings.smtpUser || '',
       smtpPassSet: !!(settings.smtpPass && settings.smtpPass.trim()),
       weekPatterns,
+      season,
       employees: [{ id: 1, name: req.session.name, entries: {} }]
     });
   } catch (err) {

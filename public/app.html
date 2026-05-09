@@ -370,6 +370,15 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
   color:var(--green);border-radius:20px;padding:3px 10px;
   font-size:12px;font-weight:600;margin-top:6px;
 }
+.season-row{display:flex;gap:6px;flex-wrap:wrap;}
+.season-pill{
+  flex:1;min-width:90px;padding:11px 8px;border-radius:var(--rs);
+  border:1.5px solid var(--brd);background:var(--bg);color:var(--txt2);
+  font-family:'Figtree',sans-serif;font-size:13px;font-weight:600;cursor:pointer;
+  transition:all .15s;
+}
+.season-pill.act{background:var(--blue);color:#fff;border-color:var(--blue);
+  box-shadow:0 4px 12px rgba(37,99,235,.25);}
 
 /* FAB Mic */
 #mic-fab{
@@ -830,6 +839,17 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
     </div>
     <hr class="divider"/>
     <div class="sec">
+      <div class="sec-lbl">Saison (Spätschicht-Endzeit)</div>
+      <p style="font-size:13px;color:var(--txt2);margin-bottom:10px;">☀️ Sommer: Schluss 17:30 · ❄️ Winter: Schluss 17:00</p>
+      <div class="season-row">
+        <button class="season-pill" id="season-auto"   onclick="setSeason('auto')">🤖 Automatisch</button>
+        <button class="season-pill" id="season-summer" onclick="setSeason('summer')">☀️ Sommer</button>
+        <button class="season-pill" id="season-winter" onclick="setSeason('winter')">❄️ Winter</button>
+      </div>
+      <div id="season-badge" style="display:none" class="saved-badge">✓ Gespeichert</div>
+    </div>
+    <hr class="divider"/>
+    <div class="sec">
       <div class="sec-lbl">Darstellung</div>
       <div class="toggle-row">
         <div class="toggle-info">
@@ -893,7 +913,7 @@ let state=loadState()||{
   year:2026,month:3,selEmp:0,
   wochenstunden:38.5,darkMode:false,emailTo:"",defaultPause:30,
   smtpUser:"",smtpPassSet:false,setupDone:false,
-  weekPatterns:{},
+  weekPatterns:{},season:"auto",
   employees:[{id:1,name:"",entries:{}}]
 };
 let sheetDay=null,recognition=null,listening=false,wkMonday=null,wkWeekDays=[];
@@ -1550,12 +1570,27 @@ function addEmployee(){
 // ── SETTINGS SHEET ───────────────────────────────────────────────────────────
 let whTimer=null,emailTimer=null;
 
+function setSeason(s){
+  state.season=s;
+  saveState();
+  ["season-auto","season-summer","season-winter"].forEach(id=>document.getElementById(id).classList.remove("act"));
+  document.getElementById("season-"+(s==="summer"?"summer":s==="winter"?"winter":"auto")).classList.add("act");
+  document.getElementById("season-badge").style.display="inline-flex";
+  const txt={auto:"🤖 Automatisch",summer:"☀️ Sommerzeit",winter:"❄️ Winterzeit"}[s];
+  toast("✓ "+txt);
+}
+
 function openSettingsSheet(){
   document.getElementById("inp-wh").value=state.wochenstunden||38.5;
   document.getElementById("wh-badge").style.display="none";
   document.getElementById("toggle-dark").checked=!!state.darkMode;
   document.getElementById("inp-email").value=state.emailTo||"";
   document.getElementById("email-badge").style.display="none";
+  // Saison-Buttons aktiv markieren
+  ["season-auto","season-summer","season-winter"].forEach(id=>document.getElementById(id).classList.remove("act"));
+  const sn=state.season||"auto";
+  document.getElementById("season-"+(sn==="summer"?"summer":sn==="winter"?"winter":"auto")).classList.add("act");
+  document.getElementById("season-badge").style.display="none";
   // SMTP-Felder füllen
   document.getElementById("inp-smtp-user").value=state.smtpUser||"";
   document.getElementById("inp-smtp-pass").value=""; // Passwort nie zurückschreiben
@@ -2055,6 +2090,9 @@ const CLOSE_SUMMER="17:30"; // April–September
 const CLOSE_WINTER="17:00"; // Oktober–März
 
 function isSummerSeason(d){
+  if(state.season==="summer") return true;
+  if(state.season==="winter") return false;
+  // Automatisch: nach Monat
   const m=(d instanceof Date?d:new Date()).getMonth();
   return m>=3&&m<=8; // April(3)–September(8)
 }
@@ -2201,6 +2239,7 @@ async function syncSettingsToServer(setupDone) {
       defaultPause: state.defaultPause || 30,
       smtpUser: state.smtpUser || '',
       weekPatterns: state.weekPatterns || {},
+      season: state.season || 'auto',
       employees: state.employees
     };
 
@@ -2252,6 +2291,7 @@ async function loadSettingsFromServer() {
     state.smtpPassSet = !!settings.smtpPassSet;
     if (settings.setupDone !== undefined) state.setupDone = !!settings.setupDone;
     if (settings.weekPatterns && typeof settings.weekPatterns === 'object') state.weekPatterns = settings.weekPatterns;
+    if (settings.season) state.season = settings.season;
 
     // Mitarbeiter vom Server immer vollständig übernehmen (nie mit lokalem Cache mischen)
     // Einträge kommen separat via loadEntriesFromServer()
