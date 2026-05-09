@@ -228,7 +228,7 @@ tr.r-k{background:var(--red-bg);}
 .mc-bem{font-size:12px;color:var(--txt2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .mc-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
 .mc-netto{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;}
-.mc-btns{display:flex;gap:3px;}
+.mc-btns{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;}
 
 /* ── OVERLAY + SHEETS ───────────────────────────────────────────────────── */
 #ov{
@@ -383,18 +383,6 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
 }
 .season-pill.act{background:var(--blue);color:#fff;border-color:var(--blue);
   box-shadow:0 4px 12px rgba(37,99,235,.25);}
-
-/* FAB Mic */
-#mic-fab{
-  position:fixed;bottom:24px;right:20px;z-index:50;
-  width:54px;height:54px;border-radius:50%;
-  background:var(--blue);color:#fff;border:none;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;font-size:20px;
-  box-shadow:0 4px 20px rgba(37,99,235,.4);transition:all .2s;
-}
-#mic-fab:hover{transform:scale(1.06);}
-#mic-fab.listening{background:var(--red);animation:mic-pulse 1s infinite;}
-@keyframes mic-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
 
 /* Toast */
 #toast{
@@ -650,9 +638,6 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
   <!-- Mobile List -->
   <div id="mob-list"></div>
 </div>
-
-<!-- MIC FAB -->
-<button id="mic-fab" onclick="toggleVoice()">🎤</button>
 
 <!-- SETUP WIZARD -->
 <div id="setup-wizard">
@@ -925,7 +910,7 @@ let state=loadState()||{
   weekPatterns:{},season:"auto",
   employees:[{id:1,name:"",entries:{}}]
 };
-let sheetDay=null,recognition=null,listening=false,wkMonday=null,wkWeekDays=[];
+let sheetDay=null,wkMonday=null,wkWeekDays=[];
 
 // ── PERSIST ──────────────────────────────────────────────────────────────────
 function saveState(){localStorage.setItem("zt_v3",JSON.stringify(state));}
@@ -1962,49 +1947,6 @@ async function sendEmail(){
   }
 }
 
-// ── VOICE ────────────────────────────────────────────────────────────────────
-function initVoice(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){document.getElementById("mic-fab").style.display="none";return;}
-  recognition=new SR();recognition.lang="de-DE";recognition.continuous=false;recognition.interimResults=false;
-  recognition.onstart=()=>{listening=true;document.getElementById("mic-fab").classList.add("listening");};
-  recognition.onend=()=>{listening=false;document.getElementById("mic-fab").classList.remove("listening");};
-  recognition.onerror=()=>{listening=false;document.getElementById("mic-fab").classList.remove("listening");};
-  recognition.onresult=(ev)=>{
-    const txt=Array.from(ev.results).map(x=>x[0].transcript).join("");
-    toast('"'+txt+'"');processVoice(txt);
-  };
-}
-
-function toggleVoice(){
-  if(!recognition)return;
-  if(listening){recognition.stop();}else{recognition.start();toast("🎙 Höre zu…",5000);}
-}
-
-function processVoice(txt){
-  const lo=txt.toLowerCase();
-  const typs={urlaub:"urlaub",zeitausgleich:"zeitausgleich",krank:"krank"};
-  for(const [word,typ] of Object.entries(typs)){
-    if(lo.includes(word)){
-      const today=new Date();
-      const key=sheetDay||dk(today.getFullYear(),today.getMonth(),today.getDate());
-      quickSetTyp(key,typ);toast("✓ "+typ);return;
-    }
-  }
-  const tRe=/(\d{1,2})[\s:.]?(\d{2})/g;const ms=[];let match;
-  while((match=tRe.exec(lo))!==null)ms.push(match);
-  if(ms.length>0){
-    const von=ms[0][1].padStart(2,"0")+":"+ms[0][2];
-    const bis=ms.length>1?ms[1][1].padStart(2,"0")+":"+ms[1][2]:"";
-    const pause=ms.length>2?ms[2][1]:"30";
-    if(sheetDay){
-      const emp=curEmp();const cur=emp.entries[sheetDay]||{};
-      emp.entries[sheetDay]={...cur,von,bis,pause,typ:cur.typ||"normal"};
-      saveState();render();openSheet(sheetDay);toast("✓ "+von+"–"+bis);
-    } else {toast("Erkannt: "+von+"–"+bis+" — Tag antippen");}
-  }
-}
-
 // ── OVERLAY ──────────────────────────────────────────────────────────────────
 function openOv(){document.getElementById("ov").classList.add("open");}
 function closeOv(){document.getElementById("ov").classList.remove("open");}
@@ -2396,7 +2338,6 @@ async function loadEntriesFromServer() {
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
 buildSelects();
-initVoice();
 applyDark(state.darkMode||false);
 
 // Lade erst Benutzerinfo, dann Einstellungen und Einträge vom Server
