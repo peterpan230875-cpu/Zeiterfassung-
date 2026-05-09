@@ -1292,16 +1292,16 @@ function openSheet(key){
   let fvh=vh||"",fvm=vm||"",fbh=bh||"",fbm=bm||"",fpval="";
   if(isNew){
     if(isSat(y2,m2,d2)){
-      // Samstag: immer 08:00–12:00, 0 min
+      // Samstag: immer 08:00–12:00, 0 min (fest)
       fvh="08";fvm="00";fbh="12";fbm="00";fpval="0";
     } else {
-      const best=getBestPattern(dow2);
-      if(best){
-        const[pv,pb,pp]=best.split("|");
-        const[bvh,bvm2]=(pv||"").split(":");
-        const[bbh,bbm2]=(pb||"").split(":");
+      // Vorschlag NUR aus der gleichen Woche — keine wochenübergreifenden Muster
+      const wkFirst=getWeekFirstEntry(key);
+      if(wkFirst){
+        const[bvh,bvm2]=(wkFirst.von||"").split(":");
+        const[bbh,bbm2]=(wkFirst.bis||"").split(":");
         fvh=bvh||"";fvm=bvm2||"";fbh=bbh||"";fbm=bbm2||"";
-        fpval=pp||String(state.defaultPause||30);
+        fpval=String(wkFirst.pause||state.defaultPause||30);
       }
     }
   }
@@ -1358,8 +1358,6 @@ function saveEntry(){
   const bem=document.getElementById("inp-bem").value.trim();
   const curTyp=emp.entries[sheetDay]?emp.entries[sheetDay].typ||"normal":"normal";
   emp.entries[sheetDay]={von,bis,pause,bemerkung:bem,typ:curTyp};
-  // Lerneffekt: Muster für diesen Wochentag merken
-  if(von&&bis) learnEntry(sheetDay,von,bis,pause);
   saveState();
   // Sende Eintrag zum Server
   syncEntryToServer(sheetDay, emp.entries[sheetDay]);
@@ -1525,8 +1523,6 @@ function saveWeek(){
     if(isShift){
       if(!von)return;
       emp.entries[d.key]={von,bis,pause,bemerkung:"",typ:"normal"};
-      // Schichten auch lernen
-      learnEntry(d.key,von,bis,pause);
     }
     else{
       emp.entries[d.key]={von:"",bis:"",pause:"",bemerkung:"",typ:wkTyp};
@@ -2148,31 +2144,27 @@ function applyShift(shiftType){
   toast(shiftType==="frueh"?"🌅 Frühschicht "+s.von+"–"+s.bis:"🌆 Spätschicht "+s.von+"–"+s.bis);
 }
 
-// ── LERNEFFEKT ───────────────────────────────────────────────────────────────
-function learnEntry(key, von, bis, pause) {
-  if(!von||!bis) return;
+// ── WOCHEN-VORSCHLAG ─────────────────────────────────────────────────────────
+// Findet den ersten Eintrag (Mo–Fr) in der gleichen KW wie der gegebene Tag.
+// Lerneffekt gilt NUR innerhalb einer Woche — keine wochenübergreifenden Muster.
+function getWeekFirstEntry(key) {
   const parts=key.split("-");
   const y=parseInt(parts[0]),m=parseInt(parts[1])-1,d=parseInt(parts[2]);
-  const dow=new Date(y,m,d).getDay();
-  if(dow===0||dow===6) return; // Wochenenden nicht lernen
+  const date=new Date(y,m,d);
+  const dow=date.getDay();
+  const offToMon=dow===0?-6:1-dow;
+  const mon=new Date(date.getFullYear(),date.getMonth(),date.getDate()+offToMon);
 
-  if(!state.weekPatterns) state.weekPatterns={};
-  if(!state.weekPatterns[dow]) state.weekPatterns[dow]={};
-  const pk=`${von}|${bis}|${pause||"0"}`;
-  state.weekPatterns[dow][pk]=(state.weekPatterns[dow][pk]||0)+1;
-
-  // Nur top 10 Muster pro Wochentag behalten
-  const pats=state.weekPatterns[dow];
-  const keys=Object.keys(pats).sort((a,b)=>pats[b]-pats[a]);
-  if(keys.length>10) keys.slice(10).forEach(k=>delete pats[k]);
-}
-
-function getBestPattern(dow) {
-  const pats=state.weekPatterns&&state.weekPatterns[dow];
-  if(!pats) return null;
-  const keys=Object.keys(pats);
-  if(!keys.length) return null;
-  return keys.reduce((a,b)=>pats[a]>=pats[b]?a:b);
+  const emp=curEmp();
+  // Mo–Fr (5 Tage) durchgehen, ersten Werktag mit Eintrag finden
+  for(let i=0;i<5;i++){
+    const dy=new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+i);
+    const dyKey=dk(dy.getFullYear(),dy.getMonth(),dy.getDate());
+    if(dyKey===key) continue; // aktuellen Tag überspringen
+    const e=emp.entries[dyKey];
+    if(e&&e.von&&e.bis&&(!e.typ||e.typ==="normal")) return e;
+  }
+  return null;
 }
 
 async function saveSmtpSettings() {
