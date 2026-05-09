@@ -1442,7 +1442,7 @@ function wkSetTyp(typ){
 
   // Bei Frühschicht/Spätschicht: Zeiten automatisch berechnen und Zeitfeld zeigen
   if(typ==="frueh"||typ==="spaet"){
-    const s=calcShift(typ);
+    const s=calcShift(typ,wkMonday);
     const [vh,vm]=s.von.split(":");
     const [bh,bm]=s.bis.split(":");
     document.getElementById("wv-h").value=vh;
@@ -2049,24 +2049,51 @@ async function completeSetup() {
 }
 
 // ── SCHICHT-BERECHNUNG ───────────────────────────────────────────────────────
-function calcShift(shiftType){
+// Öffnungszeiten: Sommer 06:00–17:30, Winter 06:00–17:00
+const OPEN_HOUR=6;
+const CLOSE_SUMMER="17:30"; // April–September
+const CLOSE_WINTER="17:00"; // Oktober–März
+
+function isSummerSeason(d){
+  const m=(d instanceof Date?d:new Date()).getMonth();
+  return m>=3&&m<=8; // April(3)–September(8)
+}
+
+function calcShift(shiftType,refDate){
   const wh=parseFloat(state.wochenstunden)||38.5;
   const pause=parseInt(state.defaultPause)||30;
   const dailyMin=Math.round(wh*60/5);          // Arbeitsminuten/Tag
   const totalMin=dailyMin+pause;                // inkl. Pause
-  const startH=shiftType==="frueh"?6:14;
-  const endTotal=startH*60+totalMin;
-  const endH=Math.floor(endTotal/60)%24;
-  const endM=endTotal%60;
+  let startH,startM,endH,endM;
+  if(shiftType==="frueh"){
+    // Beginn um Öffnungszeit (06:00)
+    startH=OPEN_HOUR;startM=0;
+    const endTotal=startH*60+totalMin;
+    endH=Math.floor(endTotal/60)%24;
+    endM=endTotal%60;
+  } else {
+    // Spätschicht: endet bei Ladenschluss (saisonal)
+    const close=isSummerSeason(refDate)?CLOSE_SUMMER:CLOSE_WINTER;
+    [endH,endM]=close.split(":").map(Number);
+    const endTotal=endH*60+endM;
+    const startTotal=endTotal-totalMin;
+    startH=Math.floor(startTotal/60);
+    startM=startTotal%60;
+  }
   return {
-    von: String(startH).padStart(2,"0")+":00",
+    von: String(startH).padStart(2,"0")+":"+String(startM).padStart(2,"0"),
     bis: String(endH).padStart(2,"0")+":"+String(endM).padStart(2,"0"),
     pause: String(pause)
   };
 }
 
 function applyShift(shiftType){
-  const s=calcShift(shiftType);
+  let refDate=new Date();
+  if(sheetDay){
+    const p=sheetDay.split("-");
+    refDate=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+  }
+  const s=calcShift(shiftType,refDate);
   const [vh,vm]=s.von.split(":");
   const [bh,bm]=s.bis.split(":");
   document.getElementById("sv-h").value=vh;
