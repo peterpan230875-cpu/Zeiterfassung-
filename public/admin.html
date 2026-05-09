@@ -253,7 +253,7 @@ function renderMonth(){
     else if(sun){cls='r-we';vonTxt='Sonntag';}
     else if(sat){cls='r-sat';vonTxt='Samstag';}
     else if(typ==='urlaub'){cls='r-u';vonTxt='<span class="badge-typ b-u">🏖 Urlaub</span>';urlaub++;netto=ts.toFixed(2).replace('.',',');}
-    else if(typ==='zeitausgleich'){cls='r-za';vonTxt='<span class="badge-typ b-za">🔄 ZA</span>';za++;}
+    else if(typ==='zeitausgleich'){cls='r-za';vonTxt='<span class="badge-typ b-za">🔄 Zeitausgleich</span>';za++;}
     else if(typ==='krank'){cls='r-k';vonTxt='<span class="badge-typ b-k">🤒 Krank</span>';krank++;netto=ts.toFixed(2).replace('.',',');}
     else if(e&&e.von){
       vonTxt=e.von||'';bisTxt=e.bis||'';
