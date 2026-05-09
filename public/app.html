@@ -1897,7 +1897,7 @@ function buildPrintHTML(){
   const hasData=work>0||urlaub>0||krank>0||za>0;
 
   return `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"/>
-<title>Zeiterfassung ${MON[m]} ${y} — ${emp.name}</title>
+<title>${MON[m]} ${y}</title>
 <style>
 @page{size:A4 portrait;margin:12mm 10mm;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -1996,7 +1996,13 @@ function printMonth(){
   const html=buildPrintHTML();
   const w=window.open("","_blank","width=900,height=700");
   w.document.write(html);w.document.close();
-  setTimeout(()=>{w.focus();w.print();},400);
+  // Title explizit setzen → Browser schlägt diesen Namen beim "Als PDF speichern" vor
+  const fname=`${MON[state.month]} ${state.year}`;
+  try{ w.document.title=fname; }catch(e){}
+  setTimeout(()=>{
+    try{ w.document.title=fname; }catch(e){}
+    w.focus();w.print();
+  },400);
   closePdfSheet();
 }
 
