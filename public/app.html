@@ -1197,9 +1197,13 @@ function renderTable(){
     tr.appendChild(tdW);
 
     const tdV=document.createElement("td");tdV.className="td-t";
-    if(!blocked&&typ!=="normal"&&typ!=="zeitausgleich"&&!holiday){
+    if(!blocked&&typ!=="normal"&&!holiday){
       const sp=document.createElement("span");
-      const colMap={urlaub:"color:var(--blue);font-weight:700;",krank:"color:var(--red);font-weight:700;"};
+      const colMap={
+        urlaub:"color:var(--blue);font-weight:700;",
+        zeitausgleich:"color:var(--green);font-weight:700;",
+        krank:"color:var(--red);font-weight:700;"
+      };
       sp.style.cssText=colMap[typ]||"";sp.textContent=vonTxt;tdV.appendChild(sp);
     } else {tdV.textContent=vonTxt;}
     tr.appendChild(tdV);
