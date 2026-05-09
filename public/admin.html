@@ -174,15 +174,18 @@ body.dark tr.r-closed{background:#1F2937;}
 }
 
 /* Sondertage */
-.sd-row{display:grid;grid-template-columns:130px 130px 1fr auto;gap:6px;margin-bottom:8px;}
+.sd-row{display:flex;flex-direction:column;gap:6px;margin-bottom:8px;}
 .sd-row input,.sd-row select{
   padding:9px 10px;border:1px solid var(--brd);border-radius:8px;
   background:var(--sur2);color:var(--txt);font-size:13px;font-family:'Figtree',sans-serif;
+  width:100%;box-sizing:border-box;
 }
 .sd-add{
-  padding:9px 14px;border:none;border-radius:8px;cursor:pointer;
-  background:#2563EB;color:#fff;font-weight:700;font-size:13px;font-family:'Figtree',sans-serif;
+  padding:11px 14px;border:none;border-radius:8px;cursor:pointer;
+  background:#2563EB;color:#fff;font-weight:700;font-size:14px;font-family:'Figtree',sans-serif;
+  width:100%;margin-top:4px;
 }
+.sd-add:hover{background:#1D4ED8;}
 .sd-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
 .sd-item{
   display:flex;align-items:center;gap:10px;padding:10px 12px;
