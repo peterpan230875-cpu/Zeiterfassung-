@@ -121,6 +121,9 @@ tr.r-k{background:var(--k-bg);}
 .b-hol{background:var(--hol-bg);color:var(--hol-t);}
 .b-we{background:var(--sun-bg);color:var(--sun-t);}
 .b-sat{background:var(--sat-bg);color:var(--sat-t);}
+.kw-badge{display:inline-block;font-size:10px;font-weight:700;color:var(--u-t);
+  letter-spacing:.4px;margin-left:6px;background:var(--u-bg);border:1px solid var(--u-t);
+  padding:1px 6px;border-radius:8px;line-height:1.4;vertical-align:middle;opacity:.85;}
 </style>
 </head>
 <body>
@@ -173,6 +176,12 @@ function daysIn(y,m){return new Date(y,m+1,0).getDate();}
 function isSun(y,m,d){return new Date(y,m,d).getDay()===0;}
 function isSat(y,m,d){return new Date(y,m,d).getDay()===6;}
 function wtDay(y,m,d){return WT[new Date(y,m,d).getDay()];}
+function getKW(y,m,d){
+  const t=new Date(Date.UTC(y,m,d));
+  t.setUTCDate(t.getUTCDate()+4-(t.getUTCDay()||7));
+  const yStart=new Date(Date.UTC(t.getUTCFullYear(),0,1));
+  return Math.ceil((((t-yStart)/86400000)+1)/7);
+}
 
 async function loadUsers(){
   const res=await fetch('/api/admin/users');
@@ -266,9 +275,11 @@ function renderMonth(){
         if(net>0){work++;totalMin+=net;netto=(net/60).toFixed(2).replace('.',',');}
       }
     }
+    const isMonday=new Date(viewYear,viewMonth,d).getDay()===1;
+    const kwHtml=isMonday?`<span class="kw-badge">KW ${getKW(viewYear,viewMonth,d)}</span>`:'';
     rows+=`<tr class="${cls}">
       <td class="mono"><strong>${d}</strong></td>
-      <td>${dayWT}</td>
+      <td>${dayWT}${kwHtml}</td>
       <td>${vonTxt}</td>
       <td class="mono">${bisTxt}</td>
       <td class="mono" style="color:var(--txt);font-weight:700;">${pauseTxt}</td>

@@ -219,6 +219,10 @@ tr.r-k{background:var(--red-bg);}
 .mob-card.mc-k{background:var(--red-bg);}
 .mc-day{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;width:28px;flex-shrink:0;}
 .mc-wt{font-size:11px;font-weight:700;color:var(--muted);width:24px;flex-shrink:0;}
+.kw-badge{display:inline-block;font-size:10px;font-weight:700;color:var(--blue);
+  letter-spacing:.4px;margin-left:6px;background:var(--blue-bg);border:1px solid var(--blue-m);
+  padding:1px 6px;border-radius:8px;line-height:1.4;vertical-align:middle;}
+.mc-kw{display:block;font-size:9px;font-weight:700;color:var(--blue);letter-spacing:.3px;margin-top:2px;}
 .mc-info{flex:1;min-width:0;}
 .mc-time{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;}
 .mc-bem{font-size:12px;color:var(--txt2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -926,6 +930,12 @@ function loadState(){try{return JSON.parse(localStorage.getItem("zt_v3"));}catch
 function dk(y,m,d){return y+"-"+String(m+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");}
 function daysIn(y,m){return new Date(y,m+1,0).getDate();}
 function wtDay(y,m,d){return WT[new Date(y,m,d).getDay()];}
+function getKW(y,m,d){
+  const t=new Date(Date.UTC(y,m,d));
+  t.setUTCDate(t.getUTCDate()+4-(t.getUTCDay()||7));
+  const yStart=new Date(Date.UTC(t.getUTCFullYear(),0,1));
+  return Math.ceil((((t-yStart)/86400000)+1)/7);
+}
 function isWE(y,m,d){const w=new Date(y,m,d).getDay();return w===0||w===6;}
 function isSun(y,m,d){return new Date(y,m,d).getDay()===0;}
 function isSat(y,m,d){return new Date(y,m,d).getDay()===6;}
@@ -1039,7 +1049,13 @@ function renderTable(){
 
     // Zellen aufbauen
     const tdD=document.createElement("td");tdD.className="td-d";tdD.textContent=d;tr.appendChild(tdD);
-    const tdW=document.createElement("td");tdW.className="td-w";tdW.textContent=dayWT;tr.appendChild(tdW);
+    const tdW=document.createElement("td");tdW.className="td-w";tdW.textContent=dayWT;
+    if(new Date(y,m,d).getDay()===1){
+      const kwSpan=document.createElement("span");kwSpan.className="kw-badge";
+      kwSpan.textContent="KW "+getKW(y,m,d);
+      tdW.appendChild(kwSpan);
+    }
+    tr.appendChild(tdW);
 
     const tdV=document.createElement("td");tdV.className="td-t";
     if(!blocked&&typ!=="normal"&&typ!=="zeitausgleich"&&!holiday){
@@ -1111,9 +1127,14 @@ function renderMobile(){
     else if(typ==="krank")card.classList.add("mc-k");
     if(!blocked)card.onclick=()=>openSheet(key);
 
-    // Day + WT
+    // Day + WT (+ KW am Montag)
     const dayDiv=document.createElement("div");dayDiv.className="mc-day";dayDiv.textContent=d;
     const wtDiv=document.createElement("div");wtDiv.className="mc-wt";wtDiv.textContent=dayWT;
+    if(new Date(y,m,d).getDay()===1){
+      const kw=document.createElement("span");kw.className="mc-kw";
+      kw.textContent="KW"+getKW(y,m,d);
+      wtDiv.appendChild(kw);
+    }
 
     // Info
     const info=document.createElement("div");info.className="mc-info";
