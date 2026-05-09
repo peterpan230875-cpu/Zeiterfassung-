@@ -888,7 +888,6 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
       <div class="sec-lbl">Saison (Spätschicht-Endzeit)</div>
       <p style="font-size:13px;color:var(--txt2);margin-bottom:10px;">☀️ Sommer: Schluss 17:30 · ❄️ Winter: Schluss 17:00</p>
       <div class="season-row">
-        <button class="season-pill" id="season-auto"   onclick="setSeason('auto')">🤖 Automatisch</button>
         <button class="season-pill" id="season-summer" onclick="setSeason('summer')">☀️ Sommer</button>
         <button class="season-pill" id="season-winter" onclick="setSeason('winter')">❄️ Winter</button>
       </div>
@@ -1760,21 +1759,23 @@ let whTimer=null;
 function setSeason(s){
   state.season=s;
   saveState();
-  ["season-auto","season-summer","season-winter"].forEach(id=>document.getElementById(id).classList.remove("act"));
-  document.getElementById("season-"+(s==="summer"?"summer":s==="winter"?"winter":"auto")).classList.add("act");
+  ["season-summer","season-winter"].forEach(id=>document.getElementById(id)?.classList.remove("act"));
+  const btn=document.getElementById("season-"+(s==="summer"?"summer":"winter"));
+  if(btn) btn.classList.add("act");
   document.getElementById("season-badge").style.display="inline-flex";
-  const txt={auto:"🤖 Automatisch",summer:"☀️ Sommerzeit",winter:"❄️ Winterzeit"}[s];
-  toast("✓ "+txt);
+  const txt={summer:"☀️ Sommerzeit",winter:"❄️ Winterzeit"}[s];
+  if(txt) toast("✓ "+txt);
 }
 
 function openSettingsSheet(){
   document.getElementById("inp-wh").value=state.wochenstunden||38.5;
   document.getElementById("wh-badge").style.display="none";
   document.getElementById("toggle-dark").checked=!!state.darkMode;
-  // Saison-Buttons aktiv markieren
-  ["season-auto","season-summer","season-winter"].forEach(id=>document.getElementById(id).classList.remove("act"));
-  const sn=state.season||"auto";
-  document.getElementById("season-"+(sn==="summer"?"summer":sn==="winter"?"winter":"auto")).classList.add("act");
+  // Saison-Buttons aktiv markieren (nur falls explizit gesetzt)
+  ["season-summer","season-winter"].forEach(id=>document.getElementById(id)?.classList.remove("act"));
+  if(state.season==="summer"||state.season==="winter"){
+    document.getElementById("season-"+state.season)?.classList.add("act");
+  }
   document.getElementById("season-badge").style.display="none";
   refreshPdfFolderUI();
   openOv();document.getElementById("set-sheet").classList.add("open");
