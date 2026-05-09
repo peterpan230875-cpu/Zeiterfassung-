@@ -73,6 +73,17 @@ app.get('/app', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'app.html'));
 });
 
+// ── ADMIN-SEITEN ─────────────────────────────────────────────────────────────
+app.get('/admin-login', (req, res) => {
+  if (req.session.isAdmin) return res.redirect('/admin');
+  res.sendFile(path.join(__dirname, 'public', 'admin-login.html'));
+});
+
+app.get('/admin', (req, res) => {
+  if (!req.session.userId || !req.session.isAdmin) return res.redirect('/admin-login');
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 app.post('/api/register', async (req, res) => {
   try {
@@ -287,6 +298,70 @@ app.post('/api/send-email', async (req, res) => {
   } catch (err) {
     console.error('Email error:', err);
     res.status(500).json({ error: 'Fehler beim Senden: ' + err.message });
+  }
+});
+
+// ── ADMIN API ─────────────────────────────────────────────────────────────────
+app.post('/api/admin-login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password)
+      return res.status(400).json({ error: 'Benutzername und Passwort erforderlich' });
+
+    const user = await prisma.user.findUnique({ where: { username } });
+    if (!user || !user.isAdmin || !bcryptjs.compareSync(password, user.password))
+      return res.status(401).json({ error: 'Ungültige Admin-Anmeldedaten' });
+
+    req.session.userId = user.id;
+    req.session.username = username;
+    req.session.name = user.name;
+    req.session.isAdmin = true;
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Fehler beim Admin-Login' });
+  }
+});
+
+// Liste aller Mitarbeiter (ohne Admins)
+app.get('/api/admin/users', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  try {
+    const users = await prisma.user.findMany({
+      where: { isAdmin: false },
+      select: { id: true, username: true, name: true, createdAt: true },
+      orderBy: { name: 'asc' }
+    });
+    res.json({ users });
+  } catch (err) {
+    res.status(500).json({ error: 'Fehler beim Laden der Mitarbeiter' });
+  }
+});
+
+// Einträge eines Mitarbeiters (read-only)
+app.get('/api/admin/entries/:userId', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  try {
+    const entries = await prisma.entry.findMany({
+      where: { userId: req.params.userId },
+      orderBy: { date: 'asc' }
+    });
+    res.json({ entries });
+  } catch (err) {
+    res.status(500).json({ error: 'Fehler beim Laden der Einträge' });
+  }
+});
+
+// Settings eines Mitarbeiters (für Wochenstunden / Saldo)
+app.get('/api/admin/settings/:userId', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  try {
+    const settings = await prisma.settings.findUnique({
+      where: { userId: req.params.userId }
+    });
+    res.json({ settings });
+  } catch (err) {
+    res.status(500).json({ error: 'Fehler beim Laden der Einstellungen' });
   }
 });
 

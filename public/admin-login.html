@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin-Login · Zeiterfassung</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Figtree',sans-serif;
+      background:linear-gradient(135deg,#1F2937 0%,#111827 100%);
+      min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+    }
+    .container{width:100%;max-width:400px;}
+    .card{
+      background:#1F2937;border:1px solid #374151;border-radius:12px;
+      box-shadow:0 10px 40px rgba(0,0,0,0.5);padding:40px;color:#F9FAFB;
+    }
+    .logo{text-align:center;margin-bottom:30px;}
+    .logo h1{font-size:24px;color:#F9FAFB;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px;}
+    .logo p{color:#9CA3AF;font-size:13px;}
+    .form-group{margin-bottom:20px;}
+    label{display:block;margin-bottom:8px;color:#D1D5DB;font-weight:600;font-size:13px;}
+    input{
+      width:100%;padding:12px;border:1px solid #4B5563;border-radius:8px;
+      font-size:14px;background:#111827;color:#F9FAFB;transition:all .2s;
+    }
+    input:focus{outline:none;border-color:#EF4444;box-shadow:0 0 0 3px rgba(239,68,68,.15);}
+    .btn{
+      width:100%;padding:13px;border:none;border-radius:8px;font-size:14px;
+      font-weight:700;cursor:pointer;transition:all .2s;margin-top:10px;
+      background:linear-gradient(135deg,#DC2626 0%,#991B1B 100%);color:white;
+    }
+    .btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(220,38,38,.4);}
+    .message{padding:12px;border-radius:8px;margin-bottom:20px;font-size:13px;display:none;}
+    .message.error{background:rgba(220,38,38,.15);color:#FCA5A5;border:1px solid rgba(220,38,38,.3);display:block;}
+    .message.success{background:rgba(22,163,74,.15);color:#86EFAC;border:1px solid rgba(22,163,74,.3);display:block;}
+    .back-link{text-align:center;margin-top:24px;}
+    .back-link a{color:#9CA3AF;font-size:13px;text-decoration:none;}
+    .back-link a:hover{color:#F9FAFB;}
+    .badge{
+      display:inline-flex;align-items:center;gap:5px;padding:4px 10px;
+      background:rgba(220,38,38,.15);color:#FCA5A5;border-radius:20px;
+      font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+      margin-top:8px;
+    }
+    .loading{display:none;text-align:center;color:#9CA3AF;font-size:13px;margin-top:14px;}
+    .spinner{
+      display:inline-block;width:14px;height:14px;border:2px solid #374151;
+      border-top-color:#DC2626;border-radius:50%;animation:spin .6s linear infinite;
+      margin-right:6px;vertical-align:middle;
+    }
+    @keyframes spin{to{transform:rotate(360deg);}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="logo">
+        <h1>🔒 Admin-Bereich</h1>
+        <p>Nur für Administratoren</p>
+        <span class="badge">⚠ Eingeschränkter Zugang</span>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <div class="form-group">
+        <label>Admin-Benutzername</label>
+        <input type="text" id="adminUsername" placeholder="admin" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Admin-Passwort</label>
+        <input type="password" id="adminPassword" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn" onclick="handleAdminLogin()">🔓 Admin-Anmeldung</button>
+
+      <div class="loading" id="loading">
+        <span class="spinner"></span>
+        <span>Wird verarbeitet...</span>
+      </div>
+
+      <div class="back-link">
+        <a href="/">← Zurück zur normalen Anmeldung</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showMessage(t,c){const m=document.getElementById('message');m.textContent=t;m.className='message '+c;}
+    function setLoading(s){document.getElementById('loading').style.display=s?'block':'none';}
+
+    async function handleAdminLogin(){
+      const username=document.getElementById('adminUsername').value.trim();
+      const password=document.getElementById('adminPassword').value;
+      if(!username||!password){showMessage('Bitte alle Felder ausfüllen','error');return;}
+      setLoading(true);
+      try{
+        const res=await fetch('/api/admin-login',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({username,password})
+        });
+        const data=await res.json();
+        if(res.ok){
+          showMessage('✓ Admin-Login erfolgreich. Wird weitergeleitet…','success');
+          setTimeout(()=>window.location.href='/admin',1000);
+        } else {
+          showMessage(data.error||'Admin-Login fehlgeschlagen','error');
+        }
+      } catch(err){
+        showMessage('Fehler: '+err.message,'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    document.addEventListener('keypress',(e)=>{if(e.key==='Enter')handleAdminLogin();});
+  </script>
+</body>
+</html>

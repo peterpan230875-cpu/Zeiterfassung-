@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Admin · Zeiterfassung</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:'Figtree',sans-serif;background:#F0EDE8;color:#18160F;
+  min-height:100vh;font-size:15px;-webkit-font-smoothing:antialiased;
+}
+#hdr{
+  position:sticky;top:0;z-index:40;background:linear-gradient(135deg,#1F2937 0%,#111827 100%);
+  color:#fff;padding:14px 20px;box-shadow:0 2px 8px rgba(0,0,0,.15);
+  display:flex;align-items:center;gap:12px;
+}
+#hdr h1{font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px;}
+#hdr .badge{background:rgba(220,38,38,.25);color:#FCA5A5;border:1px solid rgba(220,38,38,.4);
+  padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.5px;}
+#hdr .spacer{flex:1;}
+.btn{
+  padding:8px 14px;border:none;border-radius:8px;cursor:pointer;
+  font-family:'Figtree',sans-serif;font-weight:600;font-size:13px;transition:all .15s;
+}
+.btn-logout{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);}
+.btn-logout:hover{background:rgba(255,255,255,.2);}
+
+#main{display:grid;grid-template-columns:280px 1fr;gap:20px;padding:20px;max-width:1400px;margin:0 auto;}
+@media(max-width:800px){#main{grid-template-columns:1fr;}}
+
+.panel{background:#fff;border:1px solid #DDD8CF;border-radius:12px;padding:16px;
+  box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.panel h2{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;
+  color:#6B6560;margin-bottom:12px;}
+
+#user-list{display:flex;flex-direction:column;gap:6px;}
+.user-item{
+  padding:12px 14px;border:1.5px solid #DDD8CF;border-radius:8px;cursor:pointer;
+  transition:all .15s;background:#FAFAF8;
+}
+.user-item:hover{border-color:#2563EB;background:#EFF6FF;}
+.user-item.active{border-color:#2563EB;background:#EFF6FF;box-shadow:0 0 0 3px rgba(37,99,235,.12);}
+.user-item .name{font-weight:700;font-size:15px;}
+.user-item .username{font-size:12px;color:#6B6560;font-family:'JetBrains Mono',monospace;}
+
+#month-bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+#month-bar button{
+  width:32px;height:32px;border-radius:8px;border:1px solid #DDD8CF;
+  background:#fff;cursor:pointer;font-size:16px;
+}
+#month-bar #month-lbl{
+  font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;
+  background:#E8E4DE;border:1px solid #DDD8CF;border-radius:8px;
+  padding:7px 14px;flex:1;text-align:center;
+}
+
+#stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:14px;}
+.stat{background:#FAFAF8;border:1px solid #DDD8CF;border-radius:8px;padding:10px;text-align:center;}
+.stat .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#A09890;font-weight:700;}
+.stat .val{font-size:20px;font-weight:800;font-family:'JetBrains Mono',monospace;margin-top:3px;}
+.stat .val.blue{color:#2563EB;}
+.stat .val.amber{color:#D97706;}
+.stat .val.green{color:#16A34A;}
+.stat .val.red{color:#DC2626;}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;
+  letter-spacing:.4px;color:#6B6560;background:#FAFAF8;border-bottom:1.5px solid #DDD8CF;}
+td{padding:7px 10px;border-bottom:1px solid #E8E4DE;}
+tr.r-hol{background:#FEE2E2;}
+tr.r-we{background:#FFF7ED;}
+tr.r-sat{background:#FEF3C7;}
+tr.r-u{background:#EFF6FF;}
+tr.r-za{background:#F0FDF4;}
+tr.r-k{background:#FEF2F2;}
+.mono{font-family:'JetBrains Mono',monospace;}
+.empty{text-align:center;color:#A09890;padding:40px;font-size:14px;}
+.badge-typ{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;}
+.b-u{background:#EFF6FF;color:#2563EB;}
+.b-za{background:#F0FDF4;color:#16A34A;}
+.b-k{background:#FEF2F2;color:#DC2626;}
+.b-hol{background:#FEE2E2;color:#991B1B;}
+.b-we{background:#FFF7ED;color:#9A3412;}
+.b-sat{background:#FEF3C7;color:#B45309;}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <h1>🔒 Admin Panel</h1>
+  <span class="badge">READ-ONLY</span>
+  <div class="spacer"></div>
+  <span id="admin-name" style="font-size:13px;opacity:.7;"></span>
+  <button class="btn btn-logout" onclick="logout()">🚪 Abmelden</button>
+</div>
+
+<div id="main">
+  <div class="panel">
+    <h2>👥 Mitarbeiter</h2>
+    <div id="user-list"></div>
+  </div>
+
+  <div class="panel">
+    <h2 id="selected-name">Bitte einen Mitarbeiter wählen</h2>
+    <div id="month-bar" style="display:none;">
+      <button onclick="changeMonth(-1)">‹</button>
+      <div id="month-lbl">—</div>
+      <button onclick="changeMonth(1)">›</button>
+    </div>
+    <div id="stats" style="display:none;"></div>
+    <div id="entries-area"></div>
+  </div>
+</div>
+
+<script>
+const FEIERTAGE={
+  "2026-01-01":"Neujahr","2026-01-06":"Hl. Drei Könige",
+  "2026-04-03":"Karfreitag","2026-04-05":"Ostersonntag","2026-04-06":"Ostermontag",
+  "2026-05-01":"Staatsfeiertag","2026-05-14":"Christi Himmelfahrt",
+  "2026-05-24":"Pfingstsonntag","2026-05-25":"Pfingstmontag",
+  "2026-06-04":"Fronleichnam","2026-08-15":"Mariä Himmelfahrt",
+  "2026-10-26":"Nationalfeiertag","2026-11-01":"Allerheiligen",
+  "2026-12-08":"Mariä Empfängnis","2026-12-25":"Weihnachten","2026-12-26":"Stefanitag"
+};
+const WT=["So","Mo","Di","Mi","Do","Fr","Sa"];
+const MON=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+
+let users=[], selectedUserId=null, currentEntries=[], currentSettings=null;
+let viewYear=new Date().getFullYear(), viewMonth=new Date().getMonth();
+
+function dk(y,m,d){return y+"-"+String(m+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");}
+function daysIn(y,m){return new Date(y,m+1,0).getDate();}
+function isSun(y,m,d){return new Date(y,m,d).getDay()===0;}
+function isSat(y,m,d){return new Date(y,m,d).getDay()===6;}
+function wtDay(y,m,d){return WT[new Date(y,m,d).getDay()];}
+
+async function loadUsers(){
+  const res=await fetch('/api/admin/users');
+  if(!res.ok){
+    if(res.status===403){window.location.href='/admin-login';return;}
+    return;
+  }
+  const data=await res.json();
+  users=data.users||[];
+  renderUsers();
+}
+
+function renderUsers(){
+  const el=document.getElementById('user-list');
+  if(!users.length){
+    el.innerHTML='<p style="color:#A09890;font-size:13px;text-align:center;padding:20px;">Keine Mitarbeiter</p>';
+    return;
+  }
+  el.innerHTML='';
+  users.forEach(u=>{
+    const d=document.createElement('div');
+    d.className='user-item'+(u.id===selectedUserId?' active':'');
+    d.innerHTML=`<div class="name">${u.name}</div><div class="username">@${u.username}</div>`;
+    d.onclick=()=>selectUser(u.id);
+    el.appendChild(d);
+  });
+}
+
+async function selectUser(uid){
+  selectedUserId=uid;
+  renderUsers();
+  const u=users.find(x=>x.id===uid);
+  document.getElementById('selected-name').textContent=u.name+' — Zeiterfassung';
+  document.getElementById('month-bar').style.display='flex';
+  document.getElementById('stats').style.display='grid';
+
+  // Lade Einträge + Settings
+  const [eRes,sRes]=await Promise.all([
+    fetch('/api/admin/entries/'+uid),
+    fetch('/api/admin/settings/'+uid)
+  ]);
+  if(eRes.ok){const d=await eRes.json();currentEntries=d.entries||[];}
+  if(sRes.ok){const d=await sRes.json();currentSettings=d.settings||null;}
+  renderMonth();
+}
+
+function changeMonth(dir){
+  viewMonth+=dir;
+  if(viewMonth<0){viewMonth=11;viewYear--;}
+  if(viewMonth>11){viewMonth=0;viewYear++;}
+  renderMonth();
+}
+
+function renderMonth(){
+  document.getElementById('month-lbl').textContent=MON[viewMonth]+' '+viewYear;
+  if(!selectedUserId){return;}
+
+  const wh=parseFloat(currentSettings?.wochenstunden)||38.5;
+  const ts=wh/5;
+  const days=daysIn(viewYear,viewMonth);
+  const tLabels={urlaub:"Urlaub",zeitausgleich:"Zeitausgleich",krank:"Krank"};
+  let work=0,urlaub=0,za=0,krank=0,totalMin=0;
+  const entriesByKey={};
+  currentEntries.forEach(e=>{entriesByKey[e.date]=e;});
+
+  let rows='';
+  for(let d=1;d<=days;d++){
+    const key=dk(viewYear,viewMonth,d);
+    const dayWT=wtDay(viewYear,viewMonth,d);
+    const holiday=FEIERTAGE[key];
+    const sun=isSun(viewYear,viewMonth,d);
+    const sat=isSat(viewYear,viewMonth,d);
+    const e=entriesByKey[key];
+    const typ=e?e.type||'normal':'normal';
+
+    let cls='', vonTxt='', bisTxt='', pauseTxt='', bemTxt='', netto='';
+    if(holiday){cls='r-hol';vonTxt=holiday;netto=ts.toFixed(2).replace('.',',');}
+    else if(sun){cls='r-we';vonTxt='Sonntag';}
+    else if(sat){cls='r-sat';vonTxt='Samstag';}
+    else if(typ==='urlaub'){cls='r-u';vonTxt='<span class="badge-typ b-u">🏖 Urlaub</span>';urlaub++;netto=ts.toFixed(2).replace('.',',');}
+    else if(typ==='zeitausgleich'){cls='r-za';vonTxt='<span class="badge-typ b-za">🔄 ZA</span>';za++;}
+    else if(typ==='krank'){cls='r-k';vonTxt='<span class="badge-typ b-k">🤒 Krank</span>';krank++;netto=ts.toFixed(2).replace('.',',');}
+    else if(e&&e.von){
+      vonTxt=e.von||'';bisTxt=e.bis||'';
+      pauseTxt=e.pause?(e.pause+"'"):'';bemTxt=e.bemerkung||'';
+      if(e.von&&e.bis){
+        const [vh,vm]=e.von.split(':').map(Number);
+        const [bh,bm]=e.bis.split(':').map(Number);
+        const total=(bh*60+bm)-(vh*60+vm);const p=parseInt(e.pause||0)||0;
+        const net=Math.max(0,total-p);
+        if(net>0){work++;totalMin+=net;netto=(net/60).toFixed(2).replace('.',',');}
+      }
+    }
+    rows+=`<tr class="${cls}">
+      <td class="mono"><strong>${d}</strong></td>
+      <td>${dayWT}</td>
+      <td>${vonTxt}</td>
+      <td class="mono">${bisTxt}</td>
+      <td class="mono" style="color:#888;">${pauseTxt}</td>
+      <td style="color:#555;">${bemTxt}</td>
+      <td class="mono" style="font-weight:700;color:#2563EB;">${netto?netto+' h':''}</td>
+    </tr>`;
+  }
+
+  // Saldo berechnen
+  let sollArbeitstage=0;
+  for(let d=1;d<=days;d++){
+    const key=dk(viewYear,viewMonth,d);
+    if(!isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d)&&!FEIERTAGE[key]) sollArbeitstage++;
+  }
+  const istMin=totalMin+(urlaub+krank)*ts*60;
+  const sollMin=sollArbeitstage*ts*60;
+  const saldo=istMin-sollMin;
+  const sign=saldo>0?'+':saldo<0?'-':'±';
+  const saldoStr=`${sign}${Math.abs(saldo/60).toFixed(2).replace('.',',')} h`;
+  const saldoColor=saldo>0?'#16A34A':saldo<0?'#DC2626':'#888';
+
+  document.getElementById('stats').innerHTML=`
+    <div class="stat"><div class="lbl">Arbeitstage</div><div class="val blue">${work}</div></div>
+    <div class="stat"><div class="lbl">Urlaub</div><div class="val amber">${urlaub}</div></div>
+    <div class="stat"><div class="lbl">Zeitausgleich</div><div class="val green">${za}</div></div>
+    <div class="stat"><div class="lbl">Krank</div><div class="val red">${krank}</div></div>
+    <div class="stat"><div class="lbl">Gesamt</div><div class="val blue">${totalMin>0?Math.floor(totalMin/60)+'h '+Math.round(totalMin%60)+'m':'—'}</div></div>
+    <div class="stat"><div class="lbl">Saldo</div><div class="val" style="color:${saldoColor};font-size:16px;">${(work+urlaub+krank+za)?saldoStr:'—'}</div></div>
+  `;
+
+  document.getElementById('entries-area').innerHTML=`
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Tag</th><th>WT</th><th>Von</th><th>Bis</th><th>Pause</th><th>Bemerkung</th><th>Netto</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <p style="margin-top:14px;font-size:12px;color:#A09890;text-align:center;">
+      🔒 Read-Only · Wochenstunden Soll: ${wh} h · Tagessoll: ${ts.toFixed(2).replace('.',',')} h
+    </p>
+  `;
+}
+
+async function logout(){
+  await fetch('/api/logout',{method:'POST'});
+  window.location.href='/admin-login';
+}
+
+// Init
+fetch('/api/user').then(r=>r.json()).then(d=>{
+  if(d.name)document.getElementById('admin-name').textContent='👤 '+d.name;
+});
+loadUsers();
+</script>
+</body>
+</html>

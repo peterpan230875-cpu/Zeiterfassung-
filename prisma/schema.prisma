@@ -12,6 +12,7 @@ model User {
   username  String   @unique
   password  String
   name      String
+  isAdmin   Boolean  @default(false)
   createdAt DateTime @default(now())
 
   entries   Entry[]
