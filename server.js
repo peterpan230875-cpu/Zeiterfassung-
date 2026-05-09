@@ -3,7 +3,6 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const bcryptjs = require('bcryptjs');
 const path = require('path');
-const nodemailer = require('nodemailer');
 const { PrismaClient } = require('@prisma/client');
 
 const app = express();
@@ -243,7 +242,7 @@ app.get('/api/month-locks', async (req, res) => {
 app.post('/api/user-settings', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
   try {
-    const { wochenstunden, darkMode, emailTo, employees, setupDone, defaultPause, smtpUser, smtpPass, weekPatterns, season } = req.body;
+    const { wochenstunden, darkMode, employees, setupDone, defaultPause, weekPatterns, season } = req.body;
     // defaultPause + weekPatterns + season im employees-JSON mitgespeichert
     const empData = JSON.stringify([{
       id: 1, name: req.session.name,
@@ -255,13 +254,9 @@ app.post('/api/user-settings', async (req, res) => {
     const updateData = {
       wochenstunden: wochenstunden || 38.5,
       darkMode: !!darkMode,
-      emailTo: emailTo || '',
       setupDone: setupDone === true,
       employees: empData
     };
-    if (smtpUser !== undefined) updateData.smtpUser = smtpUser || '';
-    // Passwort nur überschreiben wenn explizit mitgesendet (nicht leer lassen = behalten)
-    if (smtpPass && smtpPass.trim() !== '') updateData.smtpPass = smtpPass.trim();
 
     const settings = await prisma.settings.upsert({
       where: { userId: req.session.userId },
@@ -286,65 +281,14 @@ app.get('/api/user-settings', async (req, res) => {
     res.json({
       wochenstunden: settings.wochenstunden,
       darkMode: settings.darkMode,
-      emailTo: settings.emailTo,
       setupDone: settings.setupDone,
       defaultPause,
-      smtpUser: settings.smtpUser || '',
-      smtpPassSet: !!(settings.smtpPass && settings.smtpPass.trim()),
       weekPatterns,
       season,
       employees: [{ id: 1, name: req.session.name, entries: {} }]
     });
   } catch (err) {
     res.status(500).json({ error: 'Fehler beim Laden' });
-  }
-});
-
-// ── E-MAIL MIT PDF-ANHANG ─────────────────────────────────────────────────────
-app.post('/api/send-email', async (req, res) => {
-  if (!req.session.userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
-  try {
-    const { to, subject, pdfBase64, filename } = req.body;
-    if (!to || !pdfBase64) return res.status(400).json({ error: 'Fehlende Parameter' });
-
-    // Nutzer-eigene SMTP-Einstellungen laden, Fallback auf Umgebungsvariablen
-    const userSettings = await prisma.settings.findUnique({ where: { userId: req.session.userId } });
-    const smtpUser = (userSettings && userSettings.smtpUser && userSettings.smtpUser.trim())
-      || process.env.SMTP_USER;
-    const smtpPass = (userSettings && userSettings.smtpPass && userSettings.smtpPass.trim())
-      || process.env.SMTP_PASS;
-
-    if (!smtpUser || !smtpPass) {
-      return res.status(500).json({
-        error: 'E-Mail nicht konfiguriert. Bitte Absender-E-Mail und App-Passwort in den Einstellungen hinterlegen.'
-      });
-    }
-
-    const smtpHost = process.env.SMTP_HOST || 'smtp.mail.yahoo.com';
-    const smtpPort = parseInt(process.env.SMTP_PORT) || 465;
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,   // 465 = SSL, 587 = STARTTLS
-      auth: { user: smtpUser, pass: smtpPass }
-    });
-
-    await transporter.sendMail({
-      from: `"Zeiterfassung" <${smtpUser}>`,
-      to,
-      subject,
-      text: 'Zeiterfassung im Anhang als PDF.',
-      attachments: [{
-        filename: filename || 'zeiterfassung.pdf',
-        content: Buffer.from(pdfBase64, 'base64'),
-        contentType: 'application/pdf'
-      }]
-    });
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Email error:', err);
-    res.status(500).json({ error: 'Fehler beim Senden: ' + err.message });
   }
 });
 
