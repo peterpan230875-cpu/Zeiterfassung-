@@ -1083,18 +1083,26 @@ function renderTable(){
       tdS.innerHTML=`<span class="badge b-we">Sonntag</span>`;
     } else if(isSat(y,m,d)){
       tdS.innerHTML=`<span class="badge" style="background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-m);">Samstag</span>`;
-    } else if(typ==="urlaub"){
-      tdS.innerHTML=`<span class="badge" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-m);">🏖 Urlaub</span>`;
-    } else if(typ==="zeitausgleich"){
-      tdS.innerHTML=`<span class="badge" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-m);">🔄 ZA</span>`;
-    } else if(typ==="krank"){
-      tdS.innerHTML=`<span class="badge" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-m);">🤒 Krank</span>`;
-    } else if(entry){
-      const del=document.createElement("button");
-      del.style.cssText="background:var(--bg2);border:1px solid var(--brd);border-radius:5px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--muted);";
-      del.textContent="✕ Löschen";del.onclick=e=>{e.stopPropagation();delEntryKey(key);};
-      del.onmouseover=e=>e.stopPropagation();
-      tdS.appendChild(del);
+    } else {
+      // Schnell-Buttons U/ZA/K + ggf. Löschen
+      const wrap=document.createElement("div");
+      wrap.style.cssText="display:flex;gap:3px;";
+      wrap.onclick=e=>e.stopPropagation();
+      [["U","q-u","urlaub"],["ZA","q-za","zeitausgleich"],["K","q-k","krank"]].forEach(([lbl,cls,t])=>{
+        const b=document.createElement("button");
+        b.className="qbtn "+cls+(typ===t?" qa":"");
+        b.textContent=lbl;b.title=t;
+        b.onclick=e=>{e.stopPropagation();quickSetTyp(key,t);};
+        wrap.appendChild(b);
+      });
+      if(entry){
+        const del=document.createElement("button");
+        del.style.cssText="background:var(--bg2);border:1px solid var(--brd);border-radius:5px;width:24px;height:26px;cursor:pointer;font-size:12px;color:var(--muted);";
+        del.textContent="✕";del.title="Eintrag löschen";
+        del.onclick=e=>{e.stopPropagation();delEntryKey(key);};
+        wrap.appendChild(del);
+      }
+      tdS.appendChild(wrap);
     }
     tr.appendChild(tdS);
     tbody.appendChild(tr);
@@ -1168,14 +1176,25 @@ function renderMobile(){
       const nDiv=document.createElement("div");nDiv.className="mc-netto";nDiv.innerHTML=nettoEl;right.appendChild(nDiv);
     }
 
-    // Löschen-Knopf wenn Eintrag vorhanden
-    if(entry&&!noTypBtn){
-      const del=document.createElement("button");
-      del.className="qbtn";
-      del.style.cssText="background:var(--bg2);border:1px solid var(--brd);color:var(--muted);font-size:14px;padding:6px 10px;";
-      del.textContent="✕";
-      del.onclick=()=>delEntryKey(key);
-      right.appendChild(del);
+    // Schnell-Buttons U/ZA/K + ggf. Löschen (nur an normalen Werktagen)
+    if(!noTypBtn){
+      const btns=document.createElement("div");btns.className="mc-btns";
+      [["U","q-u","urlaub"],["ZA","q-za","zeitausgleich"],["K","q-k","krank"]].forEach(([lbl,cls,t])=>{
+        const b=document.createElement("button");
+        b.className="qbtn "+cls+(typ===t?" qa":"");
+        b.textContent=lbl;
+        b.onclick=()=>quickSetTyp(key,t);
+        btns.appendChild(b);
+      });
+      if(entry){
+        const del=document.createElement("button");
+        del.className="qbtn";
+        del.style.cssText="background:var(--bg2);border:1px solid var(--brd);color:var(--muted);";
+        del.textContent="✕";
+        del.onclick=()=>delEntryKey(key);
+        btns.appendChild(del);
+      }
+      right.appendChild(btns);
     }
 
     card.appendChild(dayDiv);card.appendChild(wtDiv);
