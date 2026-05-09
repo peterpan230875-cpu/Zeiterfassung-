@@ -1749,12 +1749,6 @@ function openSettingsSheet(){
   const sn=state.season||"auto";
   document.getElementById("season-"+(sn==="summer"?"summer":sn==="winter"?"winter":"auto")).classList.add("act");
   document.getElementById("season-badge").style.display="none";
-  // SMTP-Felder füllen
-  document.getElementById("inp-smtp-user").value=state.smtpUser||"";
-  document.getElementById("inp-smtp-pass").value=""; // Passwort nie zurückschreiben
-  const hint=document.getElementById("smtp-pass-hint");
-  hint.style.display=state.smtpPassSet?"block":"none";
-  document.getElementById("smtp-badge").style.display="none";
   openOv();document.getElementById("set-sheet").classList.add("open");
 }
 function closeSettingsSheet(){document.getElementById("set-sheet").classList.remove("open");closeOv();}
@@ -1849,7 +1843,23 @@ function buildPrintHTML(){
     let von="",bis="",pause="",bem="",netto="",nettoColor="#2563EB";
     if(holiday){von=holiday;netto=ts.toFixed(2).replace(".",",");}
     else if(sun){von="Sonntag";}
-    else if(sat){von="Samstag";}
+    else if(sat){
+      // Samstag: wenn Eintrag vorhanden, Zeiten zeigen — sonst nur "Samstag"
+      if(entry&&entry.von){
+        von=entry.von||"";bis=entry.bis||"";
+        pause=entry.pause?(entry.pause+"'"):"";
+        bem=entry.bemerkung||"";
+        if(entry.von&&entry.bis){
+          const [vh,vm2]=entry.von.split(":").map(Number);
+          const [bh,bm2]=entry.bis.split(":").map(Number);
+          const total=(bh*60+bm2)-(vh*60+vm2);const p=parseInt(entry.pause||"0")||0;
+          const net=Math.max(0,total-p);
+          if(net>0){work++;totalMin+=net;netto=(net/60).toFixed(2).replace(".",",");}
+        }
+      } else {
+        von="Samstag";
+      }
+    }
     else if(typ!=="normal"){
       von=tLabels[typ]||"";
       if(typ==="urlaub"){urlaub++;netto=ts.toFixed(2).replace(".",",");nettoColor="#2563EB";}
