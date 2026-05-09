@@ -844,7 +844,7 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
     </div>
     <div class="sec">
       <div class="sec-lbl">Drucken / PDF speichern</div>
-      <button class="btn btn-primary" onclick="printMonth()" style="width:100%">🖨 Drucken / Als PDF speichern</button>
+      <button class="btn btn-primary" onclick="printMonth()" style="width:100%">📄 Als PDF herunterladen</button>
     </div>
   </div>
 </div>
@@ -1992,45 +1992,57 @@ tr:last-child td{border-bottom:none;}
 </body></html>`;
 }
 
-function printMonth(){
+async function printMonth(){
   const fname=`${MON[state.month]} ${state.year}`;
-  const html=buildPrintHTML();
+  toast("⏳ PDF wird erstellt…");
 
-  // Vorhandenes Print-IFrame entfernen
-  const old=document.getElementById('print-iframe');
-  if(old) old.remove();
+  try {
+    const html=buildPrintHTML();
+    const styleMatch=html.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+    const bodyMatch=html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
 
-  // Verstecktes IFrame erzeugen (für sauberen PDF-Dateinamen)
-  const iframe=document.createElement('iframe');
-  iframe.id='print-iframe';
-  iframe.name=fname; // manche Browser nehmen den iframe-name als Dateiname
-  iframe.title=fname;
-  iframe.style.cssText='position:absolute;left:-99999px;top:0;width:1px;height:1px;border:0;';
-  document.body.appendChild(iframe);
+    // Render-Container im aktuellen Dokument
+    const wrapper=document.createElement("div");
+    wrapper.style.cssText="position:fixed;top:-19999px;left:-9999px;width:794px;background:#fff;padding:0;margin:0;z-index:-1;";
 
-  iframe.contentDocument.open();
-  iframe.contentDocument.write(html);
-  iframe.contentDocument.close();
-  // Title im iframe sicher setzen
-  try{ iframe.contentDocument.title=fname; }catch(e){}
+    const styleEl=document.createElement("style");
+    styleEl.textContent=(styleMatch?styleMatch[1]:"");
+    wrapper.appendChild(styleEl);
 
-  // Parent-Title temporär überschreiben — manche Browser nehmen den
-  // Parent-Title als PDF-Dateinamen wenn aus IFrame gedruckt wird
-  const origTitle=document.title;
-  document.title=fname;
+    const content=document.createElement("div");
+    content.style.cssText="padding:34px 28px;";
+    content.innerHTML=(bodyMatch?bodyMatch[1]:"");
+    wrapper.appendChild(content);
+    document.body.appendChild(wrapper);
 
-  setTimeout(()=>{
-    try{ iframe.contentDocument.title=fname; }catch(e){}
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
-    // Nach Druck: Title und IFrame zurücksetzen
-    setTimeout(()=>{
-      document.title=origTitle;
-      iframe.remove();
-    }, 2000);
-  }, 500);
+    await new Promise(r=>setTimeout(r,400));
 
-  closePdfSheet();
+    const canvas=await html2canvas(wrapper,{
+      scale:1.5,
+      backgroundColor:"#ffffff",
+      width:794,
+      useCORS:true,
+      logging:false
+    });
+    document.body.removeChild(wrapper);
+
+    // Canvas → jsPDF (A4 hochformat)
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+    const pw=doc.internal.pageSize.getWidth();
+    const ph=doc.internal.pageSize.getHeight();
+    const imgH=(canvas.height*pw)/canvas.width;
+    doc.addImage(canvas.toDataURL("image/jpeg",0.85),"JPEG",0,0,pw,Math.min(imgH,ph));
+
+    // Direkt mit gewünschtem Namen speichern
+    doc.save(`${fname}.pdf`);
+
+    closePdfSheet();
+    toast("✓ PDF gespeichert: "+fname+".pdf");
+  } catch(err){
+    console.error("printMonth error:",err);
+    toast("⚠ Fehler: "+err.message);
+  }
 }
 
 // ── OVERLAY ──────────────────────────────────────────────────────────────────
