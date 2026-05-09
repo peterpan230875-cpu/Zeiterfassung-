@@ -140,6 +140,12 @@ tr.r-k{background:var(--k-bg);}
 .b-hol{background:var(--hol-bg);color:var(--hol-t);}
 .b-we{background:var(--sun-bg);color:var(--sun-t);}
 .b-sat{background:var(--sat-bg);color:var(--sat-t);}
+.b-inv{background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;margin-left:6px;}
+body.dark .b-inv{background:#2A1E05;color:#FCD34D;border-color:#4A360A;}
+.b-closed{background:#E5E7EB;color:#374151;border:1px solid #D1D5DB;}
+body.dark .b-closed{background:#1F2937;color:#9CA3AF;border-color:#374151;}
+tr.r-closed{background:#F3F4F6;}
+body.dark tr.r-closed{background:#1F2937;}
 .kw-badge{display:inline-block;font-size:10px;font-weight:700;color:var(--u-t);
   letter-spacing:.4px;margin-left:6px;background:var(--u-bg);border:1px solid var(--u-t);
   padding:1px 6px;border-radius:8px;line-height:1.4;vertical-align:middle;opacity:.85;}
@@ -166,6 +172,34 @@ tr.r-k{background:var(--k-bg);}
   display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;
   background:var(--za-bg);color:var(--za-t);font-size:10px;font-weight:700;
 }
+
+/* Sondertage */
+.sd-row{display:grid;grid-template-columns:130px 130px 1fr auto;gap:6px;margin-bottom:8px;}
+.sd-row input,.sd-row select{
+  padding:9px 10px;border:1px solid var(--brd);border-radius:8px;
+  background:var(--sur2);color:var(--txt);font-size:13px;font-family:'Figtree',sans-serif;
+}
+.sd-add{
+  padding:9px 14px;border:none;border-radius:8px;cursor:pointer;
+  background:#2563EB;color:#fff;font-weight:700;font-size:13px;font-family:'Figtree',sans-serif;
+}
+.sd-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
+.sd-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border:1px solid var(--brd);border-radius:8px;background:var(--sur2);
+  font-size:13px;
+}
+.sd-item .sd-date{font-family:'JetBrains Mono',monospace;font-weight:700;flex-shrink:0;}
+.sd-item .sd-tag{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;flex-shrink:0;}
+.sd-item .sd-tag.inv{background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;}
+.sd-item .sd-tag.cls{background:#E5E7EB;color:#374151;border:1px solid #D1D5DB;}
+body.dark .sd-item .sd-tag.inv{background:#2A1E05;color:#FCD34D;border-color:#4A360A;}
+body.dark .sd-item .sd-tag.cls{background:#1F2937;color:#9CA3AF;border-color:#374151;}
+.sd-item .sd-lbl{flex:1;color:var(--txt2);}
+.sd-item .sd-del{
+  padding:5px 10px;border:1px solid var(--brd);border-radius:6px;cursor:pointer;
+  background:var(--sur);color:var(--k-t);font-size:12px;font-weight:700;
+}
 </style>
 </head>
 <body>
@@ -180,9 +214,24 @@ tr.r-k{background:var(--k-bg);}
 </div>
 
 <div id="main">
-  <div class="panel">
-    <h2>👥 Mitarbeiter</h2>
-    <div id="user-list"></div>
+  <div>
+    <div class="panel" style="margin-bottom:14px;">
+      <h2>👥 Mitarbeiter</h2>
+      <div id="user-list"></div>
+    </div>
+    <div class="panel">
+      <h2>📅 Sondertage</h2>
+      <div class="sd-row">
+        <input type="date" id="sd-date"/>
+        <select id="sd-type">
+          <option value="inventur">📦 Inventur</option>
+          <option value="closed">🔒 Geschlossen</option>
+        </select>
+        <input type="text" id="sd-label" placeholder="Beschreibung (optional)"/>
+        <button class="sd-add" onclick="addSpecialDay()">+ Hinzufügen</button>
+      </div>
+      <div class="sd-list" id="sd-list"></div>
+    </div>
   </div>
 
   <div class="panel">
@@ -242,9 +291,10 @@ function getKW(y,m,d){
 }
 
 async function loadUsers(){
-  const [uRes,lRes]=await Promise.all([
+  const [uRes,lRes,sRes]=await Promise.all([
     fetch('/api/admin/users'),
-    fetch('/api/admin/month-locks')
+    fetch('/api/admin/month-locks'),
+    fetch('/api/special-days')
   ]);
   if(!uRes.ok){
     if(uRes.status===403){window.location.href='/admin-login';return;}
@@ -253,7 +303,68 @@ async function loadUsers(){
   const data=await uRes.json();
   users=data.users||[];
   if(lRes.ok){const d=await lRes.json();allLocks=d.locks||[];}
+  if(sRes.ok){const d=await sRes.json();specialDays=d.days||[];renderSpecialDays();}
   renderUsers();
+}
+
+let specialDays=[];
+
+function renderSpecialDays(){
+  const el=document.getElementById('sd-list');
+  if(!el) return;
+  if(!specialDays.length){
+    el.innerHTML='<p style="color:var(--muted);font-size:13px;text-align:center;padding:14px;">Keine Sondertage angelegt</p>';
+    return;
+  }
+  el.innerHTML='';
+  specialDays.forEach(d=>{
+    const div=document.createElement('div');div.className='sd-item';
+    const dt=new Date(d.date+'T00:00:00');
+    const dateStr=dt.toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});
+    const typeCls=d.type==='inventur'?'inv':'cls';
+    const typeLbl=d.type==='inventur'?'📦 Inventur':'🔒 Geschlossen';
+    div.innerHTML=`<span class="sd-date">${dateStr}</span>
+      <span class="sd-tag ${typeCls}">${typeLbl}</span>
+      <span class="sd-lbl">${d.label||''}</span>
+      <button class="sd-del" onclick="deleteSpecialDay('${d.date}')">✕ Löschen</button>`;
+    el.appendChild(div);
+  });
+}
+
+async function addSpecialDay(){
+  const date=document.getElementById('sd-date').value;
+  const type=document.getElementById('sd-type').value;
+  const label=document.getElementById('sd-label').value.trim();
+  if(!date){alert('Bitte ein Datum wählen');return;}
+  const res=await fetch('/api/admin/special-day',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({date,type,label})
+  });
+  if(res.ok){
+    const d=await res.json();
+    // Update lokale Liste
+    specialDays=specialDays.filter(x=>x.date!==date).concat(d.day).sort((a,b)=>a.date.localeCompare(b.date));
+    renderSpecialDays();
+    document.getElementById('sd-date').value='';
+    document.getElementById('sd-label').value='';
+    if(selectedUserId) renderMonth(); // Tabelle des Mitarbeiters aktualisieren
+  } else {
+    alert('Fehler beim Speichern');
+  }
+}
+
+async function deleteSpecialDay(date){
+  if(!confirm('Diesen Sondertag wirklich löschen?')) return;
+  const res=await fetch('/api/admin/special-day/'+date,{method:'DELETE'});
+  if(res.ok){
+    specialDays=specialDays.filter(x=>x.date!==date);
+    renderSpecialDays();
+    if(selectedUserId) renderMonth();
+  }
+}
+
+function getSpecialDay(key){
+  return specialDays.find(d=>d.date===key);
 }
 
 function userHasLockForView(uid){
@@ -352,10 +463,15 @@ function renderMonth(){
     const e=entriesByKey[key];
     const typ=e?e.type||'normal':'normal';
 
+    const sd=getSpecialDay(key);
     let cls='', vonTxt='', bisTxt='', pauseTxt='', bemTxt='', netto='';
     if(holiday){cls='r-hol';vonTxt=holiday;netto=ts.toFixed(2).replace('.',',');}
     else if(sun){cls='r-we';vonTxt='Sonntag';}
     else if(sat){cls='r-sat';vonTxt='Samstag';}
+    else if(sd&&sd.type==='closed'){
+      cls='r-closed';vonTxt='<span class="badge-typ b-closed">🔒 Geschlossen</span>'+(sd.label?' <span style="color:var(--txt2);font-size:11px;">'+sd.label+'</span>':'');
+      netto=ts.toFixed(2).replace('.',',');
+    }
     else if(typ==='urlaub'){cls='r-u';vonTxt='<span class="badge-typ b-u">🏖 Urlaub</span>';urlaub++;netto=ts.toFixed(2).replace('.',',');}
     else if(typ==='zeitausgleich'){cls='r-za';vonTxt='<span class="badge-typ b-za">🔄 Zeitausgleich</span>';za++;}
     else if(typ==='krank'){cls='r-k';vonTxt='<span class="badge-typ b-k">🤒 Krank</span>';krank++;netto=ts.toFixed(2).replace('.',',');}
@@ -370,11 +486,14 @@ function renderMonth(){
         if(net>0){work++;totalMin+=net;netto=(net/60).toFixed(2).replace('.',',');}
       }
     }
+    // Inventur-Badge zusätzlich an die WT-Spalte hängen
+    const invBadge=(sd&&sd.type==='inventur')
+      ? ` <span class="badge-typ b-inv" title="${sd.label||''}">📦 Inventur</span>` : '';
     const isMonday=new Date(viewYear,viewMonth,d).getDay()===1;
     const kwHtml=isMonday?`<span class="kw-badge">KW ${getKW(viewYear,viewMonth,d)}</span>`:'';
     rows+=`<tr class="${cls}">
       <td class="mono"><strong>${d}</strong></td>
-      <td>${dayWT}${kwHtml}</td>
+      <td>${dayWT}${kwHtml}${invBadge}</td>
       <td>${vonTxt}</td>
       <td class="mono">${bisTxt}</td>
       <td class="mono" style="color:var(--txt);font-weight:700;">${pauseTxt}</td>
@@ -384,12 +503,16 @@ function renderMonth(){
   }
 
   // Saldo berechnen
-  let sollArbeitstage=0;
+  let sollArbeitstage=0,closedDays=0;
   for(let d=1;d<=days;d++){
     const key=dk(viewYear,viewMonth,d);
-    if(!isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d)&&!FEIERTAGE[key]) sollArbeitstage++;
+    const sd2=getSpecialDay(key);
+    const isClosed=sd2&&sd2.type==='closed';
+    if(isClosed) closedDays++;
+    if(!isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d)&&!FEIERTAGE[key]&&!isClosed) sollArbeitstage++;
   }
-  const istMin=totalMin+(urlaub+krank)*ts*60;
+  // Geschlossene Tage zählen als bezahlt (wie Feiertage)
+  const istMin=totalMin+(urlaub+krank+closedDays)*ts*60;
   const sollMin=sollArbeitstage*ts*60;
   const saldo=istMin-sollMin;
   const sign=saldo>0?'+':saldo<0?'-':'±';

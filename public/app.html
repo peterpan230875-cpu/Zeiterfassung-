@@ -983,6 +983,9 @@ let state=loadState()||{
 };
 // Monatsabschluss (lokal gehalten, vom Server geladen)
 let monthLocks=[]; // Array von { year, month, lockedAt }
+// Sondertage (Inventur / Geschlossen) — vom Admin verwaltet
+let specialDays=[]; // Array von { date, type: 'inventur'|'closed', label }
+function getSpecialDay(key){return specialDays.find(d=>d.date===key);}
 let sheetDay=null,wkMonday=null,wkWeekDays=[];
 
 // ── PERSIST ──────────────────────────────────────────────────────────────────
@@ -1015,8 +1018,18 @@ async function loadMonthLocks(){
     const d=await res.json();
     const oldCount=monthLocks.length;
     monthLocks=d.locks||[];
-    // Wenn sich Locks geändert haben, neu rendern
     if(oldCount!==monthLocks.length) render();
+  } catch(e){}
+}
+
+async function loadSpecialDays(){
+  try{
+    const res=await fetch('/api/special-days');
+    if(!res.ok) return;
+    const d=await res.json();
+    const oldLen=specialDays.length;
+    specialDays=d.days||[];
+    if(oldLen!==specialDays.length) render();
   } catch(e){}
 }
 
@@ -1025,11 +1038,13 @@ async function loadMonthLocks(){
 document.addEventListener('visibilitychange', () => {
   if(document.visibilityState==='visible'){
     loadMonthLocks();
+    loadSpecialDays();
     if(typeof loadEntriesFromServer==='function') loadEntriesFromServer();
   }
 });
 window.addEventListener('focus', () => {
   if(typeof loadMonthLocks==='function') loadMonthLocks();
+  if(typeof loadSpecialDays==='function') loadSpecialDays();
 });
 function askCloseMonth(){
   if(isMonthLocked(state.year,state.month)){
@@ -1120,12 +1135,18 @@ function buildRow(d,key,dayWT,weekend,holiday,entry,typ,blocked){
   const emp=curEmp();
   const wh=parseFloat(state.wochenstunden)||38.5;
   const ts=wh/5;
+  const sd=getSpecialDay(key);
 
   // Netto berechnen
   let nettoMin=0,nettoEl="";
   if(holiday){
     const s=document.createElement("span");
     s.className="nbadge nb-red";s.textContent=ts.toFixed(2).replace(".",",")+" h";
+    nettoEl=s.outerHTML;
+  } else if(sd&&sd.type==='closed'){
+    const s=document.createElement("span");
+    s.className="nbadge";s.style.cssText="background:#E5E7EB;color:#374151;border:1px solid #D1D5DB;";
+    s.textContent=ts.toFixed(2).replace(".",",")+" h";
     nettoEl=s.outerHTML;
   } else if(!blocked&&typ==="urlaub"){
     const s=document.createElement("span");
@@ -1151,6 +1172,7 @@ function buildRow(d,key,dayWT,weekend,holiday,entry,typ,blocked){
   // Von/Bis Anzeige
   let vonTxt="—",bisTxt="—",pauseTxt="—",bemTxt="";
   if(holiday){vonTxt=holiday;}
+  else if(sd&&sd.type==='closed'){vonTxt="Geschlossen"+(sd.label?" — "+sd.label:"");}
   else if(isSun(parseInt(key.split("-")[0]),parseInt(key.split("-")[1])-1,d)){vonTxt="Sonntag";}
   else if(typ==="urlaub"){vonTxt="Urlaub";}
   else if(typ==="zeitausgleich"){vonTxt="Zeitausgleich";}
@@ -1178,11 +1200,15 @@ function renderTable(){
     const holiday=FEIERTAGE[key]||null;
     const entry=emp.entries[key]||null;
     const typ=entry?entry.typ||"normal":"normal";
-    const blocked=!!(holiday||isSun(y,m,d));
+    const sd=getSpecialDay(key);
+    const isClosed=sd&&sd.type==='closed';
+    const isInventur=sd&&sd.type==='inventur';
+    const blocked=!!(holiday||isSun(y,m,d)||isClosed);
 
     const tr=document.createElement("tr");
     if(holiday)tr.className="r-hol";
     else if(isSun(y,m,d))tr.className="r-we";
+    else if(isClosed)tr.className="r-closed";
     else if(isSat(y,m,d))tr.className="r-sat";
     else if(typ==="urlaub")tr.className="r-u";
     else if(typ==="zeitausgleich")tr.className="r-za";
@@ -1224,10 +1250,22 @@ function renderTable(){
 
     const tdN=document.createElement("td");tdN.className="td-n";tdN.innerHTML=nettoEl;tr.appendChild(tdN);
 
+    // Inventur-Badge in der WT-Spalte
+    if(isInventur){
+      const ib=document.createElement("span");
+      ib.className="kw-badge";
+      ib.style.cssText="background:#FEF3C7;color:#92400E;border-color:#FDE68A;margin-left:8px;";
+      ib.textContent="📦 Inventur";
+      ib.title=sd.label||"";
+      tdW.appendChild(ib);
+    }
+
     // Status
     const tdS=document.createElement("td");tdS.className="td-s";
     if(holiday){
       tdS.innerHTML=`<span class="badge b-hol">${holiday}</span>`;
+    } else if(isClosed){
+      tdS.innerHTML=`<span class="badge" style="background:#E5E7EB;color:#374151;border:1px solid #D1D5DB;">🔒 Geschlossen</span>`;
     } else if(isSun(y,m,d)){
       tdS.innerHTML=`<span class="badge b-we">Sonntag</span>`;
     } else if(isSat(y,m,d)){
@@ -1272,13 +1310,17 @@ function renderMobile(){
     const entry=emp.entries[key]||null;
     const typ=entry?entry.typ||"normal":"normal";
     const sat=isSat(y,m,d);
-    const blocked=!!(holiday||isSun(y,m,d)); // Samstag bleibt antippbar
-    const noTypBtn=!!(holiday||isSun(y,m,d)||sat); // Keine U/ZA/K-Buttons am WE
+    const sd=getSpecialDay(key);
+    const isClosed=sd&&sd.type==='closed';
+    const isInventur=sd&&sd.type==='inventur';
+    const blocked=!!(holiday||isSun(y,m,d)||isClosed); // Geschlossen blockiert
+    const noTypBtn=!!(holiday||isSun(y,m,d)||sat||isClosed); // Keine U/ZA/K-Buttons
 
     const card=document.createElement("div");
     card.className="mob-card";
     if(holiday)card.classList.add("mc-hol");
     else if(isSun(y,m,d))card.classList.add("mc-we");
+    else if(isClosed)card.classList.add("mc-closed");
     else if(typ==="urlaub")card.classList.add("mc-u");
     else if(typ==="zeitausgleich")card.classList.add("mc-za");
     else if(typ==="krank")card.classList.add("mc-k");
@@ -1292,6 +1334,13 @@ function renderMobile(){
       kw.textContent="KW"+getKW(y,m,d);
       wtDiv.appendChild(kw);
     }
+    if(isInventur){
+      const inv=document.createElement("span");inv.className="mc-kw";
+      inv.style.cssText="background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;padding:1px 5px;border-radius:6px;display:inline-block;margin-top:2px;";
+      inv.textContent="📦 Inv";
+      inv.title=sd.label||"Inventur";
+      wtDiv.appendChild(inv);
+    }
 
     // Info
     const info=document.createElement("div");info.className="mc-info";
@@ -1301,6 +1350,7 @@ function renderMobile(){
     const {nettoEl,vonTxt,bisTxt,nettoMin}=buildRow(d,key,dayWT,isWE(y,m,d),holiday,entry,typ,blocked);
 
     if(holiday){timeDiv.textContent=holiday;timeDiv.style.color="var(--hol-t)";timeDiv.style.fontFamily="'Figtree',sans-serif";}
+    else if(isClosed){timeDiv.textContent="🔒 Geschlossen"+(sd.label?" — "+sd.label:"");timeDiv.style.color="#6B7280";timeDiv.style.fontFamily="'Figtree',sans-serif";timeDiv.style.fontWeight="700";}
     else if(isSun(y,m,d)){timeDiv.textContent="Sonntag";timeDiv.style.color="var(--sun-t)";}
     else if(sat&&!entry?.von){timeDiv.textContent="Samstag";timeDiv.style.color="var(--amber)";}
     else if(typ==="urlaub"){timeDiv.textContent="Urlaub";timeDiv.style.color="var(--blue)";timeDiv.style.fontWeight="700";}
@@ -1366,7 +1416,7 @@ function renderStats(){
   const emp=curEmp();
   const y=state.year,m=state.month;
   const days=daysIn(y,m);
-  let work=0,urlaub=0,za=0,krank=0,nettoMinGesamt=0,sollArbeitstage=0;
+  let work=0,urlaub=0,za=0,krank=0,nettoMinGesamt=0,sollArbeitstage=0,closedDays=0;
   const wh=parseFloat(state.wochenstunden)||38.5;
   const tSoll=wh/5;
   const tSollMin=tSoll*60;
@@ -1376,8 +1426,11 @@ function renderStats(){
     const holiday=FEIERTAGE[key];
     const sun=isSun(y,m,d);
     const sat=isSat(y,m,d);
-    if(!sun&&!holiday&&!sat)sollArbeitstage++;
-    if(sun||holiday)continue;
+    const sd=getSpecialDay(key);
+    const isClosed=sd&&sd.type==='closed';
+    if(isClosed) closedDays++;
+    if(!sun&&!holiday&&!sat&&!isClosed)sollArbeitstage++;
+    if(sun||holiday||isClosed)continue;
     const e=emp.entries[key];
     if(!e)continue;
     if(e.typ==="urlaub")urlaub++;
@@ -1399,7 +1452,8 @@ function renderStats(){
   document.getElementById("st-krank").textContent=krank;
 
   const sollMin=sollArbeitstage*tSollMin;
-  const istMin=nettoMinGesamt+(urlaub+krank)*tSollMin; // ZA zählt nicht
+  // Geschlossene Tage zählen wie Feiertage (bezahlt, kein Soll)
+  const istMin=nettoMinGesamt+(urlaub+krank+closedDays)*tSollMin; // ZA zählt nicht
   const saldoMin=istMin-sollMin;
   const saldoH=saldoMin/60;
   const sign=saldoH>=0?"+":"";
@@ -1468,6 +1522,10 @@ function openSheet(key){
   const y2=parseInt(parts[0]),m2=parseInt(parts[1])-1,d2=parseInt(parts[2]);
   if(isMonthLocked(y2,m2)){
     toast("🔒 Monat ist abgeschlossen");return;
+  }
+  const sd=getSpecialDay(key);
+  if(sd&&sd.type==='closed'){
+    toast("🔒 Geschäft geschlossen — keine Eingabe möglich");return;
   }
   sheetDay=key;
   const emp=curEmp();
@@ -1962,6 +2020,9 @@ function buildPrintHTML(){
     const key=dk(y,m,d);const dayWT=wtDay(y,m,d);
     const holiday=FEIERTAGE[key]||null;const sun=isSun(y,m,d);const sat=isSat(y,m,d);
     const entry=emp.entries[key]||null;const typ=entry?entry.typ||"normal":"normal";
+    const sd=getSpecialDay(key);
+    const isClosed=sd&&sd.type==='closed';
+    const isInventur=sd&&sd.type==='inventur';
 
     // ── Farben exakt wie in der App ──────────────────────────────────────────
     let bg="", vonColor="", numColor="#111", accentBorder="";
@@ -1970,6 +2031,11 @@ function buildPrintHTML(){
       vonColor="color:#991B1B;font-weight:700;";
       numColor="#991B1B";
       accentBorder="border-left:3px solid #DC2626;padding-left:3px;";
+    } else if(isClosed){
+      bg="background:#F3F4F6;";
+      vonColor="color:#374151;font-weight:700;";
+      numColor="#374151";
+      accentBorder="border-left:3px solid #6B7280;padding-left:3px;";
     } else if(sun){
       bg="background:#FFF7ED;";
       vonColor="color:#9A3412;font-weight:600;";
@@ -1997,6 +2063,7 @@ function buildPrintHTML(){
 
     let von="",bis="",pause="",bem="",netto="",nettoColor="#2563EB";
     if(holiday){von=holiday;netto=ts.toFixed(2).replace(".",",");}
+    else if(isClosed){von="🔒 Geschlossen"+(sd.label?" — "+sd.label:"");netto=ts.toFixed(2).replace(".",",");nettoColor="#374151";}
     else if(sun){von="Sonntag";}
     else if(sat){
       // Samstag: wenn Eintrag vorhanden, Zeiten zeigen — sonst nur "Samstag"
@@ -2033,10 +2100,11 @@ function buildPrintHTML(){
       }
     }
 
-    const wtStyle=holiday||sun||sat?`color:${numColor};`:"color:#888;";
+    const wtStyle=holiday||sun||sat||isClosed?`color:${numColor};`:"color:#888;";
+    const invHtml=isInventur?` <span style="display:inline-block;padding:1px 5px;font-size:7pt;font-weight:700;background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;border-radius:3px;">📦 Inventur</span>`:"";
     rows+=`<tr style="${bg}">
       <td class="c num" style="color:${numColor};font-weight:700;${accentBorder}">${d}</td>
-      <td class="c wt"  style="${wtStyle}">${dayWT}</td>
+      <td class="c wt"  style="${wtStyle}">${dayWT}${invHtml}</td>
       <td class="c"     style="${vonColor}">${von}</td>
       <td class="c mono">${bis}</td>
       <td class="c mono" style="color:#888;">${pause}</td>
@@ -2051,7 +2119,9 @@ function buildPrintHTML(){
   let sollArbeitstage=0;
   for(let d=1;d<=days;d++){
     const key=dk(y,m,d);
-    if(!isSun(y,m,d)&&!isSat(y,m,d)&&!FEIERTAGE[key]) sollArbeitstage++;
+    const sd=getSpecialDay(key);
+    const isClosed=sd&&sd.type==='closed';
+    if(!isSun(y,m,d)&&!isSat(y,m,d)&&!FEIERTAGE[key]&&!isClosed) sollArbeitstage++;
   }
   const istMin=totalMin+(urlaub+krank)*ts*60; // ZA zählt nicht
   const sollMin=sollArbeitstage*ts*60;
@@ -2559,6 +2629,9 @@ applyDark(state.darkMode||false);
 
     await loadMonthLocks();
     console.log('✓ Monatssperren vom Server geladen');
+
+    await loadSpecialDays();
+    console.log('✓ Sondertage vom Server geladen');
 
     render();
     console.log('✓ UI gerendert');

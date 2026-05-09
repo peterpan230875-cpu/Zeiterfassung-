@@ -78,3 +78,12 @@ model Session {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model SpecialDay {
+  id        String   @id @default(cuid())
+  date      String   @unique
+  type      String   // "inventur" | "closed"
+  label     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

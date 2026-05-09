@@ -160,6 +160,12 @@ app.post('/api/entry', async (req, res) => {
     });
     if (lock) return res.status(403).json({ error: 'Monat ist abgeschlossen — keine Änderungen möglich' });
 
+    // Prüfe ob es ein "Geschlossen"-Tag ist
+    const sd = await prisma.specialDay.findUnique({ where: { date } });
+    if (sd && sd.type === 'closed') {
+      return res.status(403).json({ error: 'Geschäft an diesem Tag geschlossen — keine Eingabe möglich' });
+    }
+
     const pauseInt = parseInt(pause) || 0;
     const vonVal = von && von !== '' ? von : null;
     const bisVal = bis && bis !== '' ? bis : null;
@@ -289,6 +295,47 @@ app.get('/api/user-settings', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: 'Fehler beim Laden' });
+  }
+});
+
+// ── SONDERTAGE (öffentlich für eingeloggte Nutzer + Admin-Verwaltung) ────────
+app.get('/api/special-days', async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
+  try {
+    const days = await prisma.specialDay.findMany({ orderBy: { date: 'asc' } });
+    res.json({ days });
+  } catch (err) {
+    res.status(500).json({ error: 'Fehler beim Laden' });
+  }
+});
+
+app.post('/api/admin/special-day', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  try {
+    const { date, type, label } = req.body;
+    if (!date || !type) return res.status(400).json({ error: 'Datum und Typ erforderlich' });
+    if (type !== 'inventur' && type !== 'closed')
+      return res.status(400).json({ error: 'Typ muss inventur oder closed sein' });
+
+    const day = await prisma.specialDay.upsert({
+      where: { date },
+      update: { type, label: label || '' },
+      create: { date, type, label: label || '' }
+    });
+    res.json({ success: true, day });
+  } catch (err) {
+    console.error('special-day error:', err);
+    res.status(500).json({ error: 'Fehler beim Speichern' });
+  }
+});
+
+app.delete('/api/admin/special-day/:date', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  try {
+    await prisma.specialDay.deleteMany({ where: { date: req.params.date } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Fehler beim Löschen' });
   }
 });
 
