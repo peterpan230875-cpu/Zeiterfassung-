@@ -584,7 +584,10 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
 }
 #lock-banner.show{display:flex;}
 #lock-banner .lock-icon{font-size:22px;}
-.locked-row{opacity:.5;pointer-events:none;}
+/* Locked-Tabellenzeilen: voll sichtbar, nur Klicks gesperrt */
+.locked-row{pointer-events:none;position:relative;}
+.locked-row td:first-child::before{content:"🔒 ";font-size:11px;opacity:.7;}
+.mob-card.locked-row{position:relative;}
 #close-month-bar{
   display:flex;justify-content:center;margin:18px 0;
 }
@@ -1017,9 +1020,24 @@ async function loadMonthLocks(){
     const res=await fetch('/api/month-locks');
     if(!res.ok) return;
     const d=await res.json();
+    const oldCount=monthLocks.length;
     monthLocks=d.locks||[];
+    // Wenn sich Locks geändert haben, neu rendern
+    if(oldCount!==monthLocks.length) render();
   } catch(e){}
 }
+
+// Automatisch neu laden wenn der Tab wieder sichtbar wird
+// → fängt Admin-Freigabe ohne manuellen Refresh ab
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState==='visible'){
+    loadMonthLocks();
+    if(typeof loadEntriesFromServer==='function') loadEntriesFromServer();
+  }
+});
+window.addEventListener('focus', () => {
+  if(typeof loadMonthLocks==='function') loadMonthLocks();
+});
 function askCloseMonth(){
   if(isMonthLocked(state.year,state.month)){
     toast("Monat ist bereits abgeschlossen");return;
