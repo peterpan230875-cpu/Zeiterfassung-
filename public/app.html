@@ -910,6 +910,33 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
     </div>
     <hr class="divider"/>
     <div class="sec">
+      <div class="sec-lbl">PDF-Speicherort</div>
+      <p style="font-size:13px;color:var(--txt2);margin-bottom:8px;">
+        Wähle einen Ordner aus. Die App legt darin automatisch <strong>Arbeitszeitnachweis/JAHR/</strong> an
+        und speichert die PDFs dort hinein.
+      </p>
+      <p id="pdf-folder-warn" style="display:none;font-size:12px;color:var(--amber);background:var(--amber-bg);
+        border:1px solid var(--amber-m);padding:8px 10px;border-radius:8px;margin-bottom:8px;">
+        ⚠ Dein Browser unterstützt die direkte Ordnerwahl nicht. Bitte Chrome oder Edge verwenden —
+        in Firefox/Safari landet die PDF im Standard-Download-Ordner.
+      </p>
+      <div id="pdf-folder-current" style="display:none;font-size:13px;color:var(--green);
+        background:var(--green-bg);border:1px solid var(--green-m);padding:10px;
+        border-radius:8px;margin-bottom:8px;font-weight:600;"></div>
+      <button onclick="pickPdfFolder()" id="pdf-folder-btn"
+        style="width:100%;padding:12px;border:none;border-radius:var(--rs);background:var(--blue);color:#fff;
+        font-family:'Figtree',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">
+        📁 Ordner auswählen
+      </button>
+      <button onclick="clearPdfFolder()" id="pdf-folder-clear"
+        style="display:none;width:100%;padding:10px;margin-top:6px;border:1.5px solid var(--brd);
+        border-radius:var(--rs);background:var(--bg2);color:var(--txt2);
+        font-family:'Figtree',sans-serif;font-size:13px;cursor:pointer;">
+        🗑 Auswahl löschen
+      </button>
+    </div>
+    <hr class="divider"/>
+    <div class="sec">
       <div class="sec-lbl">Über diese App</div>
       <div style="font-size:13px;color:var(--txt2);line-height:1.8;">
         Zeiterfassung v2.5<br>
@@ -945,7 +972,7 @@ const PAUSES=["0","15","30","36","45","60"];
 let state=loadState()||{
   year:2026,month:3,selEmp:0,
   wochenstunden:38.5,darkMode:false,defaultPause:30,
-  setupDone:false,
+  setupDone:false,pdfFolderName:"",
   weekPatterns:{},season:"auto",
   employees:[{id:1,name:"",entries:{}}]
 };
@@ -1749,6 +1776,7 @@ function openSettingsSheet(){
   const sn=state.season||"auto";
   document.getElementById("season-"+(sn==="summer"?"summer":sn==="winter"?"winter":"auto")).classList.add("act");
   document.getElementById("season-badge").style.display="none";
+  refreshPdfFolderUI();
   openOv();document.getElementById("set-sheet").classList.add("open");
 }
 function closeSettingsSheet(){document.getElementById("set-sheet").classList.remove("open");closeOv();}
@@ -1763,6 +1791,113 @@ function onWHInput(val){
 }
 function toggleDark(val){state.darkMode=val;saveState();applyDark(val);}
 function applyDark(dark){document.body.classList.toggle("dark",dark);}
+
+// ── PDF-ORDNER (File System Access API) ─────────────────────────────────────
+const FS_SUPPORTED='showDirectoryPicker' in window;
+
+function _openFsDb(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open('zt-fs',1);
+    req.onupgradeneeded=e=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains('handles')) db.createObjectStore('handles');
+    };
+    req.onsuccess=e=>resolve(e.target.result);
+    req.onerror=e=>reject(e.target.error);
+  });
+}
+async function _putHandle(h){
+  const db=await _openFsDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction('handles','readwrite');
+    const r=tx.objectStore('handles').put(h,'pdfFolder');
+    r.onsuccess=()=>resolve(); r.onerror=()=>reject(r.error);
+  });
+}
+async function _getHandle(){
+  const db=await _openFsDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction('handles','readonly');
+    const r=tx.objectStore('handles').get('pdfFolder');
+    r.onsuccess=()=>resolve(r.result); r.onerror=()=>reject(r.error);
+  });
+}
+async function _delHandle(){
+  const db=await _openFsDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction('handles','readwrite');
+    const r=tx.objectStore('handles').delete('pdfFolder');
+    r.onsuccess=()=>resolve(); r.onerror=()=>reject(r.error);
+  });
+}
+
+async function pickPdfFolder(){
+  if(!FS_SUPPORTED){
+    toast('⚠ Funktion nur in Chrome/Edge verfügbar');
+    return;
+  }
+  try{
+    const handle=await window.showDirectoryPicker({mode:'readwrite'});
+    await _putHandle(handle);
+    state.pdfFolderName=handle.name;
+    saveState();
+    refreshPdfFolderUI();
+    toast('✓ Ordner gespeichert: '+handle.name);
+  }catch(e){
+    if(e.name!=='AbortError') toast('⚠ '+e.message);
+  }
+}
+
+async function clearPdfFolder(){
+  await _delHandle();
+  state.pdfFolderName='';
+  saveState();
+  refreshPdfFolderUI();
+  toast('Ordner-Auswahl gelöscht');
+}
+
+async function refreshPdfFolderUI(){
+  const warn=document.getElementById('pdf-folder-warn');
+  const cur=document.getElementById('pdf-folder-current');
+  const btn=document.getElementById('pdf-folder-btn');
+  const clr=document.getElementById('pdf-folder-clear');
+  if(!warn||!cur||!btn||!clr) return;
+
+  warn.style.display=FS_SUPPORTED?'none':'block';
+  if(!FS_SUPPORTED){btn.disabled=true;btn.style.opacity='.5';btn.style.cursor='not-allowed';}
+
+  if(state.pdfFolderName){
+    cur.textContent='✓ Aktueller Ordner: '+state.pdfFolderName+
+      ' / Arbeitszeitnachweis / '+state.year;
+    cur.style.display='block';
+    btn.textContent='📁 Anderen Ordner auswählen';
+    clr.style.display='block';
+  } else {
+    cur.style.display='none';
+    btn.textContent='📁 Ordner auswählen';
+    clr.style.display='none';
+  }
+}
+
+// Speichert Blob in <ausgewählter Ordner>/Arbeitszeitnachweis/JAHR/Datei.pdf
+async function savePdfToChosenFolder(blob, filename){
+  if(!FS_SUPPORTED) return false;
+  const root=await _getHandle();
+  if(!root) return false;
+  // Berechtigung prüfen / erneut anfordern
+  const opts={mode:'readwrite'};
+  let perm=await root.queryPermission(opts);
+  if(perm!=='granted') perm=await root.requestPermission(opts);
+  if(perm!=='granted') return false;
+
+  const aHandle=await root.getDirectoryHandle('Arbeitszeitnachweis',{create:true});
+  const yHandle=await aHandle.getDirectoryHandle(String(state.year),{create:true});
+  const fileHandle=await yHandle.getFileHandle(filename,{create:true});
+  const w=await fileHandle.createWritable();
+  await w.write(blob);
+  await w.close();
+  return true;
+}
 
 // ── PDF / EXPORT ─────────────────────────────────────────────────────────────
 function openPdfSheet(){
@@ -2044,11 +2179,28 @@ async function printMonth(){
     const imgH=(canvas.height*pw)/canvas.width;
     doc.addImage(canvas.toDataURL("image/jpeg",0.85),"JPEG",0,0,pw,Math.min(imgH,ph));
 
-    // Direkt mit gewünschtem Namen speichern
-    doc.save(`${fname}.pdf`);
+    const filename=`${fname}.pdf`;
+
+    // Versuch 1: in selbst gewählten Ordner speichern
+    let savedToFolder=false;
+    if(FS_SUPPORTED && state.pdfFolderName){
+      try{
+        const blob=doc.output('blob');
+        savedToFolder=await savePdfToChosenFolder(blob, filename);
+      }catch(e){
+        console.error('Speichern in Ordner fehlgeschlagen:',e);
+      }
+    }
+
+    // Fallback: normaler Download
+    if(!savedToFolder){
+      doc.save(filename);
+    }
 
     closePdfSheet();
-    toast("✓ PDF gespeichert: "+fname+".pdf");
+    toast(savedToFolder
+      ? `✓ Gespeichert: ${state.pdfFolderName}/Arbeitszeitnachweis/${state.year}/${filename}`
+      : `✓ PDF heruntergeladen: ${filename}`);
   } catch(err){
     console.error("printMonth error:",err);
     toast("⚠ Fehler: "+err.message);
