@@ -1127,6 +1127,50 @@ function countMonthUrlaub(y,m){
   return cnt;
 }
 
+// Kumulativer Urlaubsstand am Ende des angegebenen Monats:
+// findet den letzten Übertrags-Anchor (≤ aktueller Monat) und summiert
+// alle Urlaubstage von dort bis zum aktuellen Monat inkl.
+function getCumulativeUrlaub(year,month){
+  const targetKey=ustKey(year,month);
+  const overrides=state.urlaubGenommen||{};
+  const keys=Object.keys(overrides).filter(k=>k<=targetKey).sort();
+  if(keys.length===0) return countMonthUrlaub(year,month);
+  const anchorKey=keys[keys.length-1];
+  const anchorVal=overrides[anchorKey];
+  const [ay,am1]=anchorKey.split("-").map(Number);
+  let sum=anchorVal;
+  let y=ay,m=am1-1;
+  while(y<year||(y===year&&m<=month)){
+    sum+=countMonthUrlaub(y,m);
+    m++;
+    if(m>11){m=0;y++;}
+  }
+  return sum;
+}
+
+// Kumulativer Zeitkonto-Stand am Anfang des angegebenen Monats:
+// findet den letzten Override (≤ aktueller Monat) und addiert alle Saldi
+// der Monate von dort bis VOR dem aktuellen Monat.
+function getCumulativeZeitkonto(year,month){
+  const targetKey=ustKey(year,month);
+  const overrides=state.ueberstundenOverride||{};
+  const keys=Object.keys(overrides).filter(k=>k<=targetKey).sort();
+  if(keys.length===0) return 0;
+  const anchorKey=keys[keys.length-1];
+  const anchorVal=overrides[anchorKey];
+  if(anchorKey===targetKey) return anchorVal;
+  const [ay,am1]=anchorKey.split("-").map(Number);
+  let sum=anchorVal;
+  let y=ay,m=am1-1;
+  // von Anchor-Monat (inkl.) bis BEVOR Zielmonat
+  while(y<year||(y===year&&m<month)){
+    sum+=calculateMonthSaldo(y,m);
+    m++;
+    if(m>11){m=0;y++;}
+  }
+  return sum;
+}
+
 // Berechnet den Saldo (in Stunden) für einen beliebigen Monat
 function calculateMonthSaldo(y,m){
   const emp=curEmp();
@@ -1586,11 +1630,10 @@ function renderStats(){
   const sign=saldoH>=0?"+":"";
   const saldoStr=sign+saldoH.toFixed(2).replace(".",",")+" h";
 
-  // Zeitkonto = Übertrag aus Vormonaten (manuell eingegeben). Default 0.
+  // Zeitkonto = Übertrag aus Vormonaten (kumulativ aus letztem Anchor)
   const zaMin=za*tSollMin;
   const k=ustKey(y,m);
-  const overrideVal=state.ueberstundenOverride&&state.ueberstundenOverride[k];
-  const uH=(overrideVal!==undefined&&overrideVal!==null)?overrideVal:0;
+  const uH=getCumulativeZeitkonto(y,m);
   const uSign=uH>=0?"+":"";
   const uHStr=uSign+uH.toFixed(2).replace(".",",")+" h";
   const uTage=tSoll>0?uH/tSoll:0;
@@ -1602,10 +1645,9 @@ function renderStats(){
        <span style="color:var(--txt2);font-size:85%;">${uTStr}</span>
      </span>`;
 
-  // Urlaub: genommen (links, mit Übertrag) ↔ Anspruch (rechts) im gleichen Kasten
+  // Urlaub: kumulativ vom letzten Anchor + alle Tage bis aktuellem Monat
   const anspruch=parseInt(state.urlaubsanspruch)||30;
-  const urlaubCarry=(state.urlaubGenommen&&state.urlaubGenommen[k])||0;
-  const urlaubTotal=urlaubCarry+urlaub;
+  const urlaubTotal=getCumulativeUrlaub(y,m);
   document.getElementById("st-urlaub").innerHTML=
     `<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
        <span>${urlaubTotal}</span>

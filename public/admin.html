@@ -565,12 +565,18 @@ function renderMonth(){
   const saldoStr=`${sign}${Math.abs(saldo/60).toFixed(2).replace('.',',')} h`;
   const saldoColor=saldo>0?'#16A34A':saldo<0?'#DC2626':'#888';
 
-  // Zeitkonto = Übertrag aus Vormonaten (manuell), Default 0
+  // Zeitkonto = kumulativ vom letzten Anchor (mit Saldo-Addition der Zwischenmonate)
   const zaMin=za*ts*60;
   const empArr=currentSettings?.employees?JSON.parse(currentSettings.employees||'[]'):[];
   const overrideMap=(empArr[0]&&empArr[0].ueberstundenOverride)||{};
   const ustK=viewYear+"-"+String(viewMonth+1).padStart(2,"0");
-  const ovv=overrideMap[ustK];
+  // Helfer: Anchor finden und summieren — für Admin-Sicht reicht der direkte Wert
+  // (Saldi anderer Monate kennt der Admin nicht ohne deren Einträge zu laden)
+  function adminLatestOverride(map,key){
+    const ks=Object.keys(map).filter(x=>x<=key).sort();
+    return ks.length?map[ks[ks.length-1]]:undefined;
+  }
+  const ovv=adminLatestOverride(overrideMap,ustK);
   const uH=(ovv!==undefined&&ovv!==null)?ovv:0;
   const uSign=uH>=0?'+':'';
   const uHStr=`${uSign}${uH.toFixed(2).replace('.',',')} h`;
@@ -583,10 +589,10 @@ function renderMonth(){
   </span>`;
   const uColor=uH>0?'#16A34A':uH<0?'#DC2626':'#888';
 
-  // Urlaub: genommen (links, mit Übertrag) ↔ Anspruch (rechts) im gleichen Kasten
+  // Urlaub: kumulativ vom letzten Anchor + im aktuellen Monat genommene Tage
   const anspruch=(empArr[0]&&empArr[0].urlaubsanspruch)||30;
   const urlaubMap=(empArr[0]&&empArr[0].urlaubGenommen)||{};
-  const urlaubCarry=urlaubMap[ustK]||0;
+  const urlaubCarry=adminLatestOverride(urlaubMap,ustK)||0;
   const urlaubTotal=urlaubCarry+urlaub;
   const urlaubStr=`<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
     <span>${urlaubTotal}</span>
