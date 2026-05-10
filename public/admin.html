@@ -589,14 +589,15 @@ function renderMonth(){
   </span>`;
   const uColor=uH>0?'#16A34A':uH<0?'#DC2626':'#888';
 
-  // Urlaub: kumulativ vom letzten Anchor + im aktuellen Monat genommene Tage
+  // Urlaub: links = genommen (kumulativ), rechts = verbleibender Rest
   const anspruch=(empArr[0]&&empArr[0].urlaubsanspruch)||30;
   const urlaubMap=(empArr[0]&&empArr[0].urlaubGenommen)||{};
   const urlaubCarry=adminLatestOverride(urlaubMap,ustK)||0;
   const urlaubTotal=urlaubCarry+urlaub;
+  const urlaubRest=Math.max(0,anspruch-urlaubTotal);
   const urlaubStr=`<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
     <span>${urlaubTotal}</span>
-    <span style="color:var(--txt);">${anspruch}</span>
+    <span style="color:var(--txt);">${urlaubRest}</span>
   </span>`;
 
   // Zeitausgleich als negative Stunden

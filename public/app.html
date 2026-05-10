@@ -1645,13 +1645,14 @@ function renderStats(){
        <span style="color:var(--txt2);font-size:85%;">${uTStr}</span>
      </span>`;
 
-  // Urlaub: kumulativ vom letzten Anchor + alle Tage bis aktuellem Monat
+  // Urlaub: links = genommen (kumulativ), rechts = verbleibender Rest
   const anspruch=parseInt(state.urlaubsanspruch)||30;
   const urlaubTotal=getCumulativeUrlaub(y,m);
+  const urlaubRest=Math.max(0,anspruch-urlaubTotal);
   document.getElementById("st-urlaub").innerHTML=
     `<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
        <span>${urlaubTotal}</span>
-       <span style="color:var(--txt);">${anspruch}</span>
+       <span style="color:var(--txt);">${urlaubRest}</span>
      </span>`;
 
   // Zeitausgleich als negative Stunden
