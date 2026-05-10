@@ -1658,17 +1658,21 @@ function renderStats(){
   const anspruch=parseInt(state.urlaubsanspruch)||30;
   const urlaubTotal=getCumulativeUrlaub(y,m);
   const urlaubRest=Math.max(0,anspruch-urlaubTotal);
+  const urlaubMonthStr=urlaub>0?("-"+urlaub):"0";
   document.getElementById("st-urlaub").innerHTML=
     `<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
-       <span style="color:var(--red);">${urlaub}</span>
+       <span style="color:var(--red);">${urlaubMonthStr}</span>
        <span style="color:var(--green);">${urlaubRest}</span>
      </span>`;
 
-  // Zeitausgleich als negative Stunden
+  // Zeitausgleich als negative Stunden (rote Schrift wenn genommen)
+  const zaEl=document.getElementById("st-za");
   if(za>0){
-    document.getElementById("st-za").textContent="-"+(zaMin/60).toFixed(2).replace(".",",")+" h";
+    zaEl.textContent="-"+(zaMin/60).toFixed(2).replace(".",",")+" h";
+    zaEl.style.color="var(--red)";
   } else {
-    document.getElementById("st-za").textContent="0,00 h";
+    zaEl.textContent="0,00 h";
+    zaEl.style.color="var(--txt2)";
   }
 
   document.getElementById("st-krank").textContent=krank;

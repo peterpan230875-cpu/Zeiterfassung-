@@ -611,18 +611,20 @@ function renderMonth(){
   });
   const urlaubTotal=baseUrlaub+urlaubInRange;
   const urlaubRest=Math.max(0,anspruch-urlaubTotal);
+  const urlaubMonthStr=urlaub>0?("-"+urlaub):"0";
   const urlaubStr=`<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
-    <span style="color:var(--k-t);">${urlaub}</span>
+    <span style="color:var(--k-t);">${urlaubMonthStr}</span>
     <span style="color:var(--za-t);">${urlaubRest}</span>
   </span>`;
 
-  // Zeitausgleich als negative Stunden
+  // Zeitausgleich als negative Stunden (rote Schrift wenn genommen)
   const zaStr=za>0?`-${(zaMin/60).toFixed(2).replace('.',',')} h`:'0,00 h';
+  const zaColor=za>0?'var(--k-t)':'var(--txt2)';
 
   document.getElementById('stats').innerHTML=`
     <div class="stat"><div class="lbl">Zeitkonto</div><div class="val" style="color:${uColor};">${uStr}</div></div>
     <div class="stat"><div class="lbl">Urlaub</div><div class="val amber">${urlaubStr}</div></div>
-    <div class="stat"><div class="lbl">Zeitausgleich</div><div class="val" style="color:${za>0?'#DC2626':'var(--txt)'};">${zaStr}</div></div>
+    <div class="stat"><div class="lbl">Zeitausgleich</div><div class="val" style="color:${zaColor};">${zaStr}</div></div>
     <div class="stat"><div class="lbl">Krank</div><div class="val red">${krank}</div></div>
     <div class="stat"><div class="lbl">Gesamt</div><div class="val blue">${totalMin>0?Math.floor(totalMin/60)+'h '+Math.round(totalMin%60)+'m':'—'}</div></div>
     <div class="stat"><div class="lbl">Saldo</div><div class="val" style="color:${saldoColor};font-size:16px;">${(work+urlaub+krank+za)?saldoStr:'—'}</div></div>
