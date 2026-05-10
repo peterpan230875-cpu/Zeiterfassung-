@@ -573,7 +573,14 @@ function renderMonth(){
   const ovv=overrideMap[ustK];
   const uH=(ovv!==undefined&&ovv!==null)?ovv:0;
   const uSign=uH>=0?'+':'';
-  const uStr=`${uSign}${uH.toFixed(2).replace('.',',')} h`;
+  const uHStr=`${uSign}${uH.toFixed(2).replace('.',',')} h`;
+  const uTage=ts>0?uH/ts:0;
+  const tSign=uTage>=0?'+':'';
+  const uTStr=`${tSign}${uTage.toFixed(2).replace('.',',')} T`;
+  const uStr=`<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
+    <span>${uHStr}</span>
+    <span style="color:var(--txt2);font-size:85%;">${uTStr}</span>
+  </span>`;
   const uColor=uH>0?'#16A34A':uH<0?'#DC2626':'#888';
 
   // Urlaub: genommen (links) ↔ Anspruch (rechts) im gleichen Kasten

@@ -1555,7 +1555,15 @@ function renderStats(){
   const overrideVal=state.ueberstundenOverride&&state.ueberstundenOverride[k];
   const uH=(overrideVal!==undefined&&overrideVal!==null)?overrideVal:0;
   const uSign=uH>=0?"+":"";
-  document.getElementById("st-ust").textContent=uSign+uH.toFixed(2).replace(".",",")+" h";
+  const uHStr=uSign+uH.toFixed(2).replace(".",",")+" h";
+  const uTage=tSoll>0?uH/tSoll:0;
+  const tSign=uTage>=0?"+":"";
+  const uTStr=tSign+uTage.toFixed(2).replace(".",",")+" T";
+  document.getElementById("st-ust").innerHTML=
+    `<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
+       <span>${uHStr}</span>
+       <span style="color:var(--txt2);font-size:85%;">${uTStr}</span>
+     </span>`;
 
   // Urlaub: genommen (links) ↔ Anspruch (rechts) im gleichen Kasten
   const anspruch=parseInt(state.urlaubsanspruch)||30;
