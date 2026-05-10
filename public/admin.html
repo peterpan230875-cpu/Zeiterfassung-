@@ -497,7 +497,23 @@ function renderMonth(){
     let cls='', vonTxt='', bisTxt='', pauseTxt='', bemTxt='', netto='';
     if(holiday){cls='r-hol';vonTxt=holiday;netto=ts.toFixed(2).replace('.',',');}
     else if(sun){cls='r-we';vonTxt='Sonntag';}
-    else if(sat){cls='r-sat';vonTxt='Samstag';}
+    else if(sat){
+      // Samstag: wenn Eintrag mit Zeiten vorhanden, diese anzeigen
+      cls='r-sat';
+      if(e&&e.von){
+        vonTxt=e.von||'';bisTxt=e.bis||'';
+        pauseTxt=e.pause?(e.pause+"'"):'';bemTxt=e.bemerkung||'';
+        if(e.von&&e.bis){
+          const [vh,vm]=e.von.split(':').map(Number);
+          const [bh,bm]=e.bis.split(':').map(Number);
+          const total=(bh*60+bm)-(vh*60+vm);const p=parseInt(e.pause||0)||0;
+          const net=Math.max(0,total-p);
+          if(net>0){work++;totalMin+=net;netto=(net/60).toFixed(2).replace('.',',');}
+        }
+      } else {
+        vonTxt='Samstag';
+      }
+    }
     else if(sd&&sd.type==='closed'){
       cls='r-closed';vonTxt='<span class="badge-typ b-closed">🔒 Geschlossen</span>'+(sd.label?' <span style="color:var(--txt2);font-size:11px;">'+sd.label+'</span>':'');
       netto=ts.toFixed(2).replace('.',',');
