@@ -901,6 +901,24 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
     </div>
     <hr class="divider"/>
     <div class="sec">
+      <div class="sec-lbl">Überstunden-Übertrag</div>
+      <p style="font-size:13px;color:var(--txt2);">
+        Setze den Überstunden-Stand für einen bestimmten Monat (z.B. Übertrag aus Vormonat). Leer lassen → automatisch berechnet.
+      </p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+        <select id="ust-month" style="flex:1;min-width:140px;padding:11px 12px;border:1.5px solid var(--brd);border-radius:var(--rs);background:var(--bg);color:var(--txt);font-family:'Figtree',sans-serif;font-size:14px;">
+        </select>
+        <input id="ust-value" type="number" step="0.1" placeholder="z.B. 0" style="flex:1;min-width:100px;padding:11px 12px;border:1.5px solid var(--brd);border-radius:var(--rs);background:var(--bg);color:var(--txt);font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;text-align:center;"/>
+        <span style="font-size:14px;color:var(--txt2);">h</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button onclick="saveUeberstundenOverride()" style="flex:1;padding:10px;border:none;border-radius:var(--rs);background:var(--blue);color:#fff;font-family:'Figtree',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">💾 Speichern</button>
+        <button onclick="clearUeberstundenOverride()" style="padding:10px 14px;border:1.5px solid var(--brd);border-radius:var(--rs);background:var(--bg2);color:var(--txt2);font-family:'Figtree',sans-serif;font-size:13px;cursor:pointer;">🔄 Auto</button>
+      </div>
+      <div id="ust-badge" style="display:none" class="saved-badge">✓ Gespeichert</div>
+    </div>
+    <hr class="divider"/>
+    <div class="sec">
       <div class="sec-lbl">Saison (Spätschicht-Endzeit)</div>
       <p style="font-size:13px;color:var(--txt2);margin-bottom:10px;">☀️ Sommer: Schluss 17:30 · ❄️ Winter: Schluss 17:00</p>
       <div class="season-row">
@@ -988,7 +1006,7 @@ let state=loadState()||{
   year:2026,month:3,selEmp:0,
   wochenstunden:38.5,darkMode:false,defaultPause:30,urlaubsanspruch:30,
   setupDone:false,pdfFolderName:"",
-  weekPatterns:{},season:"auto",
+  weekPatterns:{},season:"auto",ueberstundenOverride:{},
   employees:[{id:1,name:"",entries:{}}]
 };
 // Monatsabschluss (lokal gehalten, vom Server geladen)
@@ -1464,17 +1482,23 @@ function renderStats(){
   const sign=saldoH>=0?"+":"";
   const saldoStr=sign+saldoH.toFixed(2).replace(".",",")+" h";
 
-  // Überstunden = Saldo VOR ZA-Verbrauch (echte erarbeitete Überstunden)
+  // Überstunden = Saldo VOR ZA-Verbrauch — oder manueller Override pro Monat
   const zaMin=za*tSollMin;
-  const ueberstundenMin=saldoMin+zaMin;
-  const uH=ueberstundenMin/60;
+  const k=ustKey(y,m);
+  const overrideVal=state.ueberstundenOverride&&state.ueberstundenOverride[k];
+  let uH;
+  if(overrideVal!==undefined&&overrideVal!==null){
+    uH=overrideVal;
+  } else {
+    uH=(saldoMin+zaMin)/60;
+  }
   const uSign=uH>=0?"+":"";
   document.getElementById("st-ust").textContent=uSign+uH.toFixed(2).replace(".",",")+" h";
 
-  // Urlaub: genommen / Anspruch
+  // Urlaub: genommen / Anspruch (Anspruch in voller Größe und Haupttextfarbe)
   const anspruch=parseInt(state.urlaubsanspruch)||30;
   document.getElementById("st-urlaub").innerHTML=
-    `${urlaub} <span style="font-size:60%;font-weight:500;color:var(--muted);">/ ${anspruch}</span>`;
+    `${urlaub} <span style="color:var(--txt2);font-weight:500;">/</span> <span style="color:var(--txt);">${anspruch}</span>`;
 
   // Zeitausgleich als negative Stunden
   if(za>0){
@@ -1876,6 +1900,8 @@ function openSettingsSheet(){
   document.getElementById("inp-urlaub-anspruch").value=state.urlaubsanspruch||30;
   document.getElementById("urlaub-badge").style.display="none";
   document.getElementById("toggle-dark").checked=!!state.darkMode;
+  // Überstunden-Übertrag: Monatswahl füllen
+  fillUstMonthSelect();
   // Saison-Buttons aktiv markieren (nur falls explizit gesetzt)
   ["season-summer","season-winter"].forEach(id=>document.getElementById(id)?.classList.remove("act"));
   if(state.season==="summer"||state.season==="winter"){
@@ -1906,6 +1932,68 @@ function onUrlaubAnspruchInput(val){
       document.getElementById("urlaub-badge").style.display="inline-flex";
     }
   },600);
+}
+
+// ── ÜBERSTUNDEN-ÜBERTRAG ────────────────────────────────────────────────────
+function ustKey(y,m){return y+"-"+String(m+1).padStart(2,"0");}
+
+function fillUstMonthSelect(){
+  const sel=document.getElementById("ust-month");
+  if(!sel) return;
+  sel.innerHTML="";
+  // Aktuelles Jahr + Vorjahr listen
+  const y=state.year;
+  for(let yy of [y-1,y]){
+    for(let mm=0;mm<12;mm++){
+      const opt=document.createElement("option");
+      opt.value=ustKey(yy,mm);
+      const k=ustKey(yy,mm);
+      const has=state.ueberstundenOverride&&state.ueberstundenOverride[k]!==undefined;
+      opt.textContent=MON[mm]+" "+yy+(has?" ✓":"");
+      sel.appendChild(opt);
+    }
+  }
+  // Standard: aktuell angezeigter Monat
+  sel.value=ustKey(state.year,state.month);
+  // Wenn gespeichert vorhanden, Wert anzeigen
+  syncUstValueField();
+  sel.onchange=syncUstValueField;
+}
+function syncUstValueField(){
+  const sel=document.getElementById("ust-month");
+  const inp=document.getElementById("ust-value");
+  if(!sel||!inp) return;
+  const k=sel.value;
+  const v=state.ueberstundenOverride&&state.ueberstundenOverride[k];
+  inp.value=(v!==undefined&&v!==null)?v:"";
+}
+function saveUeberstundenOverride(){
+  const sel=document.getElementById("ust-month");
+  const inp=document.getElementById("ust-value");
+  const k=sel.value;
+  const raw=inp.value.trim();
+  if(!state.ueberstundenOverride) state.ueberstundenOverride={};
+  if(raw===""){
+    delete state.ueberstundenOverride[k];
+  } else {
+    const v=parseFloat(raw.replace(",","."));
+    if(isNaN(v)){toast("⚠ Ungültige Zahl");return;}
+    state.ueberstundenOverride[k]=v;
+  }
+  saveState();renderStats();fillUstMonthSelect();
+  document.getElementById("ust-badge").style.display="inline-flex";
+  toast("✓ Gespeichert");
+}
+function clearUeberstundenOverride(){
+  const sel=document.getElementById("ust-month");
+  const k=sel.value;
+  if(state.ueberstundenOverride&&state.ueberstundenOverride[k]!==undefined){
+    delete state.ueberstundenOverride[k];
+    saveState();renderStats();fillUstMonthSelect();
+    document.getElementById("ust-badge").style.display="inline-flex";
+    toast("✓ Auf Auto gesetzt");
+  }
+  document.getElementById("ust-value").value="";
 }
 function toggleDark(val){state.darkMode=val;saveState();applyDark(val);}
 function applyDark(dark){document.body.classList.toggle("dark",dark);}
@@ -2538,6 +2626,7 @@ async function syncSettingsToServer(setupDone) {
       urlaubsanspruch: state.urlaubsanspruch || 30,
       weekPatterns: state.weekPatterns || {},
       season: state.season || 'auto',
+      ueberstundenOverride: state.ueberstundenOverride || {},
       employees: state.employees
     };
 
@@ -2585,6 +2674,7 @@ async function loadSettingsFromServer() {
     if (settings.darkMode !== undefined) state.darkMode = settings.darkMode;
     if (settings.defaultPause) state.defaultPause = settings.defaultPause;
     if (settings.urlaubsanspruch !== undefined) state.urlaubsanspruch = settings.urlaubsanspruch;
+    if (settings.ueberstundenOverride && typeof settings.ueberstundenOverride === 'object') state.ueberstundenOverride = settings.ueberstundenOverride;
     if (settings.setupDone !== undefined) state.setupDone = !!settings.setupDone;
     if (settings.weekPatterns && typeof settings.weekPatterns === 'object') state.weekPatterns = settings.weekPatterns;
     if (settings.season) state.season = settings.season;

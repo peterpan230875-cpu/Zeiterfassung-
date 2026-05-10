@@ -565,17 +565,24 @@ function renderMonth(){
   const saldoStr=`${sign}${Math.abs(saldo/60).toFixed(2).replace('.',',')} h`;
   const saldoColor=saldo>0?'#16A34A':saldo<0?'#DC2626':'#888';
 
-  // Überstunden = Saldo VOR ZA-Verbrauch (echte erarbeitete Überstunden)
+  // Überstunden = Saldo VOR ZA-Verbrauch (oder manueller Override pro Monat)
   const zaMin=za*ts*60;
-  const ueberMin=saldo+zaMin;
-  const uSign=ueberMin>=0?'+':'-';
-  const uStr=`${uSign}${Math.abs(ueberMin/60).toFixed(2).replace('.',',')} h`;
-  const uColor=ueberMin>0?'#16A34A':ueberMin<0?'#DC2626':'#888';
-
-  // Urlaub: genommen / Anspruch
   const empArr=currentSettings?.employees?JSON.parse(currentSettings.employees||'[]'):[];
+  const overrideMap=(empArr[0]&&empArr[0].ueberstundenOverride)||{};
+  const ustK=viewYear+"-"+String(viewMonth+1).padStart(2,"0");
+  let uH;
+  if(overrideMap[ustK]!==undefined&&overrideMap[ustK]!==null){
+    uH=overrideMap[ustK];
+  } else {
+    uH=(saldo+zaMin)/60;
+  }
+  const uSign=uH>=0?'+':'';
+  const uStr=`${uSign}${uH.toFixed(2).replace('.',',')} h`;
+  const uColor=uH>0?'#16A34A':uH<0?'#DC2626':'#888';
+
+  // Urlaub: genommen / Anspruch (Anspruch in voller Größe und weiß)
   const anspruch=(empArr[0]&&empArr[0].urlaubsanspruch)||30;
-  const urlaubStr=`${urlaub} <span style="font-size:60%;font-weight:500;color:var(--muted);">/ ${anspruch}</span>`;
+  const urlaubStr=`${urlaub} <span style="color:var(--txt2);font-weight:500;">/</span> <span style="color:var(--txt);">${anspruch}</span>`;
 
   // Zeitausgleich als negative Stunden
   const zaStr=za>0?`-${(zaMin/60).toFixed(2).replace('.',',')} h`:'0,00 h';
