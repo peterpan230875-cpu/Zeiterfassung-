@@ -390,7 +390,7 @@ function renderUsers(){
     const ico=closed?'✅':'⏳';
     const d=document.createElement('div');
     d.className='user-item '+statusCls+(u.id===selectedUserId?' active':'');
-    d.innerHTML=`<div class="name">${u.name}<span class="lock-ind">${ico}</span></div><div class="username">@${u.username}</div>`;
+    d.innerHTML=`<div class="name">${u.name}<span class="lock-ind">${ico}</span></div>`;
     d.onclick=()=>selectUser(u.id);
     el.appendChild(d);
   });
