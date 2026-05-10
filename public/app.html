@@ -1078,14 +1078,74 @@ function askCloseMonth(){
   if(isMonthLocked(state.year,state.month)){
     toast("Monat ist bereits abgeschlossen");return;
   }
+  // Vorschau: was wird ins Zeitkonto übertragen
+  const saldoH=calculateMonthSaldo(state.year,state.month);
+  const curKey=ustKey(state.year,state.month);
+  const startKonto=(state.ueberstundenOverride&&state.ueberstundenOverride[curKey])||0;
+  const endKonto=startKonto+saldoH;
+  const sign=endKonto>=0?"+":"";
+  const endStr=sign+endKonto.toFixed(2).replace('.',',')+" h";
+
   document.getElementById('confirm-title').textContent=`Monat ${MON[state.month]} ${state.year} abschließen?`;
+  document.getElementById('confirm-msg').innerHTML=
+    `Möchtest du den Monat wirklich abschließen?<br>`+
+    `Danach sind <strong>keine Änderungen mehr möglich</strong>.<br><br>`+
+    `<span style="display:inline-block;background:var(--blue-bg);color:var(--blue);padding:6px 12px;border-radius:8px;font-weight:700;">`+
+    `📥 ${endStr} werden ins Zeitkonto übertragen</span>`;
   document.getElementById('confirm-modal').classList.add('open');
 }
 function closeConfirmModal(){
   document.getElementById('confirm-modal').classList.remove('open');
 }
+// Berechnet den Saldo (in Stunden) für einen beliebigen Monat
+function calculateMonthSaldo(y,m){
+  const emp=curEmp();
+  const days=daysIn(y,m);
+  const wh=parseFloat(state.wochenstunden)||38.5;
+  const tSoll=wh/5;
+  const tSollMin=tSoll*60;
+  let totalMin=0,urlaub=0,krank=0,closedDays=0,sollArbeitstage=0;
+  for(let d=1;d<=days;d++){
+    const key=dk(y,m,d);
+    const holiday=FEIERTAGE[key];
+    const sun=isSun(y,m,d);
+    const sat=isSat(y,m,d);
+    const sd=getSpecialDay(key);
+    const isClosed=sd&&sd.type==='closed';
+    if(isClosed) closedDays++;
+    if(!sun&&!holiday&&!sat&&!isClosed) sollArbeitstage++;
+    if(sun||holiday||isClosed) continue;
+    const e=emp.entries[key];
+    if(!e) continue;
+    if(e.typ==="urlaub") urlaub++;
+    else if(e.typ==="krank") krank++;
+    else if(e.von&&e.bis){
+      const [vh,vm]=e.von.split(":").map(Number);
+      const [bh,bm]=e.bis.split(":").map(Number);
+      const total=(bh*60+bm)-(vh*60+vm);
+      const pause=parseInt(e.pause||"0")||0;
+      totalMin+=Math.max(0,total-pause);
+    }
+  }
+  const sollMin=sollArbeitstage*tSollMin;
+  const istMin=totalMin+(urlaub+krank+closedDays)*tSollMin; // ZA zählt nicht
+  return (istMin-sollMin)/60;
+}
+
 async function doCloseMonth(){
   closeConfirmModal();
+
+  // Saldo des abgeschlossenen Monats berechnen
+  const saldoH=calculateMonthSaldo(state.year,state.month);
+  const curKey=ustKey(state.year,state.month);
+  const startKonto=(state.ueberstundenOverride&&state.ueberstundenOverride[curKey])||0;
+  const endKonto=startKonto+saldoH;
+
+  // Folgemonat bestimmen
+  let nm=state.month+1, ny=state.year;
+  if(nm>11){nm=0;ny++;}
+  const nextKey=ustKey(ny,nm);
+
   try{
     const res=await fetch('/api/month-lock',{
       method:'POST',headers:{'Content-Type':'application/json'},
@@ -1094,7 +1154,14 @@ async function doCloseMonth(){
     if(res.ok){
       const d=await res.json();
       monthLocks.push(d.lock);
-      toast("✓ Monat abgeschlossen");
+
+      // Übertrag: Endstand wird zum Startwert des Folgemonats
+      if(!state.ueberstundenOverride) state.ueberstundenOverride={};
+      state.ueberstundenOverride[nextKey]=Math.round(endKonto*100)/100;
+      saveState(); // syncs zum Server (override ist im payload enthalten)
+
+      const sign=endKonto>=0?"+":"";
+      toast(`✓ Monat abgeschlossen — ${sign}${endKonto.toFixed(2).replace('.',',')} h ins Zeitkonto übertragen`);
       render();
     } else {
       const err=await res.json();
