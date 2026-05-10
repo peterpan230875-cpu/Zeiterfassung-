@@ -451,6 +451,30 @@ function renderMonth(){
   document.getElementById('month-lbl').textContent=MON[viewMonth]+' '+viewYear;
   if(!selectedUserId){return;}
 
+  // Daten werden erst sichtbar wenn der Mitarbeiter den Monat abgeschlossen hat
+  const isLocked=isMonthLocked(viewYear,viewMonth);
+  if(!isLocked){
+    document.getElementById('stats').style.display='none';
+    document.getElementById('lock-status').classList.remove('locked');
+    const u=users.find(x=>x.id===selectedUserId);
+    document.getElementById('entries-area').innerHTML=`
+      <div style="text-align:center;padding:50px 20px;color:var(--muted);">
+        <div style="font-size:48px;margin-bottom:14px;">⏳</div>
+        <div style="font-size:16px;font-weight:700;color:var(--txt);margin-bottom:6px;">
+          Monat noch nicht abgeschlossen
+        </div>
+        <div style="font-size:13px;line-height:1.6;">
+          ${u?u.name:'Der Mitarbeiter'} hat <strong>${MON[viewMonth]} ${viewYear}</strong> noch nicht freigegeben.<br>
+          Du siehst die Daten erst nach dem Monatsabschluss durch den Mitarbeiter.
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Stats-Bereich wieder sichtbar
+  document.getElementById('stats').style.display='grid';
+
   const wh=parseFloat(currentSettings?.wochenstunden)||38.5;
   const ts=wh/5;
   const days=daysIn(viewYear,viewMonth);
