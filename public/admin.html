@@ -576,9 +576,12 @@ function renderMonth(){
   const uStr=`${uSign}${uH.toFixed(2).replace('.',',')} h`;
   const uColor=uH>0?'#16A34A':uH<0?'#DC2626':'#888';
 
-  // Urlaub: genommen / Anspruch (Anspruch in voller Größe und weiß)
+  // Urlaub: genommen (links) ↔ Anspruch (rechts) im gleichen Kasten
   const anspruch=(empArr[0]&&empArr[0].urlaubsanspruch)||30;
-  const urlaubStr=`${urlaub} <span style="color:var(--txt2);font-weight:500;">/</span> <span style="color:var(--txt);">${anspruch}</span>`;
+  const urlaubStr=`<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
+    <span>${urlaub}</span>
+    <span style="color:var(--txt);">${anspruch}</span>
+  </span>`;
 
   // Zeitausgleich als negative Stunden
   const zaStr=za>0?`-${(zaMin/60).toFixed(2).replace('.',',')} h`:'0,00 h';
