@@ -565,17 +565,13 @@ function renderMonth(){
   const saldoStr=`${sign}${Math.abs(saldo/60).toFixed(2).replace('.',',')} h`;
   const saldoColor=saldo>0?'#16A34A':saldo<0?'#DC2626':'#888';
 
-  // Überstunden = Saldo VOR ZA-Verbrauch (oder manueller Override pro Monat)
+  // Zeitkonto = Übertrag aus Vormonaten (manuell), Default 0
   const zaMin=za*ts*60;
   const empArr=currentSettings?.employees?JSON.parse(currentSettings.employees||'[]'):[];
   const overrideMap=(empArr[0]&&empArr[0].ueberstundenOverride)||{};
   const ustK=viewYear+"-"+String(viewMonth+1).padStart(2,"0");
-  let uH;
-  if(overrideMap[ustK]!==undefined&&overrideMap[ustK]!==null){
-    uH=overrideMap[ustK];
-  } else {
-    uH=(saldo+zaMin)/60;
-  }
+  const ovv=overrideMap[ustK];
+  const uH=(ovv!==undefined&&ovv!==null)?ovv:0;
   const uSign=uH>=0?'+':'';
   const uStr=`${uSign}${uH.toFixed(2).replace('.',',')} h`;
   const uColor=uH>0?'#16A34A':uH<0?'#DC2626':'#888';
@@ -588,7 +584,7 @@ function renderMonth(){
   const zaStr=za>0?`-${(zaMin/60).toFixed(2).replace('.',',')} h`:'0,00 h';
 
   document.getElementById('stats').innerHTML=`
-    <div class="stat"><div class="lbl">Überstunden</div><div class="val" style="color:${uColor};">${uStr}</div></div>
+    <div class="stat"><div class="lbl">Zeitkonto</div><div class="val" style="color:${uColor};">${uStr}</div></div>
     <div class="stat"><div class="lbl">Urlaub</div><div class="val amber">${urlaubStr}</div></div>
     <div class="stat"><div class="lbl">Zeitausgleich</div><div class="val" style="color:${za>0?'#DC2626':'var(--txt)'};">${zaStr}</div></div>
     <div class="stat"><div class="lbl">Krank</div><div class="val red">${krank}</div></div>

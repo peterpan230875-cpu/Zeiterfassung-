@@ -665,7 +665,7 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
 
   <!-- Stats -->
   <div id="stats">
-    <div class="sc"><div class="sc-lbl">Überstunden</div><div class="sc-val" id="st-ust">—</div></div>
+    <div class="sc"><div class="sc-lbl">Zeitkonto</div><div class="sc-val" id="st-ust">—</div></div>
     <div class="sc"><div class="sc-lbl">Urlaub</div><div class="sc-val" id="st-urlaub">—</div></div>
     <div class="sc"><div class="sc-lbl">Zeitausgleich</div><div class="sc-val" id="st-za">—</div></div>
     <div class="sc"><div class="sc-lbl">Krank</div><div class="sc-val" id="st-krank">—</div></div>
@@ -901,9 +901,9 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
     </div>
     <hr class="divider"/>
     <div class="sec">
-      <div class="sec-lbl">Überstunden-Übertrag</div>
+      <div class="sec-lbl">Zeitkonto (Übertrag)</div>
       <p style="font-size:13px;color:var(--txt2);">
-        Setze den Überstunden-Stand für einen bestimmten Monat (z.B. Übertrag aus Vormonat). Leer lassen → automatisch berechnet.
+        Stand der Überstunden zu Beginn des Monats — der Übertrag aus dem Vormonat. Leer lassen → 0.
       </p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
         <select id="ust-month" style="flex:1;min-width:140px;padding:11px 12px;border:1.5px solid var(--brd);border-radius:var(--rs);background:var(--bg);color:var(--txt);font-family:'Figtree',sans-serif;font-size:14px;">
@@ -1482,16 +1482,11 @@ function renderStats(){
   const sign=saldoH>=0?"+":"";
   const saldoStr=sign+saldoH.toFixed(2).replace(".",",")+" h";
 
-  // Überstunden = Saldo VOR ZA-Verbrauch — oder manueller Override pro Monat
+  // Zeitkonto = Übertrag aus Vormonaten (manuell eingegeben). Default 0.
   const zaMin=za*tSollMin;
   const k=ustKey(y,m);
   const overrideVal=state.ueberstundenOverride&&state.ueberstundenOverride[k];
-  let uH;
-  if(overrideVal!==undefined&&overrideVal!==null){
-    uH=overrideVal;
-  } else {
-    uH=(saldoMin+zaMin)/60;
-  }
+  const uH=(overrideVal!==undefined&&overrideVal!==null)?overrideVal:0;
   const uSign=uH>=0?"+":"";
   document.getElementById("st-ust").textContent=uSign+uH.toFixed(2).replace(".",",")+" h";
 
