@@ -518,9 +518,9 @@ function renderMonth(){
       cls='r-closed';vonTxt='<span class="badge-typ b-closed">🔒 Geschlossen</span>'+(sd.label?' <span style="color:var(--txt2);font-size:11px;">'+sd.label+'</span>':'');
       netto=ts.toFixed(2).replace('.',',');
     }
-    else if(typ==='urlaub'){cls='r-u';vonTxt='<span class="badge-typ b-u">🏖 Urlaub</span>';urlaub++;netto=ts.toFixed(2).replace('.',',');}
-    else if(typ==='zeitausgleich'){cls='r-za';vonTxt='<span class="badge-typ b-za">🔄 Zeitausgleich</span>';za++;}
-    else if(typ==='krank'){cls='r-k';vonTxt='<span class="badge-typ b-k">🤒 Krank</span>';krank++;netto=ts.toFixed(2).replace('.',',');}
+    else if(typ==='urlaub'){cls='r-u';vonTxt='<span style="color:var(--u-t);font-weight:700;">Urlaub</span>';urlaub++;netto=ts.toFixed(2).replace('.',',');}
+    else if(typ==='zeitausgleich'){cls='r-za';vonTxt='<span style="color:var(--za-t);font-weight:700;">Zeitausgleich</span>';za++;}
+    else if(typ==='krank'){cls='r-k';vonTxt='<span style="color:var(--k-t);font-weight:700;">Krank</span>';krank++;netto=ts.toFixed(2).replace('.',',');}
     else if(e&&e.von){
       vonTxt=e.von||'';bisTxt=e.bis||'';
       pauseTxt=e.pause?(e.pause+"'"):'';bemTxt=e.bemerkung||'';
