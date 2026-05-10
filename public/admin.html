@@ -115,7 +115,7 @@ body.dark .panel{box-shadow:0 1px 3px rgba(0,0,0,.4);}
 #stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:14px;}
 .stat{background:var(--sur2);border:1px solid var(--brd);border-radius:8px;padding:10px;text-align:center;}
 .stat .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;}
-.stat .val{font-size:20px;font-weight:800;font-family:'JetBrains Mono',monospace;margin-top:3px;color:var(--txt);}
+.stat .val{font-size:16px;font-weight:800;font-family:'JetBrains Mono',monospace;margin-top:3px;color:var(--txt);white-space:nowrap;}
 .stat .val.blue{color:var(--u-t);}
 .stat .val.amber{color:var(--sat-t);}
 .stat .val.green{color:var(--za-t);}
@@ -586,7 +586,7 @@ function renderMonth(){
   const uColor=uH>0?'var(--za-t)':uH<0?'var(--k-t)':'var(--txt2)';
   const uStr=`<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
     <span style="color:${uColor};">${uHStr}</span>
-    <span style="color:${uColor};font-size:85%;">${uTStr}</span>
+    <span style="color:${uColor};">${uTStr}</span>
   </span>`;
 
   // Urlaub: links = NUR dieser Monat genommen (rot), rechts = Jahres-Rest (grün)
@@ -627,7 +627,7 @@ function renderMonth(){
     <div class="stat"><div class="lbl">Zeitausgleich</div><div class="val" style="color:${zaColor};">${zaStr}</div></div>
     <div class="stat"><div class="lbl">Krank</div><div class="val red">${krank}</div></div>
     <div class="stat"><div class="lbl">Gesamt</div><div class="val blue">${totalMin>0?Math.floor(totalMin/60)+'h '+Math.round(totalMin%60)+'m':'—'}</div></div>
-    <div class="stat"><div class="lbl">Saldo</div><div class="val" style="color:${saldoColor};font-size:16px;">${(work+urlaub+krank+za)?saldoStr:'—'}</div></div>
+    <div class="stat"><div class="lbl">Saldo</div><div class="val" style="color:${saldoColor};">${(work+urlaub+krank+za)?saldoStr:'—'}</div></div>
   `;
 
   document.getElementById('entries-area').innerHTML=`
