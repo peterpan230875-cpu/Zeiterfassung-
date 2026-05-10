@@ -589,11 +589,27 @@ function renderMonth(){
   </span>`;
   const uColor=uH>0?'#16A34A':uH<0?'#DC2626':'#888';
 
-  // Urlaub: links = genommen (kumulativ), rechts = verbleibender Rest
+  // Urlaub: links = genommen (kumulativ über alle Eintragsmonate ≤ ustK), rechts = Rest
   const anspruch=(empArr[0]&&empArr[0].urlaubsanspruch)||30;
   const urlaubMap=(empArr[0]&&empArr[0].urlaubGenommen)||{};
-  const urlaubCarry=adminLatestOverride(urlaubMap,ustK)||0;
-  const urlaubTotal=urlaubCarry+urlaub;
+  // Anchor finden: letzter Override ≤ ustK, sonst Jahresanfang
+  const ovKeys=Object.keys(urlaubMap).filter(x=>x<=ustK).sort();
+  let startMonthKey, baseUrlaub;
+  if(ovKeys.length>0){
+    startMonthKey=ovKeys[ovKeys.length-1];
+    baseUrlaub=urlaubMap[startMonthKey];
+  } else {
+    startMonthKey=viewYear+"-01";
+    baseUrlaub=0;
+  }
+  // Alle Urlaubseinträge zwischen startMonthKey und ustK (inkl.) zählen
+  let urlaubInRange=0;
+  currentEntries.forEach(e=>{
+    if(e.type!=='urlaub') return;
+    const mk=e.date.substring(0,7); // "YYYY-MM"
+    if(mk>=startMonthKey && mk<=ustK) urlaubInRange++;
+  });
+  const urlaubTotal=baseUrlaub+urlaubInRange;
   const urlaubRest=Math.max(0,anspruch-urlaubTotal);
   const urlaubStr=`<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
     <span>${urlaubTotal}</span>

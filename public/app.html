@@ -1128,18 +1128,25 @@ function countMonthUrlaub(y,m){
 }
 
 // Kumulativer Urlaubsstand am Ende des angegebenen Monats:
-// findet den letzten Übertrags-Anchor (≤ aktueller Monat) und summiert
-// alle Urlaubstage von dort bis zum aktuellen Monat inkl.
+// - Wenn ein Übertrags-Anchor (≤ aktueller Monat) existiert: ab dort
+// - Sonst: ab Januar des aktuellen Jahres
+// Es werden alle Urlaubstage aus den Einträgen aufsummiert
 function getCumulativeUrlaub(year,month){
   const targetKey=ustKey(year,month);
   const overrides=state.urlaubGenommen||{};
   const keys=Object.keys(overrides).filter(k=>k<=targetKey).sort();
-  if(keys.length===0) return countMonthUrlaub(year,month);
-  const anchorKey=keys[keys.length-1];
-  const anchorVal=overrides[anchorKey];
-  const [ay,am1]=anchorKey.split("-").map(Number);
-  let sum=anchorVal;
-  let y=ay,m=am1-1;
+  let startY,startM,baseValue;
+  if(keys.length>0){
+    const anchorKey=keys[keys.length-1];
+    baseValue=overrides[anchorKey];
+    const [ay,am1]=anchorKey.split("-").map(Number);
+    startY=ay;startM=am1-1;
+  } else {
+    // Kein Override: zähle alle Urlaubstage ab Januar des Jahres
+    startY=year;startM=0;baseValue=0;
+  }
+  let sum=baseValue;
+  let y=startY,m=startM;
   while(y<year||(y===year&&m<=month)){
     sum+=countMonthUrlaub(y,m);
     m++;
