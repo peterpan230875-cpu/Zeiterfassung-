@@ -248,11 +248,12 @@ app.get('/api/month-locks', async (req, res) => {
 app.post('/api/user-settings', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
   try {
-    const { wochenstunden, darkMode, employees, setupDone, defaultPause, weekPatterns, season } = req.body;
-    // defaultPause + weekPatterns + season im employees-JSON mitgespeichert
+    const { wochenstunden, darkMode, employees, setupDone, defaultPause, weekPatterns, season, urlaubsanspruch } = req.body;
+    // defaultPause + weekPatterns + season + urlaubsanspruch im employees-JSON mitgespeichert
     const empData = JSON.stringify([{
       id: 1, name: req.session.name,
       defaultPause: parseInt(defaultPause) || 30,
+      urlaubsanspruch: parseInt(urlaubsanspruch) || 30,
       weekPatterns: weekPatterns || {},
       season: season || 'auto'
     }]);
@@ -282,6 +283,7 @@ app.get('/api/user-settings', async (req, res) => {
     if (!settings) return res.json({});
     const empArr = JSON.parse(settings.employees || '[]');
     const defaultPause = (empArr[0] && empArr[0].defaultPause) || 30;
+    const urlaubsanspruch = (empArr[0] && empArr[0].urlaubsanspruch) || 30;
     const weekPatterns  = (empArr[0] && empArr[0].weekPatterns)  || {};
     const season        = (empArr[0] && empArr[0].season)        || 'auto';
     res.json({
@@ -289,6 +291,7 @@ app.get('/api/user-settings', async (req, res) => {
       darkMode: settings.darkMode,
       setupDone: settings.setupDone,
       defaultPause,
+      urlaubsanspruch,
       weekPatterns,
       season,
       employees: [{ id: 1, name: req.session.name, entries: {} }]

@@ -565,10 +565,25 @@ function renderMonth(){
   const saldoStr=`${sign}${Math.abs(saldo/60).toFixed(2).replace('.',',')} h`;
   const saldoColor=saldo>0?'#16A34A':saldo<0?'#DC2626':'#888';
 
+  // Überstunden = Saldo VOR ZA-Verbrauch (echte erarbeitete Überstunden)
+  const zaMin=za*ts*60;
+  const ueberMin=saldo+zaMin;
+  const uSign=ueberMin>=0?'+':'-';
+  const uStr=`${uSign}${Math.abs(ueberMin/60).toFixed(2).replace('.',',')} h`;
+  const uColor=ueberMin>0?'#16A34A':ueberMin<0?'#DC2626':'#888';
+
+  // Urlaub: genommen / Anspruch
+  const empArr=currentSettings?.employees?JSON.parse(currentSettings.employees||'[]'):[];
+  const anspruch=(empArr[0]&&empArr[0].urlaubsanspruch)||30;
+  const urlaubStr=`${urlaub} <span style="font-size:60%;font-weight:500;color:var(--muted);">/ ${anspruch}</span>`;
+
+  // Zeitausgleich als negative Stunden
+  const zaStr=za>0?`-${(zaMin/60).toFixed(2).replace('.',',')} h`:'0,00 h';
+
   document.getElementById('stats').innerHTML=`
-    <div class="stat"><div class="lbl">Arbeitstage</div><div class="val blue">${work}</div></div>
-    <div class="stat"><div class="lbl">Urlaub</div><div class="val amber">${urlaub}</div></div>
-    <div class="stat"><div class="lbl">Zeitausgleich</div><div class="val green">${za}</div></div>
+    <div class="stat"><div class="lbl">Überstunden</div><div class="val" style="color:${uColor};">${uStr}</div></div>
+    <div class="stat"><div class="lbl">Urlaub</div><div class="val amber">${urlaubStr}</div></div>
+    <div class="stat"><div class="lbl">Zeitausgleich</div><div class="val" style="color:${za>0?'#DC2626':'var(--txt)'};">${zaStr}</div></div>
     <div class="stat"><div class="lbl">Krank</div><div class="val red">${krank}</div></div>
     <div class="stat"><div class="lbl">Gesamt</div><div class="val blue">${totalMin>0?Math.floor(totalMin/60)+'h '+Math.round(totalMin%60)+'m':'—'}</div></div>
     <div class="stat"><div class="lbl">Saldo</div><div class="val" style="color:${saldoColor};font-size:16px;">${(work+urlaub+krank+za)?saldoStr:'—'}</div></div>

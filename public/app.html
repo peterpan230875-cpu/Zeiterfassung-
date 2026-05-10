@@ -367,13 +367,13 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
 }
 .set-inp:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.12);}
 .wh-row{display:flex;align-items:center;gap:10px;margin-top:8px;}
-#inp-wh{
+#inp-wh,#inp-urlaub-anspruch{
   width:90px;padding:11px 12px;border:1.5px solid var(--brd);border-radius:var(--rs);
   font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;
   background:var(--bg);color:var(--txt);outline:none;text-align:center;
   transition:border-color .15s;
 }
-#inp-wh:focus{border-color:var(--blue);}
+#inp-wh:focus,#inp-urlaub-anspruch:focus{border-color:var(--blue);}
 .saved-badge{
   display:inline-flex;align-items:center;gap:5px;
   background:var(--green-bg);border:1px solid var(--green-m);
@@ -665,7 +665,7 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
 
   <!-- Stats -->
   <div id="stats">
-    <div class="sc"><div class="sc-lbl">Arbeitstage</div><div class="sc-val" id="st-work">—</div></div>
+    <div class="sc"><div class="sc-lbl">Überstunden</div><div class="sc-val" id="st-ust">—</div></div>
     <div class="sc"><div class="sc-lbl">Urlaub</div><div class="sc-val" id="st-urlaub">—</div></div>
     <div class="sc"><div class="sc-lbl">Zeitausgleich</div><div class="sc-val" id="st-za">—</div></div>
     <div class="sc"><div class="sc-lbl">Krank</div><div class="sc-val" id="st-krank">—</div></div>
@@ -891,6 +891,16 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
     </div>
     <hr class="divider"/>
     <div class="sec">
+      <div class="sec-lbl">Urlaubsanspruch</div>
+      <p style="font-size:13px;color:var(--txt2);">Jährlicher Urlaubsanspruch in Tagen.</p>
+      <div class="wh-row">
+        <input id="inp-urlaub-anspruch" type="number" min="0" max="60" placeholder="30" oninput="onUrlaubAnspruchInput(this.value)"/>
+        <span style="font-size:14px;color:var(--txt2);">Tage / Jahr</span>
+      </div>
+      <div id="urlaub-badge" style="display:none" class="saved-badge">✓ Gespeichert</div>
+    </div>
+    <hr class="divider"/>
+    <div class="sec">
       <div class="sec-lbl">Saison (Spätschicht-Endzeit)</div>
       <p style="font-size:13px;color:var(--txt2);margin-bottom:10px;">☀️ Sommer: Schluss 17:30 · ❄️ Winter: Schluss 17:00</p>
       <div class="season-row">
@@ -976,7 +986,7 @@ const PAUSES=["0","15","30","36","45","60"];
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let state=loadState()||{
   year:2026,month:3,selEmp:0,
-  wochenstunden:38.5,darkMode:false,defaultPause:30,
+  wochenstunden:38.5,darkMode:false,defaultPause:30,urlaubsanspruch:30,
   setupDone:false,pdfFolderName:"",
   weekPatterns:{},season:"auto",
   employees:[{id:1,name:"",entries:{}}]
@@ -1446,11 +1456,6 @@ function renderStats(){
     }
   }
 
-  document.getElementById("st-work").textContent=work;
-  document.getElementById("st-urlaub").textContent=urlaub;
-  document.getElementById("st-za").textContent=za;
-  document.getElementById("st-krank").textContent=krank;
-
   const sollMin=sollArbeitstage*tSollMin;
   // Geschlossene Tage zählen wie Feiertage (bezahlt, kein Soll)
   const istMin=nettoMinGesamt+(urlaub+krank+closedDays)*tSollMin; // ZA zählt nicht
@@ -1458,6 +1463,27 @@ function renderStats(){
   const saldoH=saldoMin/60;
   const sign=saldoH>=0?"+":"";
   const saldoStr=sign+saldoH.toFixed(2).replace(".",",")+" h";
+
+  // Überstunden = Saldo VOR ZA-Verbrauch (echte erarbeitete Überstunden)
+  const zaMin=za*tSollMin;
+  const ueberstundenMin=saldoMin+zaMin;
+  const uH=ueberstundenMin/60;
+  const uSign=uH>=0?"+":"";
+  document.getElementById("st-ust").textContent=uSign+uH.toFixed(2).replace(".",",")+" h";
+
+  // Urlaub: genommen / Anspruch
+  const anspruch=parseInt(state.urlaubsanspruch)||30;
+  document.getElementById("st-urlaub").innerHTML=
+    `${urlaub} <span style="font-size:60%;font-weight:500;color:var(--muted);">/ ${anspruch}</span>`;
+
+  // Zeitausgleich als negative Stunden
+  if(za>0){
+    document.getElementById("st-za").textContent="-"+(zaMin/60).toFixed(2).replace(".",",")+" h";
+  } else {
+    document.getElementById("st-za").textContent="0,00 h";
+  }
+
+  document.getElementById("st-krank").textContent=krank;
 
   const sEl=document.getElementById("st-saldo");
   sEl.textContent=saldoStr;
@@ -1847,6 +1873,8 @@ function setSeason(s){
 function openSettingsSheet(){
   document.getElementById("inp-wh").value=state.wochenstunden||38.5;
   document.getElementById("wh-badge").style.display="none";
+  document.getElementById("inp-urlaub-anspruch").value=state.urlaubsanspruch||30;
+  document.getElementById("urlaub-badge").style.display="none";
   document.getElementById("toggle-dark").checked=!!state.darkMode;
   // Saison-Buttons aktiv markieren (nur falls explizit gesetzt)
   ["season-summer","season-winter"].forEach(id=>document.getElementById(id)?.classList.remove("act"));
@@ -1865,6 +1893,18 @@ function onWHInput(val){
     const v=parseFloat(val);
     if(v>0&&v<=60){state.wochenstunden=v;saveState();renderStats();render();
       document.getElementById("wh-badge").style.display="inline-flex";}
+  },600);
+}
+
+let urlaubTimer=null;
+function onUrlaubAnspruchInput(val){
+  clearTimeout(urlaubTimer);
+  urlaubTimer=setTimeout(()=>{
+    const v=parseInt(val);
+    if(v>=0&&v<=99){
+      state.urlaubsanspruch=v;saveState();renderStats();
+      document.getElementById("urlaub-badge").style.display="inline-flex";
+    }
   },600);
 }
 function toggleDark(val){state.darkMode=val;saveState();applyDark(val);}
@@ -2495,6 +2535,7 @@ async function syncSettingsToServer(setupDone) {
       darkMode: state.darkMode,
       setupDone: setupDone === true || !!state.setupDone,
       defaultPause: state.defaultPause || 30,
+      urlaubsanspruch: state.urlaubsanspruch || 30,
       weekPatterns: state.weekPatterns || {},
       season: state.season || 'auto',
       employees: state.employees
@@ -2543,6 +2584,7 @@ async function loadSettingsFromServer() {
     if (settings.wochenstunden) state.wochenstunden = settings.wochenstunden;
     if (settings.darkMode !== undefined) state.darkMode = settings.darkMode;
     if (settings.defaultPause) state.defaultPause = settings.defaultPause;
+    if (settings.urlaubsanspruch !== undefined) state.urlaubsanspruch = settings.urlaubsanspruch;
     if (settings.setupDone !== undefined) state.setupDone = !!settings.setupDone;
     if (settings.weekPatterns && typeof settings.weekPatterns === 'object') state.weekPatterns = settings.weekPatterns;
     if (settings.season) state.season = settings.season;
