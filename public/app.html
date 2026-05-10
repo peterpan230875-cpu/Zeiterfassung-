@@ -1646,20 +1646,22 @@ function renderStats(){
   const uTage=tSoll>0?uH/tSoll:0;
   const tSign=uTage>=0?"+":"";
   const uTStr=tSign+uTage.toFixed(2).replace(".",",")+" T";
+  // Farbe: + = grün (haben), - = rot (genommen), 0 = neutral
+  const uColor=uH>0?"var(--green)":uH<0?"var(--red)":"var(--txt2)";
   document.getElementById("st-ust").innerHTML=
     `<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
-       <span>${uHStr}</span>
-       <span style="color:var(--txt2);font-size:85%;">${uTStr}</span>
+       <span style="color:${uColor};">${uHStr}</span>
+       <span style="color:${uColor};font-size:85%;">${uTStr}</span>
      </span>`;
 
-  // Urlaub: links = genommen (kumulativ), rechts = verbleibender Rest
+  // Urlaub: links = NUR dieser Monat genommen (rot), rechts = Jahres-Rest (grün)
   const anspruch=parseInt(state.urlaubsanspruch)||30;
   const urlaubTotal=getCumulativeUrlaub(y,m);
   const urlaubRest=Math.max(0,anspruch-urlaubTotal);
   document.getElementById("st-urlaub").innerHTML=
     `<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
-       <span>${urlaubTotal}</span>
-       <span style="color:var(--txt);">${urlaubRest}</span>
+       <span style="color:var(--red);">${urlaub}</span>
+       <span style="color:var(--green);">${urlaubRest}</span>
      </span>`;
 
   // Zeitausgleich als negative Stunden

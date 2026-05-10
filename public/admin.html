@@ -583,13 +583,13 @@ function renderMonth(){
   const uTage=ts>0?uH/ts:0;
   const tSign=uTage>=0?'+':'';
   const uTStr=`${tSign}${uTage.toFixed(2).replace('.',',')} T`;
+  const uColor=uH>0?'var(--za-t)':uH<0?'var(--k-t)':'var(--txt2)';
   const uStr=`<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
-    <span>${uHStr}</span>
-    <span style="color:var(--txt2);font-size:85%;">${uTStr}</span>
+    <span style="color:${uColor};">${uHStr}</span>
+    <span style="color:${uColor};font-size:85%;">${uTStr}</span>
   </span>`;
-  const uColor=uH>0?'#16A34A':uH<0?'#DC2626':'#888';
 
-  // Urlaub: links = genommen (kumulativ über alle Eintragsmonate ≤ ustK), rechts = Rest
+  // Urlaub: links = NUR dieser Monat genommen (rot), rechts = Jahres-Rest (grün)
   const anspruch=(empArr[0]&&empArr[0].urlaubsanspruch)||30;
   const urlaubMap=(empArr[0]&&empArr[0].urlaubGenommen)||{};
   // Anchor finden: letzter Override ≤ ustK, sonst Jahresanfang
@@ -602,18 +602,18 @@ function renderMonth(){
     startMonthKey=viewYear+"-01";
     baseUrlaub=0;
   }
-  // Alle Urlaubseinträge zwischen startMonthKey und ustK (inkl.) zählen
+  // Alle Urlaubseinträge zwischen startMonthKey und ustK (inkl.) zählen für Rest
   let urlaubInRange=0;
   currentEntries.forEach(e=>{
     if(e.type!=='urlaub') return;
-    const mk=e.date.substring(0,7); // "YYYY-MM"
+    const mk=e.date.substring(0,7);
     if(mk>=startMonthKey && mk<=ustK) urlaubInRange++;
   });
   const urlaubTotal=baseUrlaub+urlaubInRange;
   const urlaubRest=Math.max(0,anspruch-urlaubTotal);
   const urlaubStr=`<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
-    <span>${urlaubTotal}</span>
-    <span style="color:var(--txt);">${urlaubRest}</span>
+    <span style="color:var(--k-t);">${urlaub}</span>
+    <span style="color:var(--za-t);">${urlaubRest}</span>
   </span>`;
 
   // Zeitausgleich als negative Stunden
