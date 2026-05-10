@@ -583,10 +583,13 @@ function renderMonth(){
   </span>`;
   const uColor=uH>0?'#16A34A':uH<0?'#DC2626':'#888';
 
-  // Urlaub: genommen (links) ↔ Anspruch (rechts) im gleichen Kasten
+  // Urlaub: genommen (links, mit Übertrag) ↔ Anspruch (rechts) im gleichen Kasten
   const anspruch=(empArr[0]&&empArr[0].urlaubsanspruch)||30;
+  const urlaubMap=(empArr[0]&&empArr[0].urlaubGenommen)||{};
+  const urlaubCarry=urlaubMap[ustK]||0;
+  const urlaubTotal=urlaubCarry+urlaub;
   const urlaubStr=`<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
-    <span>${urlaub}</span>
+    <span>${urlaubTotal}</span>
     <span style="color:var(--txt);">${anspruch}</span>
   </span>`;
 

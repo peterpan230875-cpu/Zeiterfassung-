@@ -248,15 +248,16 @@ app.get('/api/month-locks', async (req, res) => {
 app.post('/api/user-settings', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
   try {
-    const { wochenstunden, darkMode, employees, setupDone, defaultPause, weekPatterns, season, urlaubsanspruch, ueberstundenOverride } = req.body;
-    // defaultPause + weekPatterns + season + urlaubsanspruch + ueberstundenOverride im employees-JSON mitgespeichert
+    const { wochenstunden, darkMode, employees, setupDone, defaultPause, weekPatterns, season, urlaubsanspruch, ueberstundenOverride, urlaubGenommen } = req.body;
+    // alle Konfigurationen im employees-JSON mitgespeichert
     const empData = JSON.stringify([{
       id: 1, name: req.session.name,
       defaultPause: parseInt(defaultPause) || 30,
       urlaubsanspruch: parseInt(urlaubsanspruch) || 30,
       weekPatterns: weekPatterns || {},
       season: season || 'auto',
-      ueberstundenOverride: ueberstundenOverride || {}
+      ueberstundenOverride: ueberstundenOverride || {},
+      urlaubGenommen: urlaubGenommen || {}
     }]);
 
     const updateData = {
@@ -288,6 +289,7 @@ app.get('/api/user-settings', async (req, res) => {
     const weekPatterns  = (empArr[0] && empArr[0].weekPatterns)  || {};
     const season        = (empArr[0] && empArr[0].season)        || 'auto';
     const ueberstundenOverride = (empArr[0] && empArr[0].ueberstundenOverride) || {};
+    const urlaubGenommen = (empArr[0] && empArr[0].urlaubGenommen) || {};
     res.json({
       wochenstunden: settings.wochenstunden,
       darkMode: settings.darkMode,
@@ -297,6 +299,7 @@ app.get('/api/user-settings', async (req, res) => {
       weekPatterns,
       season,
       ueberstundenOverride,
+      urlaubGenommen,
       employees: [{ id: 1, name: req.session.name, entries: {} }]
     });
   } catch (err) {

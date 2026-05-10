@@ -901,6 +901,24 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
     </div>
     <hr class="divider"/>
     <div class="sec">
+      <div class="sec-lbl">Urlaubsstand (Übertrag)</div>
+      <p style="font-size:13px;color:var(--txt2);">
+        Bereits genommene Urlaubstage zu Beginn des Monats. Z.B. „5", wenn Mitarbeiter vor App-Start schon 5 Tage hatte. Leer lassen → 0.
+      </p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+        <select id="ul-month" style="flex:1;min-width:140px;padding:11px 12px;border:1.5px solid var(--brd);border-radius:var(--rs);background:var(--bg);color:var(--txt);font-family:'Figtree',sans-serif;font-size:14px;">
+        </select>
+        <input id="ul-value" type="number" min="0" max="99" step="1" placeholder="z.B. 5" style="flex:1;min-width:100px;padding:11px 12px;border:1.5px solid var(--brd);border-radius:var(--rs);background:var(--bg);color:var(--txt);font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;text-align:center;"/>
+        <span style="font-size:14px;color:var(--txt2);">T</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button onclick="saveUrlaubOverride()" style="flex:1;padding:10px;border:none;border-radius:var(--rs);background:var(--blue);color:#fff;font-family:'Figtree',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">💾 Speichern</button>
+        <button onclick="clearUrlaubOverride()" style="padding:10px 14px;border:1.5px solid var(--brd);border-radius:var(--rs);background:var(--bg2);color:var(--txt2);font-family:'Figtree',sans-serif;font-size:13px;cursor:pointer;">🔄 Auto</button>
+      </div>
+      <div id="ul-badge" style="display:none" class="saved-badge">✓ Gespeichert</div>
+    </div>
+    <hr class="divider"/>
+    <div class="sec">
       <div class="sec-lbl">Zeitkonto (Übertrag)</div>
       <p style="font-size:13px;color:var(--txt2);">
         Stand der Überstunden zu Beginn des Monats — der Übertrag aus dem Vormonat. Leer lassen → 0.
@@ -1006,7 +1024,7 @@ let state=loadState()||{
   year:2026,month:3,selEmp:0,
   wochenstunden:38.5,darkMode:false,defaultPause:30,urlaubsanspruch:30,
   setupDone:false,pdfFolderName:"",
-  weekPatterns:{},season:"auto",ueberstundenOverride:{},
+  weekPatterns:{},season:"auto",ueberstundenOverride:{},urlaubGenommen:{},
   employees:[{id:1,name:"",entries:{}}]
 };
 // Monatsabschluss (lokal gehalten, vom Server geladen)
@@ -1097,6 +1115,18 @@ function askCloseMonth(){
 function closeConfirmModal(){
   document.getElementById('confirm-modal').classList.remove('open');
 }
+// Zählt Urlaubstage in einem bestimmten Monat
+function countMonthUrlaub(y,m){
+  const emp=curEmp();
+  const days=daysIn(y,m);
+  let cnt=0;
+  for(let d=1;d<=days;d++){
+    const e=emp.entries[dk(y,m,d)];
+    if(e&&e.typ==="urlaub") cnt++;
+  }
+  return cnt;
+}
+
 // Berechnet den Saldo (in Stunden) für einen beliebigen Monat
 function calculateMonthSaldo(y,m){
   const emp=curEmp();
@@ -1155,9 +1185,16 @@ async function doCloseMonth(){
       const d=await res.json();
       monthLocks.push(d.lock);
 
-      // Übertrag: Endstand wird zum Startwert des Folgemonats
+      // Übertrag: Endstand Zeitkonto wird zum Startwert des Folgemonats
       if(!state.ueberstundenOverride) state.ueberstundenOverride={};
       state.ueberstundenOverride[nextKey]=Math.round(endKonto*100)/100;
+
+      // Urlaub-Übertrag: aktueller Stand + diesen Monat genommene Tage
+      const urlaubCount=countMonthUrlaub(state.year,state.month);
+      const startUrlaub=(state.urlaubGenommen&&state.urlaubGenommen[curKey])||0;
+      if(!state.urlaubGenommen) state.urlaubGenommen={};
+      state.urlaubGenommen[nextKey]=startUrlaub+urlaubCount;
+
       saveState(); // syncs zum Server (override ist im payload enthalten)
 
       const sign=endKonto>=0?"+":"";
@@ -1565,11 +1602,13 @@ function renderStats(){
        <span style="color:var(--txt2);font-size:85%;">${uTStr}</span>
      </span>`;
 
-  // Urlaub: genommen (links) ↔ Anspruch (rechts) im gleichen Kasten
+  // Urlaub: genommen (links, mit Übertrag) ↔ Anspruch (rechts) im gleichen Kasten
   const anspruch=parseInt(state.urlaubsanspruch)||30;
+  const urlaubCarry=(state.urlaubGenommen&&state.urlaubGenommen[k])||0;
+  const urlaubTotal=urlaubCarry+urlaub;
   document.getElementById("st-urlaub").innerHTML=
     `<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
-       <span>${urlaub}</span>
+       <span>${urlaubTotal}</span>
        <span style="color:var(--txt);">${anspruch}</span>
      </span>`;
 
@@ -1973,8 +2012,9 @@ function openSettingsSheet(){
   document.getElementById("inp-urlaub-anspruch").value=state.urlaubsanspruch||30;
   document.getElementById("urlaub-badge").style.display="none";
   document.getElementById("toggle-dark").checked=!!state.darkMode;
-  // Überstunden-Übertrag: Monatswahl füllen
+  // Überstunden-Übertrag und Urlaub-Übertrag: Monatswahl füllen
   fillUstMonthSelect();
+  fillUlMonthSelect();
   // Saison-Buttons aktiv markieren (nur falls explizit gesetzt)
   ["season-summer","season-winter"].forEach(id=>document.getElementById(id)?.classList.remove("act"));
   if(state.season==="summer"||state.season==="winter"){
@@ -2067,6 +2107,63 @@ function clearUeberstundenOverride(){
     toast("✓ Auf Auto gesetzt");
   }
   document.getElementById("ust-value").value="";
+}
+
+// ── URLAUB-ÜBERTRAG ─────────────────────────────────────────────────────────
+function fillUlMonthSelect(){
+  const sel=document.getElementById("ul-month");
+  if(!sel) return;
+  sel.innerHTML="";
+  const y=state.year;
+  for(let yy of [y-1,y]){
+    for(let mm=0;mm<12;mm++){
+      const opt=document.createElement("option");
+      opt.value=ustKey(yy,mm);
+      const k=ustKey(yy,mm);
+      const has=state.urlaubGenommen&&state.urlaubGenommen[k]!==undefined;
+      opt.textContent=MON[mm]+" "+yy+(has?" ✓":"");
+      sel.appendChild(opt);
+    }
+  }
+  sel.value=ustKey(state.year,state.month);
+  syncUlValueField();
+  sel.onchange=syncUlValueField;
+}
+function syncUlValueField(){
+  const sel=document.getElementById("ul-month");
+  const inp=document.getElementById("ul-value");
+  if(!sel||!inp) return;
+  const k=sel.value;
+  const v=state.urlaubGenommen&&state.urlaubGenommen[k];
+  inp.value=(v!==undefined&&v!==null)?v:"";
+}
+function saveUrlaubOverride(){
+  const sel=document.getElementById("ul-month");
+  const inp=document.getElementById("ul-value");
+  const k=sel.value;
+  const raw=inp.value.trim();
+  if(!state.urlaubGenommen) state.urlaubGenommen={};
+  if(raw===""){
+    delete state.urlaubGenommen[k];
+  } else {
+    const v=parseInt(raw);
+    if(isNaN(v)||v<0){toast("⚠ Ungültige Zahl");return;}
+    state.urlaubGenommen[k]=v;
+  }
+  saveState();renderStats();fillUlMonthSelect();
+  document.getElementById("ul-badge").style.display="inline-flex";
+  toast("✓ Gespeichert");
+}
+function clearUrlaubOverride(){
+  const sel=document.getElementById("ul-month");
+  const k=sel.value;
+  if(state.urlaubGenommen&&state.urlaubGenommen[k]!==undefined){
+    delete state.urlaubGenommen[k];
+    saveState();renderStats();fillUlMonthSelect();
+    document.getElementById("ul-badge").style.display="inline-flex";
+    toast("✓ Auf Auto gesetzt");
+  }
+  document.getElementById("ul-value").value="";
 }
 function toggleDark(val){state.darkMode=val;saveState();applyDark(val);}
 function applyDark(dark){document.body.classList.toggle("dark",dark);}
@@ -2700,6 +2797,7 @@ async function syncSettingsToServer(setupDone) {
       weekPatterns: state.weekPatterns || {},
       season: state.season || 'auto',
       ueberstundenOverride: state.ueberstundenOverride || {},
+      urlaubGenommen: state.urlaubGenommen || {},
       employees: state.employees
     };
 
@@ -2748,6 +2846,7 @@ async function loadSettingsFromServer() {
     if (settings.defaultPause) state.defaultPause = settings.defaultPause;
     if (settings.urlaubsanspruch !== undefined) state.urlaubsanspruch = settings.urlaubsanspruch;
     if (settings.ueberstundenOverride && typeof settings.ueberstundenOverride === 'object') state.ueberstundenOverride = settings.ueberstundenOverride;
+    if (settings.urlaubGenommen && typeof settings.urlaubGenommen === 'object') state.urlaubGenommen = settings.urlaubGenommen;
     if (settings.setupDone !== undefined) state.setupDone = !!settings.setupDone;
     if (settings.weekPatterns && typeof settings.weekPatterns === 'object') state.weekPatterns = settings.weekPatterns;
     if (settings.season) state.season = settings.season;
