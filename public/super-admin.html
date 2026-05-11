@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Super-Admin Portal — Zeiterfassung v2.8</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 /* ── TOKENS ─────────────────────────────────────────────────────────────── */
 :root {
@@ -22,9 +22,9 @@
   --sh:0 2px 8px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.06);
 }
 body.dark {
-  --bg:#111113; --bg2:#1C1C1F;
-  --sur:#1C1C1E; --sur2:#242428;
-  --brd:#2C2C30;
+  --bg:#0D0D0F; --bg2:#16161A;
+  --sur:#16161A; --sur2:#1C1C20;
+  --brd:#28282E;
   --txt:#F5F5F7; --txt2:#A1A1A8; --muted:#6E6E75;
   --blue:#3B82F6; --blue-s:#60A5FA; --blue-bg:#1A2640; --blue-m:#1E3860;
   --green:#34D399; --green-bg:#0C2318; --green-m:#134530;
@@ -33,176 +33,193 @@ body.dark {
 }
 
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Figtree',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:15px;-webkit-font-smoothing:antialiased;margin:0;padding:0;}
+body{font-family:'Figtree',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;}
 
 /* ── HEADER ─────────────────────────────────────────────────────────────── */
 #hdr{
   position:sticky;top:0;z-index:40;
-  background:rgba(255,255,255,.94);
+  background:rgba(22,22,26,.97);
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  border-bottom:1px solid var(--brd);
-  box-shadow:var(--sh-sm);
+  border-bottom:1px solid #28282E;
+  box-shadow:0 2px 8px rgba(0,0,0,.3);
 }
-body.dark #hdr{background:rgba(28,28,30,.94);}
+body.dark #hdr{background:rgba(22,22,26,.97);}
 #hdr-top{
   display:flex;align-items:center;gap:12px;
-  padding:12px 16px;
+  padding:10px 16px;
 }
 #app-title{
-  font-size:18px;font-weight:800;letter-spacing:-.5px;
-  display:flex;align-items:center;gap:7px;
+  font-size:16px;font-weight:700;letter-spacing:-.3px;
+  color:#F5F5F7;display:flex;align-items:center;gap:7px;
 }
 #app-title::before{
-  content:'';width:8px;height:8px;border-radius:50%;
-  background:#8B5CF6;box-shadow:0 0 0 3px rgba(139,92,246,.15);
+  content:'';width:7px;height:7px;border-radius:50%;
+  background:#8B5CF6;box-shadow:0 0 0 3px rgba(139,92,246,.2);
 }
 .badge{
-  font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace;
-  background:var(--bg2);border:1px solid var(--brd);border-radius:var(--rs);
+  font-size:9px;color:#A1A1A8;font-family:'JetBrains Mono',monospace;
+  background:#1C1C20;border:1px solid #28282E;border-radius:6px;
   padding:3px 8px;font-weight:600;letter-spacing:.5px;
 }
 #hdr-spacer{flex:1;}
 #hdr-btns{display:flex;gap:6px;align-items:center;}
 .hbtn{
-  padding:6px 10px;border-radius:var(--rs);border:1px solid var(--brd);
-  background:var(--sur2);font-family:'Figtree',sans-serif;
-  font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;
-  display:flex;align-items:center;gap:4px;color:var(--txt2);
+  padding:5px 10px;border-radius:6px;border:1px solid #28282E;
+  background:#1C1C20;font-family:'Figtree',sans-serif;
+  font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;
+  display:flex;align-items:center;gap:4px;color:#A1A1A8;
 }
-.hbtn:hover{background:var(--bg2);color:var(--txt);}
-.hbtn-red{background:var(--red-bg);color:var(--red);border-color:var(--red-m);}
-.hbtn-red:hover{background:var(--red-m);}
+.hbtn:hover{background:#242428;color:#F5F5F7;}
+.hbtn-red{background:#2A1010;color:#F87171;border-color:#4A1A1A;}
+.hbtn-red:hover{background:#3A1515;}
 
 /* ── CONTAINER ──────────────────────────────────────────────────────────── */
-.container{display:flex;height:calc(100vh - 52px);}
+.container{display:flex;height:calc(100vh - 45px);background:#0D0D0F;}
 
 /* ── SIDEBAR ────────────────────────────────────────────────────────────── */
 .sidebar{
-  width:280px;background:var(--sur);border-right:1px solid var(--brd);
-  overflow-y:auto;padding:16px 12px;
+  width:260px;background:#16161A;border-right:1px solid #28282E;
+  overflow-y:auto;padding:12px;
 }
 .sidebar h2{
-  font-size:11px;font-weight:700;text-transform:uppercase;
-  letter-spacing:.7px;color:var(--muted);margin-bottom:12px;padding:0 8px;
+  font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.8px;color:#6E6E75;margin-bottom:10px;padding:0 8px;
 }
 .employee-list{list-style:none;}
 .employee-item{
-  padding:10px 12px;background:var(--sur2);border:1px solid var(--brd);
-  border-radius:var(--rs);margin-bottom:6px;cursor:pointer;transition:all .15s;
+  padding:9px 10px;background:#1C1C20;border:1px solid #28282E;
+  border-radius:7px;margin-bottom:5px;cursor:pointer;transition:all .12s;
 }
-.employee-item:hover{background:var(--bg2);border-color:var(--blue-m);}
+.employee-item:hover{background:#242428;border-color:#3B82F6;}
 .employee-item.active{
-  background:var(--blue-bg);border-color:var(--blue);
-  box-shadow:0 0 0 2px rgba(37,99,235,.1);
+  background:#1A2640;border-color:#3B82F6;
+  box-shadow:0 0 0 2px rgba(59,130,246,.15);
 }
-.employee-name{font-weight:600;color:var(--txt);font-size:14px;}
+.employee-name{font-weight:600;color:#F5F5F7;font-size:13px;}
 .employee-user{
-  font-size:11px;color:var(--muted);margin-top:3px;
+  font-size:10px;color:#6E6E75;margin-top:2px;
   font-family:'JetBrains Mono',monospace;
 }
 
 /* ── MAIN ───────────────────────────────────────────────────────────────── */
 .main{flex:1;padding:16px;overflow-y:auto;max-width:1100px;margin:0 auto;width:100%;}
 
-/* Info Notice */
-.info-banner{
-  background:var(--amber-bg);border:1px solid var(--amber-m);
-  border-radius:var(--r);padding:12px 14px;margin-bottom:16px;
-  font-size:13px;color:#92400e;display:flex;align-items:flex-start;gap:8px;
-}
-body.dark .info-banner{color:var(--amber);}
-.info-banner strong{font-weight:700;}
-
 /* Month Nav */
 .month-nav{
   display:flex;justify-content:space-between;align-items:center;
-  background:var(--sur);border:1px solid var(--brd);
-  border-radius:var(--r);padding:12px 16px;margin-bottom:16px;
-  box-shadow:var(--sh-sm);
+  background:#16161A;border:1px solid #28282E;
+  border-radius:10px;padding:10px 14px;margin-bottom:14px;
 }
 .month-nav h2{
-  font-size:16px;font-weight:700;color:var(--txt);
+  font-size:15px;font-weight:700;color:#F5F5F7;
   display:flex;align-items:center;gap:8px;
 }
 .live-badge{
-  display:inline-block;background:var(--green);color:#fff;
-  padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;
-  letter-spacing:.5px;animation:pulse 2s infinite;
+  display:inline-block;background:#34D399;color:#000;
+  padding:2px 8px;border-radius:5px;font-size:9px;font-weight:700;
+  letter-spacing:.6px;animation:pulse 2s infinite;
 }
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.7;}}
 .nav-btns{display:flex;gap:6px;}
 .nav-btn{
-  padding:6px 12px;border-radius:var(--rs);border:1px solid var(--brd);
-  background:var(--sur2);cursor:pointer;font-weight:600;font-size:13px;
-  color:var(--txt2);transition:all .15s;font-family:'Figtree',sans-serif;
+  padding:5px 12px;border-radius:6px;border:1px solid #28282E;
+  background:#1C1C20;cursor:pointer;font-weight:600;font-size:12px;
+  color:#A1A1A8;transition:all .12s;font-family:'Figtree',sans-serif;
 }
-.nav-btn:hover{background:var(--bg2);color:var(--txt);}
+.nav-btn:hover{background:#242428;color:#F5F5F7;}
 
 /* ── STATS ──────────────────────────────────────────────────────────────── */
 #stats{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
-  gap:10px;margin-bottom:16px;
+  display:grid;grid-template-columns:repeat(5,1fr);
+  gap:8px;margin-bottom:14px;
 }
 .sc{
-  background:var(--sur);border:1px solid var(--brd);border-radius:var(--r);
-  padding:10px 12px;box-shadow:var(--sh-sm);position:relative;overflow:hidden;
+  background:#16161A;border:1px solid #28282E;border-radius:8px;
+  padding:8px 10px;position:relative;overflow:hidden;
 }
 .sc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
-.sc:nth-child(1)::before{background:var(--blue);}
-.sc:nth-child(2)::before{background:var(--green);}
-.sc:nth-child(3)::before{background:#F59E0B;}
-.sc:nth-child(4)::before{background:var(--green);}
-.sc:nth-child(5)::before{background:var(--red);}
-.sc:nth-child(6)::before{background:#8B5CF6;}
+.sc:nth-child(1)::before{background:#3B82F6;}
+.sc:nth-child(2)::before{background:#34D399;}
+.sc:nth-child(3)::before{background:#F87171;}
+.sc:nth-child(4)::before{background:#FCD34D;}
+.sc:nth-child(5)::before{background:#34D399;}
 .sc-lbl{
-  font-size:9px;color:var(--muted);font-weight:700;
-  text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;
+  font-size:8px;color:#6E6E75;font-weight:700;
+  text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px;
 }
 .sc-val{
-  font-family:'JetBrains Mono',monospace;font-size:16px;
-  font-weight:600;color:var(--txt);line-height:1.2;
+  font-family:'JetBrains Mono',monospace;font-size:15px;
+  font-weight:700;color:#F5F5F7;line-height:1.2;
+}
+.sc-sub{
+  font-size:9px;color:#6E6E75;margin-top:2px;
+  font-family:'JetBrains Mono',monospace;
 }
 
 /* ── TABLE ──────────────────────────────────────────────────────────────── */
 #tbl-wrap{
-  background:var(--sur);border:1px solid var(--brd);
-  border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);
+  background:#16161A;border:1px solid #28282E;
+  border-radius:10px;overflow:hidden;
 }
 table{width:100%;border-collapse:collapse;}
-thead tr{background:var(--bg2);border-bottom:1px solid var(--brd);}
+thead tr{background:#1C1C20;border-bottom:1px solid #28282E;}
 thead th{
-  font-size:10px;font-weight:700;text-transform:uppercase;
-  letter-spacing:.7px;color:var(--muted);padding:10px 12px;text-align:left;
+  font-size:9px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.8px;color:#6E6E75;padding:9px 10px;text-align:left;
 }
 tbody td{
-  padding:11px 12px;font-size:13px;border-bottom:1px solid var(--brd);
-  color:var(--txt);font-family:'Figtree',sans-serif;
+  padding:9px 10px;font-size:12px;border-bottom:1px solid #1C1C20;
+  color:#F5F5F7;
 }
 tbody tr:last-child td{border-bottom:none;}
-tbody tr:hover{background:var(--bg2);}
-.td-date{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--txt2);}
-.td-type{font-weight:600;font-size:12px;}
-.td-time{font-family:'JetBrains Mono',monospace;font-size:12px;}
-.td-netto{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:12px;}
-.type-za{color:var(--green);}
-.type-urlaub{color:#F59E0B;}
-.type-krank{color:var(--red);}
+tbody tr{background:#16161A;}
+tbody tr:hover{background:#1C1C20;}
+
+/* Wochentag-Farben */
+tbody tr.wk-sa{background:#2A1E05!important;}
+tbody tr.wk-so{background:#2A1E05!important;}
+tbody tr.holiday{background:#2A1010!important;}
+tbody tr.wk-sa:hover{background:#3A2810!important;}
+tbody tr.wk-so:hover{background:#3A2810!important;}
+tbody tr.holiday:hover{background:#3A1515!important;}
+
+/* KW Badge */
+.kw-badge{
+  display:inline-block;background:#1A2640;color:#60A5FA;
+  border:1px solid #1E3860;border-radius:5px;
+  padding:2px 7px;font-size:9px;font-weight:700;
+  font-family:'JetBrains Mono',monospace;letter-spacing:.3px;
+  margin-left:4px;
+}
+
+/* Spalten */
+.td-tag{font-family:'JetBrains Mono',monospace;font-size:12px;color:#A1A1A8;font-weight:600;}
+.td-wt{font-size:11px;font-weight:600;color:#F5F5F7;}
+.td-von{font-size:12px;color:#F5F5F7;display:flex;align-items:center;gap:4px;}
+.td-time{font-family:'JetBrains Mono',monospace;font-size:12px;color:#F5F5F7;}
+.td-netto{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:12px;color:#34D399;}
+.td-bem{font-size:11px;color:#A1A1A8;}
+
+/* Typen */
+.type-za{color:#34D399!important;}
+.type-urlaub{color:#60A5FA!important;}
+.type-krank{color:#F87171!important;}
+.type-holiday{color:#F87171!important;}
 
 .empty{
-  text-align:center;padding:60px 20px;color:var(--muted);font-size:15px;
+  text-align:center;padding:50px 20px;color:#6E6E75;font-size:14px;
 }
 
 /* Footer */
 .footer{
-  margin-top:24px;padding:16px;text-align:center;
-  border-top:1px solid var(--brd);
-  font-size:11px;color:var(--muted);
+  margin-top:16px;padding:12px;text-align:center;
+  border-top:1px solid #28282E;
+  font-size:10px;color:#6E6E75;
+  font-family:'JetBrains Mono',monospace;
 }
-.footer a{color:var(--blue);text-decoration:none;}
-.footer a:hover{text-decoration:underline;}
 </style>
 </head>
-<body>
+<body class="dark">
 
 <!-- Header -->
 <div id="hdr">
@@ -211,10 +228,10 @@ tbody tr:hover{background:var(--bg2);}
       🔐 Super-Admin Portal
       <span class="badge">READ-ONLY</span>
     </div>
-    <div style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-left:8px;">v2.8</div>
+    <div style="font-size:9px;color:#6E6E75;font-family:'JetBrains Mono',monospace;margin-left:6px;">v2.8</div>
     <div id="hdr-spacer"></div>
     <div id="hdr-btns">
-      <button class="hbtn" onclick="toggleDarkMode()" id="darkModeBtn">🌙</button>
+      <button class="hbtn" onclick="toggleDarkMode()" id="darkModeBtn">☀️</button>
       <button class="hbtn hbtn-red" onclick="logout()">🚪 Abmelden</button>
     </div>
   </div>
@@ -230,20 +247,13 @@ tbody tr:hover{background:var(--bg2);}
 
   <!-- Main -->
   <div class="main">
-    <div class="info-banner">
-      <span>ℹ️</span>
-      <div>
-        <strong>Hinweis:</strong> Du hast vollständigen Lesezugriff auf alle Daten. Änderungen sind nicht möglich. Alle Daten werden live angezeigt, unabhängig vom Abschlussstatus.
-      </div>
-    </div>
-
     <div id="content">
       <div class="empty">👈 Wähle einen Mitarbeiter aus der Liste</div>
     </div>
 
     <div class="footer">
-      Zeiterfassung v2.8 · Super-Admin Portal<br>
-      Entwickelt von S.Michlenz
+      📊 Read-Only · Wochenstunden Soll: <span id="footerWoStd">--</span> h · Tagessoll: <span id="footerTagStd">--</span> h<br>
+      Zeiterfassung v2.8 · Entwickelt von S.Michlenz
     </div>
   </div>
 </div>
@@ -253,7 +263,8 @@ let employees=[];
 let selectedUserId=null;
 let currentYear=new Date().getFullYear();
 let currentMonth=new Date().getMonth()+1;
-let darkMode=false;
+let darkMode=true;
+let currentSettings=null;
 
 async function loadEmployees(){
   try{
@@ -304,6 +315,7 @@ async function loadEmployeeData(){
 
     const entries=await entriesRes.json();
     const settings=await settingsRes.json();
+    currentSettings=settings;
 
     renderEmployeeData(emp,entries,settings);
   }catch(ex){
@@ -311,8 +323,27 @@ async function loadEmployeeData(){
   }
 }
 
+function getWeekNumber(date){
+  const d=new Date(date);
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate()+3-(d.getDay()+6)%7);
+  const week1=new Date(d.getFullYear(),0,4);
+  return 1+Math.round(((d-week1)/86400000-3+(week1.getDay()+6)%7)/7);
+}
+
+function getDayName(date){
+  const d=new Date(date);
+  const days=['So','Mo','Di','Mi','Do','Fr','Sa'];
+  return days[d.getDay()];
+}
+
 function renderEmployeeData(emp,entries,settings){
   const monthNames=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+  // Footer aktualisieren
+  const tagSoll=(settings.wochenstunden/5).toFixed(2);
+  document.getElementById('footerWoStd').textContent=settings.wochenstunden.toFixed(1);
+  document.getElementById('footerTagStd').textContent=tagSoll;
 
   // Berechne Statistiken
   let workHours=0;
@@ -328,6 +359,10 @@ function renderEmployeeData(emp,entries,settings){
   const zaDays=entries.filter(e=>e.type==='zeitausgleich').length;
   const krankDays=entries.filter(e=>e.type==='krank').length;
 
+  // Dummy Werte für Zeitkonto und Saldo
+  const zeitkonto=0;
+  const saldo=workHours-(settings.wochenstunden*4);
+
   const content=document.getElementById('content');
   content.innerHTML=`
     <div class="month-nav">
@@ -342,28 +377,25 @@ function renderEmployeeData(emp,entries,settings){
 
     <div id="stats">
       <div class="sc">
-        <div class="sc-lbl">👤 Mitarbeiter</div>
-        <div class="sc-val">${emp.name}</div>
+        <div class="sc-lbl">Zeitkonto</div>
+        <div class="sc-val">${zeitkonto>=0?'+':''}${zeitkonto.toFixed(2)} h</div>
+        <div class="sc-sub">+0,00 T</div>
       </div>
       <div class="sc">
-        <div class="sc-lbl">⏱️ Gesamt (Stunden)</div>
-        <div class="sc-val">${workHours.toFixed(1)} h</div>
+        <div class="sc-lbl">Zeitausgleich</div>
+        <div class="sc-val">${zaDays>0?'-':''}${(zaDays*settings.wochenstunden/5).toFixed(2)} h</div>
       </div>
       <div class="sc">
-        <div class="sc-lbl">🏖️ Urlaub (Tage)</div>
-        <div class="sc-val">${urlaubDays}</div>
-      </div>
-      <div class="sc">
-        <div class="sc-lbl">⚖️ Zeitausgleich (Tage)</div>
-        <div class="sc-val">${zaDays}</div>
-      </div>
-      <div class="sc">
-        <div class="sc-lbl">🤒 Krank (Tage)</div>
+        <div class="sc-lbl">Krank</div>
         <div class="sc-val">${krankDays}</div>
       </div>
       <div class="sc">
-        <div class="sc-lbl">📋 Wochenstunden</div>
-        <div class="sc-val">${settings.wochenstunden} h</div>
+        <div class="sc-lbl">Gesamt</div>
+        <div class="sc-val">${workHours.toFixed(1)} h</div>
+      </div>
+      <div class="sc">
+        <div class="sc-lbl">Saldo</div>
+        <div class="sc-val">${saldo>=0?'+':''}${saldo.toFixed(2)} h</div>
       </div>
     </div>
 
@@ -371,53 +403,95 @@ function renderEmployeeData(emp,entries,settings){
       <table>
         <thead>
           <tr>
-            <th>Datum</th>
-            <th>Typ</th>
+            <th style="width:40px;">Tag</th>
+            <th style="width:50px;">M/T</th>
             <th>Von</th>
             <th>Bis</th>
-            <th>Pause</th>
-            <th>Netto</th>
+            <th style="width:70px;">Pause</th>
             <th>Bemerkung</th>
+            <th style="width:80px;">Netto</th>
           </tr>
         </thead>
         <tbody>
-          ${entries.length===0?'<tr><td colspan="7" class="empty">Keine Einträge für diesen Monat</td></tr>':
-            entries.map(e=>{
-              let netto='—';
-              if(e.type==='normal'&&e.von&&e.bis){
-                const h1=parseInt(e.von.split(':')[0])*60+parseInt(e.von.split(':')[1]);
-                const h2=parseInt(e.bis.split(':')[0])*60+parseInt(e.bis.split(':')[1]);
-                const nettoMin=h2-h1-e.pause;
-                netto=`${Math.floor(nettoMin/60)}:${String(nettoMin%60).padStart(2,'0')} h`;
-              }
-
-              const typeMap={
-                'normal':'Arbeit',
-                'urlaub':'Urlaub',
-                'zeitausgleich':'ZA',
-                'krank':'Krank'
-              };
-              const typeClass={
-                'zeitausgleich':'type-za',
-                'urlaub':'type-urlaub',
-                'krank':'type-krank'
-              }[e.type]||'';
-
-              return`<tr>
-                <td class="td-date">${e.date}</td>
-                <td class="td-type ${typeClass}">${typeMap[e.type]||e.type}</td>
-                <td class="td-time">${e.von||'—'}</td>
-                <td class="td-time">${e.bis||'—'}</td>
-                <td class="td-time">${e.pause>0?e.pause+' Min':'—'}</td>
-                <td class="td-netto">${netto}</td>
-                <td>${e.bemerkung||'—'}</td>
-              </tr>`;
-            }).join('')
-          }
+          ${generateCalendarRows(currentYear,currentMonth,entries,settings)}
         </tbody>
       </table>
     </div>
   `;
+}
+
+function generateCalendarRows(year,month,entries,settings){
+  const daysInMonth=new Date(year,month,0).getDate();
+  let html='';
+  let lastKW=null;
+
+  for(let day=1;day<=daysInMonth;day++){
+    const dateStr=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const date=new Date(dateStr);
+    const dayName=getDayName(dateStr);
+    const kw=getWeekNumber(dateStr);
+    const entry=entries.find(e=>e.date===dateStr);
+
+    // Zeilen-Klasse für Wochenende
+    let rowClass='';
+    if(dayName==='Sa')rowClass='wk-sa';
+    if(dayName==='So')rowClass='wk-so';
+
+    // Typ und Werte
+    let von='—',bis='—',pause='—',bemerkung='—',netto='—';
+    let vonDisplay='';
+
+    if(entry){
+      if(entry.type==='urlaub'){
+        vonDisplay='<span class="type-urlaub">Urlaub</span>';
+        bemerkung=entry.bemerkung||'—';
+      }else if(entry.type==='zeitausgleich'){
+        vonDisplay='<span class="type-za">Zeitausgleich</span>';
+        bemerkung=entry.bemerkung||'—';
+      }else if(entry.type==='krank'){
+        vonDisplay='<span class="type-krank">Krank</span>';
+        bemerkung=entry.bemerkung||'—';
+      }else if(entry.type==='normal'){
+        von=entry.von||'—';
+        bis=entry.bis||'—';
+        pause=entry.pause>0?entry.pause+' Min':'—';
+        bemerkung=entry.bemerkung||'—';
+
+        if(entry.von&&entry.bis){
+          const h1=parseInt(entry.von.split(':')[0])*60+parseInt(entry.von.split(':')[1]);
+          const h2=parseInt(entry.bis.split(':')[0])*60+parseInt(entry.bis.split(':')[1]);
+          const nettoMin=h2-h1-entry.pause;
+          netto=`${Math.floor(nettoMin/60)},${String(Math.floor((nettoMin%60)/6)).padStart(1,'0')}0 h`;
+        }
+      }
+
+      // Feiertage erkennen
+      if(bemerkung.includes('Himmelfahrt')||bemerkung.includes('Pfingst')||bemerkung.includes('Weihnacht')||bemerkung.includes('Neujahr')){
+        rowClass='holiday';
+        vonDisplay=`<span class="type-holiday">${bemerkung}</span>`;
+        bemerkung='—';
+      }
+    }
+
+    // KW Badge für Montag
+    let kwBadge='';
+    if(dayName==='Mo'&&kw!==lastKW){
+      kwBadge=`<span class="kw-badge">KW ${kw}</span>`;
+      lastKW=kw;
+    }
+
+    html+=`<tr class="${rowClass}">
+      <td class="td-tag">${day}</td>
+      <td class="td-wt">${dayName}${kwBadge}</td>
+      <td class="td-von">${vonDisplay||von}</td>
+      <td class="td-time">${vonDisplay?'':bis}</td>
+      <td class="td-time">${pause}</td>
+      <td class="td-bem">${bemerkung}</td>
+      <td class="td-netto">${netto}</td>
+    </tr>`;
+  }
+
+  return html||'<tr><td colspan="7" class="empty">Keine Einträge</td></tr>';
 }
 
 function prevMonth(){
@@ -462,6 +536,9 @@ loadEmployees();
 if(localStorage.getItem('superAdminDarkMode')==='true'){
   darkMode=true;
   document.body.classList.add('dark');
+}else{
+  darkMode=false;
+  document.body.classList.remove('dark');
 }
 updateDarkModeButton();
 </script>
