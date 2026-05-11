@@ -83,6 +83,10 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
+app.get('/admin-register', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin-register.html'));
+});
+
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 app.post('/api/register', async (req, res) => {
   try {
@@ -367,6 +371,95 @@ app.post('/api/admin-login', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Fehler beim Admin-Login' });
+  }
+});
+
+// Admin-Registrierung: Code verifizieren
+app.post('/api/verify-admin-code', async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ error: 'Code erforderlich' });
+
+    const validCode = process.env.ADMIN_REGISTER_CODE;
+    if (!validCode) return res.status(500).json({ error: 'Kein Registrierungscode konfiguriert' });
+
+    // Prüfen ob Code bereits verwendet wurde
+    const codeUsed = await prisma.adminCodeUsage.findFirst({
+      where: { code: validCode, used: true }
+    });
+
+    if (codeUsed) {
+      return res.status(403).json({ error: 'Dieser Code wurde bereits verwendet' });
+    }
+
+    if (code !== validCode) {
+      return res.status(401).json({ error: 'Ungültiger Code' });
+    }
+
+    res.json({ success: true, message: 'Code verifiziert' });
+  } catch (err) {
+    console.error('Verify code error:', err);
+    res.status(500).json({ error: 'Fehler bei Code-Verifikation' });
+  }
+});
+
+// Admin-Registrierung: Neuen Admin anlegen
+app.post('/api/register-admin', async (req, res) => {
+  try {
+    const { code, name, username, password } = req.body;
+    if (!code || !name || !username || !password) {
+      return res.status(400).json({ error: 'Alle Felder erforderlich' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen lang sein' });
+    }
+
+    const validCode = process.env.ADMIN_REGISTER_CODE;
+    if (!validCode || code !== validCode) {
+      return res.status(401).json({ error: 'Ungültiger Code' });
+    }
+
+    // Prüfen ob Code bereits verwendet wurde
+    const codeUsed = await prisma.adminCodeUsage.findFirst({
+      where: { code: validCode, used: true }
+    });
+
+    if (codeUsed) {
+      return res.status(403).json({ error: 'Dieser Code wurde bereits verwendet' });
+    }
+
+    // Prüfen ob Username bereits existiert
+    const exists = await prisma.user.findUnique({ where: { username } });
+    if (exists) {
+      return res.status(400).json({ error: 'Benutzername existiert bereits' });
+    }
+
+    // Admin-User anlegen
+    const hash = bcryptjs.hashSync(password, 10);
+    const user = await prisma.user.create({
+      data: {
+        username,
+        name,
+        password: hash,
+        isAdmin: true
+      }
+    });
+
+    // Code als verwendet markieren
+    await prisma.adminCodeUsage.create({
+      data: {
+        code: validCode,
+        used: true,
+        usedBy: username,
+        usedAt: new Date()
+      }
+    });
+
+    res.json({ success: true, message: 'Admin-Account erfolgreich erstellt' });
+  } catch (err) {
+    console.error('Register admin error:', err);
+    res.status(500).json({ error: 'Fehler bei Admin-Registrierung' });
   }
 });
 

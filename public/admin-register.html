@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin-Registrierung · Zeiterfassung</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Figtree',sans-serif;
+      background:linear-gradient(135deg,#1F2937 0%,#111827 100%);
+      min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+    }
+    .container{width:100%;max-width:450px;}
+    .card{
+      background:#1F2937;border:1px solid #374151;border-radius:12px;
+      box-shadow:0 10px 40px rgba(0,0,0,0.5);padding:40px;color:#F9FAFB;
+    }
+    .logo{text-align:center;margin-bottom:30px;}
+    .logo h1{font-size:22px;color:#F9FAFB;margin-bottom:8px;}
+    .logo p{color:#9CA3AF;font-size:13px;line-height:1.5;}
+    .form-group{margin-bottom:20px;}
+    label{display:block;margin-bottom:8px;color:#D1D5DB;font-weight:600;font-size:13px;}
+    input{
+      width:100%;padding:12px;border:1px solid #4B5563;border-radius:8px;
+      font-size:14px;background:#111827;color:#F9FAFB;transition:all .2s;
+    }
+    input:focus{outline:none;border-color:#DC2626;box-shadow:0 0 0 3px rgba(220,38,38,.15);}
+    .btn{
+      width:100%;padding:13px;border:none;border-radius:8px;font-size:14px;
+      font-weight:700;cursor:pointer;transition:all .2s;margin-top:10px;
+      background:linear-gradient(135deg,#DC2626 0%,#991B1B 100%);color:white;
+    }
+    .btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(220,38,38,.4);}
+    .btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+    .message{padding:12px;border-radius:8px;margin-bottom:20px;font-size:13px;display:none;}
+    .message.error{background:rgba(220,38,38,.15);color:#FCA5A5;border:1px solid rgba(220,38,38,.3);display:block;}
+    .message.success{background:rgba(22,163,74,.15);color:#86EFAC;border:1px solid rgba(22,163,74,.3);display:block;}
+    .message.info{background:rgba(59,130,246,.15);color:#93C5FD;border:1px solid rgba(59,130,246,.3);display:block;}
+    .back-link{text-align:center;margin-top:24px;}
+    .back-link a{color:#9CA3AF;font-size:13px;text-decoration:none;}
+    .back-link a:hover{color:#F9FAFB;}
+    .loading{display:none;text-align:center;color:#9CA3AF;font-size:13px;margin-top:14px;}
+    .spinner{
+      display:inline-block;width:14px;height:14px;border:2px solid #374151;
+      border-top-color:#DC2626;border-radius:50%;animation:spin .6s linear infinite;
+      margin-right:6px;vertical-align:middle;
+    }
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .step{display:none;}
+    .step.active{display:block;}
+    .info-box{
+      background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);
+      padding:12px;border-radius:8px;margin-bottom:20px;font-size:12px;
+      color:#93C5FD;line-height:1.5;
+    }
+    .warning-box{
+      background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);
+      padding:12px;border-radius:8px;margin-bottom:20px;font-size:12px;
+      color:#FCD34D;line-height:1.5;
+    }
+    small{font-size:11px;color:#9CA3AF;margin-top:4px;display:block;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="logo">
+        <h1>🔐 Admin-Registrierung</h1>
+        <p>Neuen Administrator-Account anlegen</p>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <!-- Schritt 1: Einmal-Code -->
+      <div id="step1" class="step active">
+        <div class="info-box">
+          <strong>ℹ️ Einmal-Code erforderlich</strong><br>
+          Um einen Admin-Account anzulegen, benötigst du den Einmal-Code. Dieser wurde bei der Installation generiert.
+        </div>
+        <div class="form-group">
+          <label>Einmal-Code</label>
+          <input type="text" id="code" placeholder="Gib den Einmal-Code ein" autocomplete="off">
+          <small>Der Code ist case-sensitive und nur einmal verwendbar</small>
+        </div>
+        <button class="btn" onclick="verifyCode()">🔓 Code überprüfen</button>
+      </div>
+
+      <!-- Schritt 2: Registrierung -->
+      <div id="step2" class="step">
+        <div class="message success" style="display:block;">
+          ✓ Code korrekt! Du kannst jetzt einen Admin-Account anlegen.
+        </div>
+        <div class="warning-box">
+          <strong>⚠️ Wichtig:</strong> Nach der Registrierung wird der Einmal-Code ungültig. Stelle sicher, dass du dir deine Zugangsdaten merkst!
+        </div>
+        <div class="form-group">
+          <label>Vollständiger Name</label>
+          <input type="text" id="adminName" placeholder="z.B. Max Mustermann" autocomplete="name">
+        </div>
+        <div class="form-group">
+          <label>Admin-Benutzername</label>
+          <input type="text" id="adminUsername" placeholder="z.B. admin" autocomplete="username">
+          <small>Dieser Name wird für den Admin-Login verwendet</small>
+        </div>
+        <div class="form-group">
+          <label>Passwort</label>
+          <input type="password" id="adminPassword" placeholder="Mindestens 8 Zeichen" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label>Passwort bestätigen</label>
+          <input type="password" id="adminPasswordConfirm" placeholder="Passwort wiederholen" autocomplete="new-password">
+        </div>
+        <button class="btn" onclick="registerAdmin()">✓ Admin-Account erstellen</button>
+      </div>
+
+      <div class="loading" id="loading">
+        <span class="spinner"></span>
+        <span>Wird verarbeitet...</span>
+      </div>
+
+      <div class="back-link">
+        <a href="/admin-login">← Zurück zum Admin-Login</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let verifiedCode = null;
+
+    function showMessage(text, type){
+      const msg=document.getElementById('message');
+      msg.textContent=text;
+      msg.className='message '+type;
+    }
+
+    function setLoading(show){
+      document.getElementById('loading').style.display=show?'block':'none';
+    }
+
+    function showStep(step){
+      document.getElementById('step1').classList.remove('active');
+      document.getElementById('step2').classList.remove('active');
+      document.getElementById('step'+step).classList.add('active');
+    }
+
+    async function verifyCode(){
+      const code=document.getElementById('code').value.trim();
+      if(!code){
+        showMessage('Bitte gib den Einmal-Code ein','error');
+        return;
+      }
+
+      setLoading(true);
+      showMessage('','');
+
+      try{
+        const res=await fetch('/api/verify-admin-code',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({code})
+        });
+
+        const data=await res.json();
+
+        if(res.ok){
+          verifiedCode=code;
+          showStep(2);
+          showMessage('','');
+        } else {
+          showMessage(data.error||'Ungültiger Code','error');
+        }
+      } catch(err){
+        showMessage('Fehler: '+err.message,'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function registerAdmin(){
+      const name=document.getElementById('adminName').value.trim();
+      const username=document.getElementById('adminUsername').value.trim();
+      const password=document.getElementById('adminPassword').value;
+      const passwordConfirm=document.getElementById('adminPasswordConfirm').value;
+
+      if(!name||!username||!password||!passwordConfirm){
+        showMessage('Bitte fülle alle Felder aus','error');
+        return;
+      }
+
+      if(password.length<8){
+        showMessage('Passwort muss mindestens 8 Zeichen lang sein','error');
+        return;
+      }
+
+      if(password!==passwordConfirm){
+        showMessage('Passwörter stimmen nicht überein','error');
+        return;
+      }
+
+      if(!verifiedCode){
+        showMessage('Fehler: Kein verifizierter Code','error');
+        showStep(1);
+        return;
+      }
+
+      setLoading(true);
+      showMessage('','');
+
+      try{
+        const res=await fetch('/api/register-admin',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            code:verifiedCode,
+            name,
+            username,
+            password
+          })
+        });
+
+        const data=await res.json();
+
+        if(res.ok){
+          showMessage('✓ Admin-Account erfolgreich erstellt! Du wirst weitergeleitet...','success');
+          setTimeout(()=>window.location.href='/admin-login',2000);
+        } else {
+          showMessage(data.error||'Registrierung fehlgeschlagen','error');
+          if(data.error&&data.error.includes('Code')){
+            verifiedCode=null;
+            showStep(1);
+          }
+        }
+      } catch(err){
+        showMessage('Fehler: '+err.message,'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Enter-Taste unterstützen
+    document.addEventListener('keypress',(e)=>{
+      if(e.key==='Enter'){
+        const step1Active=document.getElementById('step1').classList.contains('active');
+        if(step1Active){
+          verifyCode();
+        } else {
+          registerAdmin();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
