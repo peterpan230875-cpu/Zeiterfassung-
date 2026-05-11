@@ -469,12 +469,15 @@ app.post('/api/register-admin', async (req, res) => {
   }
 });
 
-// Liste aller Mitarbeiter (ohne Admins)
+// Liste aller Mitarbeiter (ohne Admins und Super-Admins)
 app.get('/api/admin/users', async (req, res) => {
   if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
   try {
     const users = await prisma.user.findMany({
-      where: { isAdmin: false },
+      where: {
+        isAdmin: false,
+        isSuperAdmin: false
+      },
       select: { id: true, username: true, name: true, createdAt: true },
       orderBy: { name: 'asc' }
     });
