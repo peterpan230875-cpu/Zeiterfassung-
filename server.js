@@ -550,6 +550,111 @@ app.delete('/api/admin/month-lock/:userId/:year/:month', async (req, res) => {
   }
 });
 
+// ── SUPER-ADMIN SEITEN & API ─────────────────────────────────────────────────
+app.get('/super-admin-login', (req, res) => {
+  if (req.session.isSuperAdmin) return res.redirect('/super-admin');
+  res.sendFile(path.join(__dirname, 'public', 'super-admin-login.html'));
+});
+
+app.get('/super-admin', (req, res) => {
+  if (!req.session.userId || !req.session.isSuperAdmin) return res.redirect('/super-admin-login');
+  res.sendFile(path.join(__dirname, 'public', 'super-admin.html'));
+});
+
+app.post('/api/super-admin/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password)
+      return res.status(400).json({ error: 'Benutzername und Passwort erforderlich' });
+
+    const user = await prisma.user.findUnique({ where: { username } });
+    if (!user || !user.isSuperAdmin || !bcryptjs.compareSync(password, user.password))
+      return res.status(401).json({ error: 'Ungültige Super-Admin-Anmeldedaten' });
+
+    req.session.userId = user.id;
+    req.session.username = username;
+    req.session.name = user.name;
+    req.session.isSuperAdmin = true;
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Super-Admin login error:', err);
+    res.status(500).json({ error: 'Fehler beim Super-Admin-Login' });
+  }
+});
+
+app.post('/api/super-admin/logout', (req, res) => {
+  req.session.destroy(() => {});
+  res.json({ success: true });
+});
+
+app.get('/api/super-admin/all-users', async (req, res) => {
+  if (!req.session.isSuperAdmin) return res.status(401).json({ error: 'Nicht autorisiert' });
+  try {
+    const users = await prisma.user.findMany({
+      where: { isAdmin: false, isSuperAdmin: false },
+      select: { id: true, username: true, name: true, createdAt: true }
+    });
+    res.json(users);
+  } catch (err) {
+    console.error('Get all users error:', err);
+    res.status(500).json({ error: 'Fehler beim Laden der Mitarbeiter' });
+  }
+});
+
+app.get('/api/super-admin/entries/:userId', async (req, res) => {
+  if (!req.session.isSuperAdmin) return res.status(401).json({ error: 'Nicht autorisiert' });
+  try {
+    const { userId } = req.params;
+    const { year, month } = req.query;
+
+    let entries;
+    if (year && month) {
+      // Filter by month
+      const y = parseInt(year);
+      const m = parseInt(month);
+      const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
+      const endDate = `${y}-${String(m).padStart(2, '0')}-31`;
+
+      entries = await prisma.entry.findMany({
+        where: {
+          userId,
+          date: { gte: startDate, lte: endDate }
+        },
+        orderBy: { date: 'asc' }
+      });
+    } else {
+      // All entries
+      entries = await prisma.entry.findMany({
+        where: { userId },
+        orderBy: { date: 'asc' }
+      });
+    }
+
+    res.json(entries);
+  } catch (err) {
+    console.error('Get entries error:', err);
+    res.status(500).json({ error: 'Fehler beim Laden der Einträge' });
+  }
+});
+
+app.get('/api/super-admin/settings/:userId', async (req, res) => {
+  if (!req.session.isSuperAdmin) return res.status(401).json({ error: 'Nicht autorisiert' });
+  try {
+    const { userId } = req.params;
+    const settings = await prisma.settings.findUnique({ where: { userId } });
+
+    if (!settings) {
+      return res.json({ wochenstunden: 38.5 });
+    }
+
+    res.json(settings);
+  } catch (err) {
+    console.error('Get settings error:', err);
+    res.status(500).json({ error: 'Fehler beim Laden der Einstellungen' });
+  }
+});
+
 // ── START ──────────────────────────────────────────────────────────────────────
 // Lokal: Server starten. Auf Vercel: App exportieren.
 if (require.main === module) {
