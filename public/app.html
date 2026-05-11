@@ -1169,8 +1169,13 @@ function getCumulativeUrlaub(year,month){
   if(keys.length>0){
     const anchorKey=keys[keys.length-1];
     baseValue=overrides[anchorKey];
+    // Wenn Anchor genau der Zielmonat ist: direkt zurückgeben (keine Doppelzählung!)
+    if(anchorKey===targetKey) return baseValue;
     const [ay,am1]=anchorKey.split("-").map(Number);
-    startY=ay;startM=am1-1;
+    // Anchor ist früher: zähle ab dem Monat NACH dem Anchor
+    startY=ay;
+    startM=am1; // am1 ist 1-basiert → wird zu 0-basiert = nächster Monat
+    if(startM>11){startM=0;startY++;}
   } else {
     // Kein Override: zähle alle Urlaubstage ab Januar des Jahres
     startY=year;startM=0;baseValue=0;
