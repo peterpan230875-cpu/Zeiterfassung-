@@ -1161,27 +1161,34 @@ function countMonthUrlaub(y,m){
 // - Wenn ein Übertrags-Anchor (≤ aktueller Monat) existiert: ab dort
 // - Sonst: ab Januar des aktuellen Jahres
 // Es werden alle Urlaubstage aus den Einträgen aufsummiert
+// Gibt zurück: Urlaubstage genommen bis EINSCHLIESSLICH des angegebenen Monats
 function getCumulativeUrlaub(year,month){
   const targetKey=ustKey(year,month);
   const overrides=state.urlaubGenommen||{};
   const keys=Object.keys(overrides).filter(k=>k<=targetKey).sort();
   let startY,startM,baseValue;
+
   if(keys.length>0){
     const anchorKey=keys[keys.length-1];
     baseValue=overrides[anchorKey];
-    // Wenn Anchor genau der Zielmonat ist: direkt zurückgeben (keine Doppelzählung!)
-    if(anchorKey===targetKey) return baseValue;
     const [ay,am1]=anchorKey.split("-").map(Number);
-    // Anchor ist früher: zähle ab dem Monat NACH dem Anchor
+
+    // Anchor-Key repräsentiert: Urlaub bis Ende des VORmonats
+    // z.B. "2026-6" = Urlaub bis Ende Mai (für Anzeige in Juni)
+    // Also: Start-Monat für Zählung ist am1-1 (der Monat selbst)
     startY=ay;
-    startM=am1; // am1 ist 1-basiert → wird zu 0-basiert = nächster Monat
-    if(startM>11){startM=0;startY++;}
+    startM=am1-1; // am1=6 (Juni) → startM=5 (Juni in 0-indexed)
+    if(startM<0){startM=11;startY--;}
   } else {
     // Kein Override: zähle alle Urlaubstage ab Januar des Jahres
-    startY=year;startM=0;baseValue=0;
+    startY=year;
+    startM=0;
+    baseValue=0;
   }
+
   let sum=baseValue;
   let y=startY,m=startM;
+  // Zähle vom Start-Monat bis einschließlich Zielmonat
   while(y<year||(y===year&&m<=month)){
     sum+=countMonthUrlaub(y,m);
     m++;
@@ -1190,9 +1197,8 @@ function getCumulativeUrlaub(year,month){
   return sum;
 }
 
-// Kumulativer Zeitkonto-Stand am Anfang des angegebenen Monats:
-// findet den letzten Override (≤ aktueller Monat) und addiert alle Saldi
-// der Monate von dort bis VOR dem aktuellen Monat.
+// Kumulativer Zeitkonto-Stand am ANFANG des angegebenen Monats:
+// = Übertrag aus Vormonaten (ohne aktuellen Monat)
 function getCumulativeZeitkonto(year,month){
   const targetKey=ustKey(year,month);
   const overrides=state.ueberstundenOverride||{};
@@ -1208,17 +1214,19 @@ function getCumulativeZeitkonto(year,month){
   } else {
     const anchorKey=keys[keys.length-1];
     const anchorVal=overrides[anchorKey];
+    // Anchor-Key repräsentiert: Zeitkonto am ANFANG dieses Monats
+    // z.B. "2026-6" = Zeitkonto am Anfang Juni (= Ende Mai)
     if(anchorKey===targetKey) return anchorVal;
     const [ay,am1]=anchorKey.split("-").map(Number);
-    // Anchor ist früher: start ab Monat NACH Anchor
+    // Start-Monat für Zählung ist am1-1 (der Anchor-Monat selbst)
     startY=ay;
-    startM=am1; // am1 ist 1-basiert → wird zu 0-basiert = nächster Monat
-    if(startM>11){startM=0;startY++;}
+    startM=am1-1; // am1=6 → startM=5 (Juni in 0-indexed)
+    if(startM<0){startM=11;startY--;}
     sum=anchorVal;
   }
 
   let y=startY,m=startM;
-  // Summiere Saldi bis VOR Zielmonat
+  // Summiere Saldi bis VOR Zielmonat (weil wir Anfang des Monats wollen)
   while(y<year||(y===year&&m<month)){
     sum+=calculateMonthSaldo(y,m);
     m++;
