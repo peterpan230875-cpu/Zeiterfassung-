@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<title>Anleitung Mitarbeiter — Zeiterfassung v2.8</title>
+<style>
+@page{size:A4 portrait;margin:14mm 12mm;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,Helvetica,sans-serif;font-size:9.5pt;color:#111;line-height:1.4;background:#fff;}
+h1{font-size:17pt;font-weight:800;letter-spacing:-.5px;border-bottom:3px solid #2563EB;padding-bottom:4px;margin-bottom:3px;}
+.subtitle{color:#555;font-size:9pt;margin-bottom:10px;}
+h2{font-size:11pt;font-weight:700;color:#2563EB;margin-top:9px;margin-bottom:3px;
+  border-left:3px solid #2563EB;padding-left:6px;}
+h3{font-size:9.5pt;font-weight:700;margin-top:5px;margin-bottom:2px;color:#333;}
+p,li{font-size:9pt;margin-bottom:2px;}
+ul,ol{margin-left:16px;margin-bottom:4px;}
+li{margin-bottom:1.5px;}
+.box{background:#F5F5F5;border-left:3px solid #999;padding:5px 8px;margin:5px 0;font-size:8.5pt;}
+.tip{background:#EFF6FF;border-left:3px solid #2563EB;padding:5px 8px;margin:5px 0;font-size:8.5pt;}
+.warn{background:#FEF3C7;border-left:3px solid #D97706;padding:5px 8px;margin:5px 0;font-size:8.5pt;}
+table{width:100%;border-collapse:collapse;margin:4px 0;font-size:8.5pt;}
+th,td{border:1px solid #ddd;padding:3px 6px;text-align:left;}
+th{background:#F0F0F0;font-weight:700;}
+.kbd{display:inline-block;background:#2563EB;color:#fff;border-radius:3px;padding:1px 6px;font-size:8pt;font-weight:700;}
+.row{display:flex;gap:8px;}
+.col{flex:1;}
+footer{margin-top:8px;padding-top:4px;border-top:1px solid #ddd;font-size:7.5pt;color:#999;text-align:center;}
+.color-blue{color:#2563EB;font-weight:700;}
+.color-green{color:#16A34A;font-weight:700;}
+.color-red{color:#DC2626;font-weight:700;}
+.color-amber{color:#D97706;font-weight:700;}
+</style>
+</head>
+<body>
+
+<h1>⏱ Zeiterfassung — Anleitung für Mitarbeiter</h1>
+<div class="subtitle">Version 2.8 · Stand 2026</div>
+
+<h2>1. Erste Anmeldung</h2>
+<ol>
+  <li><b>Konto erstellen:</b> Auf der Login-Seite „Jetzt registrieren" wählen. Vollständigen Namen, Benutzername, Passwort eingeben.</li>
+  <li><b>Anmelden</b> mit deinen Zugangsdaten.</li>
+  <li><b>Einrichtungs-Assistent</b> erscheint einmalig:
+    <ul>
+      <li>Wochenstunden eingeben (z. B. 32, 38,5)</li>
+      <li>Standard-Pause auswählen (z. B. 30 Min)</li>
+      <li>Auf „Einrichtung abschließen" klicken</li>
+    </ul>
+  </li>
+</ol>
+
+<h2>2. Einzelnen Tag eintragen</h2>
+<ol>
+  <li>Auf einen Tag in der Liste / Tabelle klicken</li>
+  <li>Schicht-Knopf wählen — Frühschicht 🌅 (ab 06:00) oder Spätschicht 🌆 (bis Ladenschluss). Zeiten werden automatisch berechnet.</li>
+  <li>Pause anpassen falls nötig (Pille klicken oder Min-Wert eintippen)</li>
+  <li>Optional: Bemerkung eintragen</li>
+  <li>„✓ Speichern" klicken</li>
+</ol>
+<div class="tip"><b>Tipp:</b> Sobald der erste Tag der Woche eingetragen ist, schlägt das Tool die gleichen Zeiten für die restlichen Tage automatisch vor.</div>
+
+<h2>3. Urlaub / Krank / Zeitausgleich</h2>
+<p>Direkt in der Liste neben jedem Werktag findest du die <span class="kbd">U</span> <span class="kbd">ZA</span> <span class="kbd">K</span> Schnell-Knöpfe — einmal klicken markiert den Tag.</p>
+<p>Oder über <b>📅 Woche</b> einen ganzen Block auf einmal eintragen — alle Tage standardmäßig markiert, einzelne abwählen.</p>
+
+<h2>4. Statistik-Boxen verstehen</h2>
+<table>
+  <tr><th>Box</th><th>Bedeutung</th></tr>
+  <tr><td><b>Zeitkonto</b></td><td>Übertrag aus Vormonat (links Stunden, rechts Tage). <span class="color-green">+</span> = Guthaben, <span class="color-red">−</span> = Schulden</td></tr>
+  <tr><td><b>Urlaub</b></td><td>Links (rot) = in diesem Monat genommen · Rechts (grün) = verbleibender Jahresanspruch</td></tr>
+  <tr><td><b>Zeitausgleich</b></td><td>Stunden die in diesem Monat als ZA verbraucht wurden (rot)</td></tr>
+  <tr><td><b>Krank</b></td><td>Anzahl Krankheitstage</td></tr>
+  <tr><td><b>Gesamt</b></td><td>Tatsächlich gearbeitete Stunden im Monat</td></tr>
+  <tr><td><b>Saldo</b></td><td>Differenz Ist − Soll im aktuellen Monat</td></tr>
+</table>
+
+<h2>5. Einstellungen (⚙️)</h2>
+<ul>
+  <li><b>Wochenstunden:</b> Vertragliche Wochenarbeitszeit</li>
+  <li><b>Urlaubsanspruch:</b> Tage pro Jahr (z. B. 30 oder 36)</li>
+  <li><b>Urlaubsstand (Übertrag):</b> Falls du bereits vor App-Start Urlaubstage genommen hast — Monat wählen + Anzahl eintragen</li>
+  <li><b>Zeitkonto (Übertrag):</b> Falls Überstunden vor App-Start bestanden — Monat wählen + Stunden eintragen</li>
+  <li><b>Saison:</b> Sommer (Schluss 17:30) / Winter (Schluss 17:00) — beeinflusst Spätschicht-Endzeit</li>
+  <li><b>Dunkelmodus:</b> Auge-schonendes Design für abends</li>
+</ul>
+
+<h2>6. PDF-Export</h2>
+<ol>
+  <li>Auf <b>📤 Export</b> klicken</li>
+  <li>Vorschau prüfen</li>
+  <li>„📄 Als PDF herunterladen" — die Datei landet als „<i>Monat Jahr</i>.pdf" im Download-Ordner</li>
+</ol>
+<div class="tip"><b>Chrome/Edge-Nutzer:</b> In den Einstellungen unter „PDF-Speicherort" kannst du einen Ordner auswählen — die App legt dann automatisch <code>Arbeitszeitnachweis/2026/</code> an und speichert die PDF dort.</div>
+
+<h2>7. Monat abschließen 🔒</h2>
+<ol>
+  <li>Alle Werktage Mo–Fr müssen ausgefüllt sein (Arbeit oder Urlaub/ZA/Krank)</li>
+  <li>Auf „🔒 Monat abschließen" unten klicken</li>
+  <li>Im Dialog steht die Übertrags-Vorschau — mit „Ja, abschließen" bestätigen</li>
+</ol>
+<div class="warn"><b>Nach dem Abschluss:</b> Der Monat ist gesperrt. Der Admin sieht deine Daten jetzt im Admin-Portal. Falls du noch etwas ändern musst → den Admin um Freigabe bitten.</div>
+
+<footer>Zeiterfassung v2.8 · Bei Problemen: an deinen Vorgesetzten oder Admin wenden</footer>
+
+</body>
+</html>

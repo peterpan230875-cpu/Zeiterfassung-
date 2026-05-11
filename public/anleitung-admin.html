@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<title>Anleitung Admin — Zeiterfassung v2.8</title>
+<style>
+@page{size:A4 portrait;margin:14mm 12mm;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,Helvetica,sans-serif;font-size:9.5pt;color:#111;line-height:1.4;background:#fff;}
+h1{font-size:17pt;font-weight:800;letter-spacing:-.5px;border-bottom:3px solid #DC2626;padding-bottom:4px;margin-bottom:3px;}
+.subtitle{color:#555;font-size:9pt;margin-bottom:10px;}
+.adm-badge{display:inline-block;background:#DC2626;color:#fff;padding:2px 8px;border-radius:10px;font-size:8pt;font-weight:700;letter-spacing:.5px;margin-left:6px;}
+h2{font-size:11pt;font-weight:700;color:#DC2626;margin-top:9px;margin-bottom:3px;
+  border-left:3px solid #DC2626;padding-left:6px;}
+h3{font-size:9.5pt;font-weight:700;margin-top:5px;margin-bottom:2px;color:#333;}
+p,li{font-size:9pt;margin-bottom:2px;}
+ul,ol{margin-left:16px;margin-bottom:4px;}
+li{margin-bottom:1.5px;}
+.box{background:#F5F5F5;border-left:3px solid #999;padding:5px 8px;margin:5px 0;font-size:8.5pt;}
+.tip{background:#EFF6FF;border-left:3px solid #2563EB;padding:5px 8px;margin:5px 0;font-size:8.5pt;}
+.warn{background:#FEF3C7;border-left:3px solid #D97706;padding:5px 8px;margin:5px 0;font-size:8.5pt;}
+.danger{background:#FEE2E2;border-left:3px solid #DC2626;padding:5px 8px;margin:5px 0;font-size:8.5pt;}
+table{width:100%;border-collapse:collapse;margin:4px 0;font-size:8.5pt;}
+th,td{border:1px solid #ddd;padding:3px 6px;text-align:left;}
+th{background:#F0F0F0;font-weight:700;}
+.kbd{display:inline-block;background:#1F2937;color:#fff;border-radius:3px;padding:1px 6px;font-size:8pt;font-weight:700;}
+.status-green{display:inline-block;background:#16A34A;color:#fff;padding:1px 7px;border-radius:8px;font-size:8pt;font-weight:700;}
+.status-red{display:inline-block;background:#DC2626;color:#fff;padding:1px 7px;border-radius:8px;font-size:8pt;font-weight:700;}
+footer{margin-top:8px;padding-top:4px;border-top:1px solid #ddd;font-size:7.5pt;color:#999;text-align:center;}
+</style>
+</head>
+<body>
+
+<h1>🔒 Zeiterfassung — Anleitung für den Admin <span class="adm-badge">READ-ONLY</span></h1>
+<div class="subtitle">Version 2.8 · Stand 2026</div>
+
+<h2>1. Anmeldung im Admin Portal</h2>
+<ol>
+  <li>Normale Login-Seite öffnen</li>
+  <li>Ganz unten auf „<b>🔒 Admin-Login</b>" klicken</li>
+  <li>Admin-Benutzername und Admin-Passwort eingeben (separater Account, nicht über die normale Registrierung anlegbar)</li>
+  <li>Nach erfolgreichem Login → <b>Admin Portal</b>
+</li>
+</ol>
+<div class="danger"><b>Wichtig:</b> Du arbeitest read-only. Du kannst Einträge der Mitarbeiter <u>nicht</u> bearbeiten — nur ansehen und Monate freigeben.</div>
+
+<h2>2. Mitarbeiterliste verstehen</h2>
+<p>Links im Portal siehst du alle Mitarbeiter. Die Farbe richtet sich nach dem <b>gerade gewählten Monat</b>:</p>
+<table>
+  <tr><th style="width:30%;">Status</th><th>Bedeutung</th></tr>
+  <tr><td><span class="status-green">✅</span> Grün</td><td>Mitarbeiter hat den Monat <b>abgeschlossen</b>. Du siehst alle Daten.</td></tr>
+  <tr><td><span class="status-red">⏳</span> Rot</td><td>Monat noch <b>offen</b>. Daten sind ausgeblendet bis Mitarbeiter abschließt.</td></tr>
+</table>
+<p>Mit den Pfeilen <span class="kbd">‹</span> <span class="kbd">›</span> oben kannst du durch die Monate navigieren — Farben passen sich automatisch an.</p>
+
+<h2>3. Mitarbeiter-Daten ansehen</h2>
+<ol>
+  <li>Auf einen Mitarbeiter (mit grünem ✅ Status) klicken</li>
+  <li>Stats-Boxen zeigen: Zeitkonto, Urlaub, ZA, Krank, Gesamt, Saldo</li>
+  <li>Tabelle darunter listet jeden Tag mit Zeiten, Pause, Bemerkung, Netto</li>
+  <li>Kalenderwochen-Markierung an jedem Montag</li>
+</ol>
+<div class="tip">Wenn du einen offenen Monat (rot ⏳) anklickst, erscheint die Meldung „Monat noch nicht abgeschlossen" — der Mitarbeiter muss erst freigeben.</div>
+
+<h2>4. Monat wieder freigeben</h2>
+<p>Falls ein Mitarbeiter einen Fehler bemerkt nachdem er den Monat abgeschlossen hat:</p>
+<ol>
+  <li>Mitarbeiter wählen</li>
+  <li>Zum betreffenden Monat navigieren</li>
+  <li>Oben erscheint ein roter Banner: „🔒 Monat abgeschlossen"</li>
+  <li>Auf „<b>🔓 Wieder freigeben</b>" klicken</li>
+  <li>Bestätigen — Mitarbeiter kann jetzt wieder bearbeiten</li>
+</ol>
+
+<h2>5. Sondertage verwalten 📅</h2>
+<p>Im linken Bereich unter der Mitarbeiterliste:</p>
+<table>
+  <tr><th>Typ</th><th>Wirkung für ALLE Mitarbeiter</th></tr>
+  <tr><td>📦 <b>Inventur</b></td><td>Badge auf dem Tag · Mitarbeiter <b>tragen ihre Zeiten selbst</b> ein</td></tr>
+  <tr><td>🔒 <b>Geschlossen</b></td><td>Tag gesperrt · zählt wie Feiertag (bezahlt, kein Soll)</td></tr>
+</table>
+<h3>Anlegen:</h3>
+<ol>
+  <li>Datum auswählen</li>
+  <li>Typ wählen (Inventur / Geschlossen)</li>
+  <li>Optional: Beschreibung (z. B. „Brückentag", „Jahresinventur")</li>
+  <li>„+ Hinzufügen" klicken</li>
+</ol>
+<p><b>Löschen:</b> ✕-Symbol neben dem Eintrag in der Liste.</p>
+
+<h2>6. Header-Knöpfe</h2>
+<ul>
+  <li><b>🌙 / ☀️ </b> — Dunkelmodus umschalten (Einstellung wird gespeichert)</li>
+  <li><b>🚪 Abmelden</b> — Admin-Session beenden</li>
+</ul>
+
+<h2>7. Wichtige Hinweise</h2>
+<div class="warn"><b>Datenschutz:</b> Du hast Einsicht in alle Arbeitszeiten der registrierten Mitarbeiter. Behandle diese Daten vertraulich gemäß DSGVO.</div>
+<div class="danger"><b>Admin-Zugang nicht weitergeben:</b> Der Admin-Account ist fest hinterlegt und kann nicht über die Registrierung neu angelegt werden. Bei Verdacht auf Missbrauch sofort Passwort wechseln lassen.</div>
+
+<footer>Zeiterfassung v2.8 · Admin Portal · Read-Only Zugriff auf Mitarbeiterdaten</footer>
+
+</body>
+</html>
