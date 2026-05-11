@@ -57,8 +57,9 @@ Da der Super-Admin **volle Einsicht in alle Daten** hat, muss dieser Account man
 
 ## Zugriff auf Super-Admin Portal
 
-- **Login:** [https://zeiterfassung-green-two.vercel.app/super-admin-login](https://zeiterfassung-green-two.vercel.app/super-admin-login)
-- Oder über die Admin-Login-Seite → Link "🔐 Super-Admin Login"
+- **Login:** Über die normale Login-Seite [https://zeiterfassung-green-two.vercel.app/](https://zeiterfassung-green-two.vercel.app/)
+- Das System erkennt automatisch anhand von Benutzername und Passwort, dass es sich um einen Super-Admin handelt
+- Nach dem Login erfolgt automatische Weiterleitung zum Super-Admin Portal (`/super-admin`)
 
 ## Sicherheitshinweise
 

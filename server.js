@@ -134,6 +134,12 @@ app.post('/api/login', async (req, res) => {
     req.session.username = username;
     req.session.name = user.name;
 
+    // Super-Admin automatisch erkennen
+    if (user.isSuperAdmin) {
+      req.session.isSuperAdmin = true;
+      return res.json({ success: true, redirect: '/super-admin', isSuperAdmin: true });
+    }
+
     res.json({ success: true, user: { username, name: user.name } });
   } catch (err) {
     res.status(500).json({ error: 'Fehler bei Login' });
