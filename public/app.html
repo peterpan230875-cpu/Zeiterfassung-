@@ -1092,22 +1092,12 @@ window.addEventListener('focus', () => {
   if(typeof loadMonthLocks==='function') loadMonthLocks();
   if(typeof loadSpecialDays==='function') loadSpecialDays();
 });
-// Prüft welche Werktage im Monat (bis heute) noch nicht ausgefüllt sind
+// Prüft welche Werktage im Monat noch nicht ausgefüllt sind
 function findIncompleteDays(year,month){
   const emp=curEmp();
   const days=daysIn(year,month);
-  const today=new Date();
-  const todayY=today.getFullYear(),todayM=today.getMonth(),todayD=today.getDate();
-  let maxDay;
-  if(year<todayY||(year===todayY&&month<todayM)){
-    maxDay=days; // Vergangener Monat: ganzer Monat
-  } else if(year===todayY&&month===todayM){
-    maxDay=todayD; // Aktueller Monat: nur bis heute
-  } else {
-    return []; // Zukünftiger Monat: nicht prüfen
-  }
   const missing=[];
-  for(let d=1;d<=maxDay;d++){
+  for(let d=1;d<=days;d++){
     const key=dk(year,month,d);
     if(isSun(year,month,d)||isSat(year,month,d)) continue; // Wochenende egal
     if(FEIERTAGE[key]) continue; // Feiertag egal
