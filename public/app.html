@@ -1197,14 +1197,28 @@ function getCumulativeZeitkonto(year,month){
   const targetKey=ustKey(year,month);
   const overrides=state.ueberstundenOverride||{};
   const keys=Object.keys(overrides).filter(k=>k<=targetKey).sort();
-  if(keys.length===0) return 0;
-  const anchorKey=keys[keys.length-1];
-  const anchorVal=overrides[anchorKey];
-  if(anchorKey===targetKey) return anchorVal;
-  const [ay,am1]=anchorKey.split("-").map(Number);
-  let sum=anchorVal;
-  let y=ay,m=am1-1;
-  // von Anchor-Monat (inkl.) bis BEVOR Zielmonat
+
+  let startY,startM,sum;
+
+  if(keys.length===0){
+    // Kein Override: berechne ab Januar des aktuellen Jahres
+    startY=year;
+    startM=0;
+    sum=0;
+  } else {
+    const anchorKey=keys[keys.length-1];
+    const anchorVal=overrides[anchorKey];
+    if(anchorKey===targetKey) return anchorVal;
+    const [ay,am1]=anchorKey.split("-").map(Number);
+    // Anchor ist früher: start ab Monat NACH Anchor
+    startY=ay;
+    startM=am1; // am1 ist 1-basiert → wird zu 0-basiert = nächster Monat
+    if(startM>11){startM=0;startY++;}
+    sum=anchorVal;
+  }
+
+  let y=startY,m=startM;
+  // Summiere Saldi bis VOR Zielmonat
   while(y<year||(y===year&&m<month)){
     sum+=calculateMonthSaldo(y,m);
     m++;
