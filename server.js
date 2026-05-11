@@ -640,7 +640,7 @@ app.get('/api/super-admin/entries/:userId', async (req, res) => {
       });
     }
 
-    res.json(entries);
+    res.json({ entries });
   } catch (err) {
     console.error('Get entries error:', err);
     res.status(500).json({ error: 'Fehler beim Laden der Einträge' });
@@ -652,12 +652,8 @@ app.get('/api/super-admin/settings/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const settings = await prisma.settings.findUnique({ where: { userId } });
-
-    if (!settings) {
-      return res.json({ wochenstunden: 38.5 });
-    }
-
-    res.json(settings);
+    // Gibt Settings im gleichen Format wie /api/admin/settings/:userId zurück
+    res.json({ settings });
   } catch (err) {
     console.error('Get settings error:', err);
     res.status(500).json({ error: 'Fehler beim Laden der Einstellungen' });
