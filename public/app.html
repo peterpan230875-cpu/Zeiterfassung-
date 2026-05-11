@@ -1250,9 +1250,9 @@ function calculateMonthSaldo(y,m){
     const sat=isSat(y,m,d);
     const sd=getSpecialDay(key);
     const isClosed=sd&&sd.type==='closed';
-    if(isClosed) closedDays++;
-    if(!sun&&!holiday&&!sat&&!isClosed) sollArbeitstage++;
-    if(sun||holiday||isClosed) continue;
+    // Geschlossen-Tage: Mitarbeiter muss Urlaub oder ZA nehmen (nicht automatisch bezahlt!)
+    if(!sun&&!holiday&&!sat) sollArbeitstage++;
+    if(sun||holiday) continue; // Nur Sonntage und Feiertage überspringen
     const e=emp.entries[key];
     if(!e) continue;
     if(e.typ==="urlaub") urlaub++;
@@ -1266,7 +1266,7 @@ function calculateMonthSaldo(y,m){
     }
   }
   const sollMin=sollArbeitstage*tSollMin;
-  const istMin=totalMin+(urlaub+krank+closedDays)*tSollMin; // ZA zählt nicht
+  const istMin=totalMin+(urlaub+krank)*tSollMin; // Urlaub & Krank zählen, ZA & Geschlossen nicht!
   return (istMin-sollMin)/60;
 }
 
@@ -1552,8 +1552,8 @@ function renderMobile(){
     const sd=getSpecialDay(key);
     const isClosed=sd&&sd.type==='closed';
     const isInventur=sd&&sd.type==='inventur';
-    const blocked=!!(holiday||isSun(y,m,d)||isClosed); // Geschlossen blockiert
-    const noTypBtn=!!(holiday||isSun(y,m,d)||sat||isClosed); // Keine U/ZA/K-Buttons
+    const blocked=!!(holiday||isSun(y,m,d)); // Nur Sonntage & Feiertage blockiert
+    const noTypBtn=!!(holiday||isSun(y,m,d)||sat); // Geschlossen erlaubt U/ZA!
 
     const card=document.createElement("div");
     card.className="mob-card";
@@ -1589,7 +1589,13 @@ function renderMobile(){
     const {nettoEl,vonTxt,bisTxt,nettoMin}=buildRow(d,key,dayWT,isWE(y,m,d),holiday,entry,typ,blocked);
 
     if(holiday){timeDiv.textContent=holiday;timeDiv.style.color="var(--hol-t)";timeDiv.style.fontFamily="'Figtree',sans-serif";}
-    else if(isClosed){timeDiv.textContent="🔒 Geschlossen"+(sd.label?" — "+sd.label:"");timeDiv.style.color="#6B7280";timeDiv.style.fontFamily="'Figtree',sans-serif";timeDiv.style.fontWeight="700";}
+    else if(isClosed){
+      timeDiv.innerHTML=(typ==="urlaub"||typ==="zeitausgleich")
+        ? (typ==="urlaub"?"🏖 Urlaub":"🔄 Zeitausgleich")
+        : "🔒 Geschlossen"+(sd.label?" — "+sd.label:"")+" <span style='font-size:11px;color:var(--txt2);font-weight:400;'>(nur U/ZA)</span>";
+      timeDiv.style.color=(typ==="urlaub"||typ==="zeitausgleich")?(typ==="urlaub"?"var(--blue)":"var(--green)"):"#6B7280";
+      timeDiv.style.fontFamily="'Figtree',sans-serif";timeDiv.style.fontWeight="700";
+    }
     else if(isSun(y,m,d)){timeDiv.textContent="Sonntag";timeDiv.style.color="var(--sun-t)";}
     else if(sat&&!entry?.von){timeDiv.textContent="Samstag";timeDiv.style.color="var(--amber)";}
     else if(typ==="urlaub"){timeDiv.textContent="Urlaub";timeDiv.style.color="var(--blue)";timeDiv.style.fontWeight="700";}
@@ -1798,21 +1804,32 @@ function openSheet(key){
     toast("🔒 Monat ist abgeschlossen");return;
   }
   const sd=getSpecialDay(key);
-  if(sd&&sd.type==='closed'){
-    toast("🔒 Geschäft geschlossen — keine Eingabe möglich");return;
-  }
+  const isClosed=sd&&sd.type==='closed';
   sheetDay=key;
   const emp=curEmp();
   const entry=emp.entries[key]||{};
-  document.getElementById("sh-title").textContent=wtDay(y2,m2,d2)+" "+d2+"."+(m2+1)+"."+y2;
+  let titleText=wtDay(y2,m2,d2)+" "+d2+"."+(m2+1)+"."+y2;
+  if(isClosed){
+    titleText+=" 🔒 "+(sd.label||"Geschlossen");
+  }
+  document.getElementById("sh-title").textContent=titleText;
 
-  // Schicht-Buttons nur an normalen Werktagen Mo-Fr (nicht Sa/So/Feiertag)
+  // Schicht-Buttons nur an normalen Werktagen Mo-Fr (nicht Sa/So/Feiertag/Geschlossen)
   const isWeekend=isSat(y2,m2,d2)||isSun(y2,m2,d2);
   const isHol=!!FEIERTAGE[key];
-  const showShift=!isWeekend&&!isHol;
+  const showShift=!isWeekend&&!isHol&&!isClosed;
   document.getElementById("sec-shift").style.display=showShift?"":"none";
   document.getElementById("divider-shift").style.display=showShift?"":"none";
   ["tb-fr","tb-sp"].forEach(id=>document.getElementById(id).classList.remove("ta"));
+
+  // Bei Geschlossen: Arbeitszeit-Sektion ausblenden (nur U/ZA möglich)
+  if(isClosed){
+    document.querySelector("#sheet .sec:has(.time-row)").style.display="none";
+    document.querySelector("#sheet .sec:has(#pause-row)").style.display="none";
+  } else {
+    document.querySelector("#sheet .sec:has(.time-row)").style.display="";
+    document.querySelector("#sheet .sec:has(#pause-row)").style.display="";
+  }
 
   const typ=entry.typ||"normal";
 
@@ -1878,6 +1895,11 @@ function setTyp(typ){
 
 function saveEntry(){
   if(!sheetDay)return;
+
+  // Prüfen ob Tag "Geschlossen" ist
+  const sd=getSpecialDay(sheetDay);
+  const isClosed=sd&&sd.type==='closed';
+
   const emp=curEmp();
   const vh=document.getElementById("sv-h").value;
   const vm=document.getElementById("sv-m").value;
@@ -1885,6 +1907,13 @@ function saveEntry(){
   const bm=document.getElementById("sb-m").value;
   const von=vh?(vh+":"+(vm||"00")):"";
   const bis=bh?(bh+":"+(bm||"00")):"";
+
+  // Bei Geschlossen: Keine normalen Arbeitszeiten erlaubt!
+  if(isClosed&&(von||bis)){
+    toast("⚠️ An geschlossenen Tagen nur Urlaub oder Zeitausgleich möglich");
+    return;
+  }
+
   const activePause=document.querySelector("#pause-row .ppill.pa");
   const customPause=document.getElementById("inp-pause-custom").value.trim();
   const pause=customPause?customPause:(activePause?activePause.dataset.val:"30");
