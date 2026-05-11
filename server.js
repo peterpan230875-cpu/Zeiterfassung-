@@ -63,12 +63,16 @@ app.use(session({
 app.get('/test', (req, res) => res.json({ status: 'ok' }));
 
 app.get('/', (req, res) => {
-  if (req.session.userId) return res.redirect('/app');
+  if (req.session.userId) {
+    if (req.session.isSuperAdmin) return res.redirect('/super-admin');
+    return res.redirect('/app');
+  }
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
 app.get('/app', (req, res) => {
   if (!req.session.userId) return res.redirect('/');
+  if (req.session.isSuperAdmin) return res.redirect('/super-admin');
   res.sendFile(path.join(__dirname, 'public', 'app.html'));
 });
 
@@ -566,7 +570,7 @@ app.get('/super-admin-login', (req, res) => {
 });
 
 app.get('/super-admin', (req, res) => {
-  if (!req.session.userId || !req.session.isSuperAdmin) return res.redirect('/super-admin-login');
+  if (!req.session.userId || !req.session.isSuperAdmin) return res.redirect('/');
   res.sendFile(path.join(__dirname, 'public', 'super-admin.html'));
 });
 
