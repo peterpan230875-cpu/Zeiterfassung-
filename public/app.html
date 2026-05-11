@@ -1297,11 +1297,10 @@ async function doCloseMonth(){
       if(!state.ueberstundenOverride) state.ueberstundenOverride={};
       state.ueberstundenOverride[nextKey]=Math.round(endKonto*100)/100;
 
-      // Urlaub-Übertrag: aktueller Stand + diesen Monat genommene Tage
-      const urlaubCount=countMonthUrlaub(state.year,state.month);
-      const startUrlaub=(state.urlaubGenommen&&state.urlaubGenommen[curKey])||0;
+      // Urlaub-Übertrag: Berechne kumulativ bis einschließlich aktuellem Monat
+      const urlaubTotal=getCumulativeUrlaub(state.year,state.month);
       if(!state.urlaubGenommen) state.urlaubGenommen={};
-      state.urlaubGenommen[nextKey]=startUrlaub+urlaubCount;
+      state.urlaubGenommen[nextKey]=urlaubTotal;
 
       saveState(); // syncs zum Server (override ist im payload enthalten)
 
