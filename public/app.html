@@ -1375,10 +1375,13 @@ function buildRow(d,key,dayWT,weekend,holiday,entry,typ,blocked){
   const wh=parseFloat(state.wochenstunden)||38.5;
   const ts=wh/5;
   const sd=getSpecialDay(key);
+  const [ky,km]=key.split("-").map(Number);
+  const isHeiligabend=(km===12&&d===24&&!isSun(ky,km-1,d)&&!isSat(ky,km-1,d));
+  const isSilvesterWD=(km===12&&d===31&&!isSun(ky,km-1,d)&&!isSat(ky,km-1,d));
 
   // Netto berechnen
   let nettoMin=0,nettoEl="";
-  if(holiday){
+  if(holiday||isHeiligabend){
     const s=document.createElement("span");
     s.className="nbadge nb-red";s.textContent=ts.toFixed(2).replace(".",",")+" h";
     nettoEl=s.outerHTML;
@@ -1411,8 +1414,11 @@ function buildRow(d,key,dayWT,weekend,holiday,entry,typ,blocked){
   // Von/Bis Anzeige
   let vonTxt="—",bisTxt="—",pauseTxt="—",bemTxt="";
   if(holiday){vonTxt=holiday;}
+  else if(isHeiligabend){vonTxt="🎄 Heiligabend";}
   else if(sd&&sd.type==='closed'){vonTxt="Geschlossen"+(sd.label?" — "+sd.label:"");}
   else if(isSun(parseInt(key.split("-")[0]),parseInt(key.split("-")[1])-1,d)){vonTxt="Sonntag";}
+  else if(isSilvesterWD&&typ==="zeitausgleich"){vonTxt="🎆 Silvester (½ ZA · ½ frei)";}
+  else if(isSilvesterWD&&typ==="normal"){vonTxt="🎆 Silvester (½ frei · ½ ZA)";}
   else if(typ==="urlaub"){vonTxt="Urlaub";}
   else if(typ==="zeitausgleich"){vonTxt="Zeitausgleich";}
   else if(typ==="krank"){vonTxt="Krank";}
@@ -1442,12 +1448,16 @@ function renderTable(){
     const sd=getSpecialDay(key);
     const isClosed=sd&&sd.type==='closed';
     const isInventur=sd&&sd.type==='inventur';
-    const blocked=!!(holiday||isSun(y,m,d)||isClosed);
+    const isHeiligabend=(m===11&&d===24&&!isSat(y,m,d)&&!isSun(y,m,d));
+    const isSilvesterWD=(m===11&&d===31&&!isSat(y,m,d)&&!isSun(y,m,d));
+    const blocked=!!(holiday||isSun(y,m,d)||isClosed||isHeiligabend);
 
     const tr=document.createElement("tr");
     if(holiday)tr.className="r-hol";
     else if(isSun(y,m,d))tr.className="r-we";
     else if(isClosed)tr.className="r-closed";
+    else if(isHeiligabend)tr.className="r-hol"; // Heiligabend = frei wie Feiertag
+    else if(isSilvesterWD&&typ==="zeitausgleich")tr.className="r-za";
     else if(isSat(y,m,d))tr.className="r-sat";
     else if(typ==="urlaub")tr.className="r-u";
     else if(typ==="zeitausgleich")tr.className="r-za";
@@ -1503,10 +1513,14 @@ function renderTable(){
     const tdS=document.createElement("td");tdS.className="td-s";
     if(holiday){
       tdS.innerHTML=`<span class="badge b-hol">${holiday}</span>`;
+    } else if(isHeiligabend){
+      tdS.innerHTML=`<span class="badge b-hol">🎄 Frei (Firmenregel)</span>`;
     } else if(isClosed){
       tdS.innerHTML=`<span class="badge" style="background:#E5E7EB;color:#374151;border:1px solid #D1D5DB;">🔒 Geschlossen</span>`;
     } else if(isSun(y,m,d)){
       tdS.innerHTML=`<span class="badge b-we">Sonntag</span>`;
+    } else if(isSilvesterWD){
+      tdS.innerHTML=`<span class="badge" style="background:#F0FDF4;color:#16A34A;border:1px solid #16A34A;">🎆 ½ ZA · ½ frei</span>`;
     } else if(isSat(y,m,d)){
       tdS.innerHTML=`<span class="badge" style="background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-m);">Samstag</span>`;
     } else {
@@ -1661,7 +1675,7 @@ function renderStats(){
   const emp=curEmp();
   const y=state.year,m=state.month;
   const days=daysIn(y,m);
-  let work=0,urlaub=0,za=0,krank=0,nettoMinGesamt=0,sollArbeitstage=0,closedDays=0;
+  let work=0,urlaub=0,za=0,zaHalf=0,krank=0,nettoMinGesamt=0,sollArbeitstage=0,closedDays=0;
   const wh=parseFloat(state.wochenstunden)||38.5;
   const tSoll=wh/5;
   const tSollMin=tSoll*60;
@@ -1673,13 +1687,23 @@ function renderStats(){
     const sat=isSat(y,m,d);
     const sd=getSpecialDay(key);
     const isClosed=sd&&sd.type==='closed';
+    // Feste Firmenregeln
+    const isHb=m===11&&d===24&&!sun&&!sat;
+    const isSv=m===11&&d===31&&!sun&&!sat;
     if(isClosed) closedDays++;
-    if(!sun&&!holiday&&!sat&&!isClosed)sollArbeitstage++;
-    if(sun||holiday||isClosed)continue;
+    if(isHb&&!holiday) closedDays++; // Heiligabend: volles Tagessoll gratis
+    if(!sun&&!holiday&&!sat&&!isClosed&&!isHb){
+      if(isSv) sollArbeitstage+=0.5; // Silvester: nur halber Tag Pflicht
+      else sollArbeitstage++;
+    }
+    if(sun||holiday||isClosed||isHb)continue;
     const e=emp.entries[key];
     if(!e)continue;
     if(e.typ==="urlaub")urlaub++;
-    else if(e.typ==="zeitausgleich")za++;
+    else if(e.typ==="zeitausgleich"){
+      if(isSv) zaHalf++; // Silvester-ZA zählt nur als halber Tag
+      else za++;
+    }
     else if(e.typ==="krank")krank++;
     else if(e.von&&e.bis){
       work++;
@@ -1692,7 +1716,7 @@ function renderStats(){
   }
 
   const sollMin=sollArbeitstage*tSollMin;
-  // Geschlossene Tage zählen wie Feiertage (bezahlt, kein Soll)
+  // Geschlossene Tage (inkl. Heiligabend) zählen wie Feiertage (bezahlt, kein Soll)
   const istMin=nettoMinGesamt+(urlaub+krank+closedDays)*tSollMin; // ZA zählt nicht
   const saldoMin=istMin-sollMin;
   const saldoH=saldoMin/60;
@@ -1727,10 +1751,11 @@ function renderStats(){
        <span style="color:var(--green);">${urlaubRest}</span>
      </span>`;
 
-  // Zeitausgleich als negative Stunden (rote Schrift wenn genommen)
+  // Zeitausgleich als negative Stunden (Silvester-ZA zählt nur als halber Tag)
+  const zaMinTotal=(za+zaHalf*0.5)*tSollMin;
   const zaEl=document.getElementById("st-za");
-  if(za>0){
-    zaEl.textContent="-"+(zaMin/60).toFixed(2).replace(".",",")+" h";
+  if(za>0||zaHalf>0){
+    zaEl.textContent="-"+(zaMinTotal/60).toFixed(2).replace(".",",")+" h";
     zaEl.style.color="var(--red)";
   } else {
     zaEl.textContent="0,00 h";
@@ -2452,7 +2477,7 @@ function buildPrintHTML(){
   const emp=curEmp();const y=state.year,m=state.month;const days=daysIn(y,m);
   const wh=parseFloat(state.wochenstunden)||38.5;const ts=wh/5;
   const tLabels={urlaub:"Urlaub",zeitausgleich:"Zeitausgleich",krank:"Krank"};
-  let work=0,urlaub=0,za=0,krank=0,totalMin=0;
+  let work=0,urlaub=0,za=0,zaHalf=0,krank=0,totalMin=0;
   let rows="";
 
   for(let d=1;d<=days;d++){
@@ -2462,10 +2487,12 @@ function buildPrintHTML(){
     const sd=getSpecialDay(key);
     const isClosed=sd&&sd.type==='closed';
     const isInventur=sd&&sd.type==='inventur';
+    const isHeiligabend=(m===11&&d===24&&!sun&&!sat);
+    const isSilvesterWD=(m===11&&d===31&&!sun&&!sat);
 
     // ── Farben exakt wie in der App ──────────────────────────────────────────
     let bg="", vonColor="", numColor="#111", accentBorder="";
-    if(holiday){
+    if(holiday||isHeiligabend){
       bg="background:#FEE2E2;";
       vonColor="color:#991B1B;font-weight:700;";
       numColor="#991B1B";
@@ -2502,8 +2529,24 @@ function buildPrintHTML(){
 
     let von="",bis="",pause="",bem="",netto="",nettoColor="#2563EB";
     if(holiday){von=holiday;netto=ts.toFixed(2).replace(".",",");}
+    else if(isHeiligabend){von="🎄 Heiligabend";netto=ts.toFixed(2).replace(".",",");}
     else if(isClosed){von="🔒 Geschlossen"+(sd.label?" — "+sd.label:"");netto=ts.toFixed(2).replace(".",",");nettoColor="#374151";}
     else if(sun){von="Sonntag";}
+    else if(isSilvesterWD){
+      if(typ==="zeitausgleich"){von="🎆 Silvester (½ ZA · ½ frei)";zaHalf++;nettoColor="#16A34A";}
+      else if(entry&&entry.von){
+        von=entry.von||"";bis=entry.bis||"";
+        pause=entry.pause?(entry.pause+"'"):"";
+        bem=entry.bemerkung||"";
+        if(entry.von&&entry.bis){
+          const [vh,vm2]=entry.von.split(":").map(Number);
+          const [bh,bm2]=entry.bis.split(":").map(Number);
+          const total=(bh*60+bm2)-(vh*60+vm2);const p=parseInt(entry.pause||"0")||0;
+          const net=Math.max(0,total-p);
+          if(net>0){work++;totalMin+=net;netto=(net/60).toFixed(2).replace(".",",");}
+        }
+      } else {von="🎆 Silvester (½ frei · ½ ZA)";}
+    }
     else if(sat){
       // Samstag: wenn Eintrag vorhanden, Zeiten zeigen — sonst nur "Samstag"
       if(entry&&entry.von){
@@ -2554,15 +2597,22 @@ function buildPrintHTML(){
 
   const totalH=totalMin>0?`${Math.floor(totalMin/60)}h ${Math.round(totalMin%60)}m`:"";
 
-  // Soll-Arbeitstage: alle Mo-Fr die kein Feiertag sind
-  let sollArbeitstage=0;
+  // Soll-Arbeitstage: alle Mo-Fr die kein Feiertag/Firmenregel-Freitag sind
+  let sollArbeitstage=0,closedPrint=0;
   for(let d=1;d<=days;d++){
     const key=dk(y,m,d);
     const sd=getSpecialDay(key);
     const isClosed=sd&&sd.type==='closed';
-    if(!isSun(y,m,d)&&!isSat(y,m,d)&&!FEIERTAGE[key]&&!isClosed) sollArbeitstage++;
+    const isHb=m===11&&d===24&&!isSun(y,m,d)&&!isSat(y,m,d);
+    const isSv=m===11&&d===31&&!isSun(y,m,d)&&!isSat(y,m,d);
+    if(isClosed) closedPrint++;
+    if(isHb&&!FEIERTAGE[key]) closedPrint++;
+    if(!isSun(y,m,d)&&!isSat(y,m,d)&&!FEIERTAGE[key]&&!isClosed&&!isHb){
+      if(isSv) sollArbeitstage+=0.5;
+      else sollArbeitstage++;
+    }
   }
-  const istMin=totalMin+(urlaub+krank)*ts*60; // ZA zählt nicht
+  const istMin=totalMin+(urlaub+krank+closedPrint)*ts*60; // ZA zählt nicht; Heiligabend + Geschlossen bezahlt
   const sollMin=sollArbeitstage*ts*60;
   const saldo=istMin-sollMin;
   const saldoSign=saldo>0?"+":saldo<0?"-":"±";

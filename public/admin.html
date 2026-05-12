@@ -481,7 +481,7 @@ function renderMonth(){
   const ts=wh/5;
   const days=daysIn(viewYear,viewMonth);
   const tLabels={urlaub:"Urlaub",zeitausgleich:"Zeitausgleich",krank:"Krank"};
-  let work=0,urlaub=0,za=0,krank=0,totalMin=0;
+  let work=0,urlaub=0,za=0,zaHalf=0,krank=0,totalMin=0;
   const entriesByKey={};
   currentEntries.forEach(e=>{entriesByKey[e.date]=e;});
 
@@ -494,6 +494,9 @@ function renderMonth(){
     const sat=isSat(viewYear,viewMonth,d);
     const e=entriesByKey[key];
     const typ=e?e.type||'normal':'normal';
+    // Feste Firmenregeln (unabhängig vom Admin)
+    const isHeiligabend=(viewMonth===11&&d===24&&!sun&&!sat);
+    const isSilvesterWD=(viewMonth===11&&d===31&&!sun&&!sat);
 
     const sd=getSpecialDay(key);
     let cls='', vonTxt='', bisTxt='', pauseTxt='', bemTxt='', netto='';
@@ -514,6 +517,32 @@ function renderMonth(){
         }
       } else {
         vonTxt='Samstag';
+      }
+    }
+    else if(isHeiligabend){
+      // 24.12. auf Werktag = kostenloser freier Tag (Firmenregel)
+      cls='r-hol';
+      vonTxt='🎄 Heiligabend';
+      netto=ts.toFixed(2).replace('.',',');
+    }
+    else if(isSilvesterWD){
+      // 31.12. auf Werktag = ½ Tag ZA + ½ Tag gratis (Firmenregel)
+      if(typ==='zeitausgleich'){
+        cls='r-za';
+        vonTxt='<span style="color:var(--za-t);font-weight:700;">🎆 Silvester</span> <span style="font-size:11px;color:var(--txt2);">(½ ZA · ½ frei)</span>';
+        zaHalf++;
+      } else if(e&&e.von){
+        vonTxt=e.von||'';bisTxt=e.bis||'';
+        pauseTxt=e.pause?(e.pause+"'"):'';bemTxt=e.bemerkung||'';
+        if(e.von&&e.bis){
+          const [vh,vm]=e.von.split(':').map(Number);
+          const [bh,bm]=e.bis.split(':').map(Number);
+          const total=(bh*60+bm)-(vh*60+vm);const p=parseInt(e.pause||0)||0;
+          const net=Math.max(0,total-p);
+          if(net>0){work++;totalMin+=net;netto=(net/60).toFixed(2).replace('.',',');}
+        }
+      } else {
+        vonTxt='<span style="color:var(--sat-t);font-weight:700;">🎆 Silvester</span> <span style="font-size:11px;color:var(--txt2);">(½ frei · ½ ZA eintragen)</span>';
       }
     }
     else if(sd&&sd.type==='closed'){
@@ -556,10 +585,16 @@ function renderMonth(){
     const key=dk(viewYear,viewMonth,d);
     const sd2=getSpecialDay(key);
     const isClosed=sd2&&sd2.type==='closed';
+    const isHb=viewMonth===11&&d===24&&!isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d);
+    const isSv=viewMonth===11&&d===31&&!isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d);
     if(isClosed) closedDays++;
-    if(!isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d)&&!FEIERTAGE[key]&&!isClosed) sollArbeitstage++;
+    if(isHb&&!FEIERTAGE[key]) closedDays++; // Heiligabend: volles Tagessoll gratis
+    if(!isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d)&&!FEIERTAGE[key]&&!isClosed&&!isHb){
+      if(isSv) sollArbeitstage+=0.5; // Silvester: nur halber Tag Pflicht
+      else sollArbeitstage++;
+    }
   }
-  // Geschlossene Tage zählen als bezahlt (wie Feiertage)
+  // Geschlossene Tage (inkl. Heiligabend) zählen als bezahlt
   const istMin=totalMin+(urlaub+krank+closedDays)*ts*60;
   const sollMin=sollArbeitstage*ts*60;
   const saldo=istMin-sollMin;
@@ -568,7 +603,7 @@ function renderMonth(){
   const saldoColor=saldo>0?'#16A34A':saldo<0?'#DC2626':'#888';
 
   // Zeitkonto = kumulativ vom letzten Anchor (mit Saldo-Addition der Zwischenmonate)
-  const zaMin=za*ts*60;
+  const zaMin=(za+zaHalf*0.5)*ts*60; // Silvester-ZA zählt nur als halber Tag
   const empArr=currentSettings?.employees?JSON.parse(currentSettings.employees||'[]'):[];
   const overrideMap=(empArr[0]&&empArr[0].ueberstundenOverride)||{};
   const ustK=viewYear+"-"+String(viewMonth+1).padStart(2,"0");
@@ -620,8 +655,8 @@ function renderMonth(){
   </span>`;
 
   // Zeitausgleich als negative Stunden (rote Schrift wenn genommen)
-  const zaStr=za>0?`-${(zaMin/60).toFixed(2).replace('.',',')} h`:'0,00 h';
-  const zaColor=za>0?'var(--k-t)':'var(--txt2)';
+  const zaStr=(za+zaHalf)>0?`-${(zaMin/60).toFixed(2).replace('.',',')} h`:'0,00 h';
+  const zaColor=(za+zaHalf)>0?'var(--k-t)':'var(--txt2)';
 
   document.getElementById('stats').innerHTML=`
     <div class="stat"><div class="lbl">Zeitkonto</div><div class="val" style="color:${uColor};">${uStr}</div></div>
@@ -629,7 +664,7 @@ function renderMonth(){
     <div class="stat"><div class="lbl">Zeitausgleich</div><div class="val" style="color:${zaColor};">${zaStr}</div></div>
     <div class="stat"><div class="lbl">Krank</div><div class="val red">${krank}</div></div>
     <div class="stat"><div class="lbl">Gesamt</div><div class="val blue">${totalMin>0?Math.floor(totalMin/60)+'h '+Math.round(totalMin%60)+'m':'—'}</div></div>
-    <div class="stat"><div class="lbl">Saldo</div><div class="val" style="color:${saldoColor};">${(work+urlaub+krank+za)?saldoStr:'—'}</div></div>
+    <div class="stat"><div class="lbl">Saldo</div><div class="val" style="color:${saldoColor};">${(work+urlaub+krank+za+zaHalf)?saldoStr:'—'}</div></div>
   `;
 
   document.getElementById('entries-area').innerHTML=`
