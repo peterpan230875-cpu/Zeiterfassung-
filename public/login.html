@@ -282,7 +282,9 @@
 
         if (res.ok) {
           showMessage('Login erfolgreich! Wird weitergeleitet...', 'success');
-          const redirectUrl = data.isSuperAdmin ? '/super-admin' : '/app';
+          const redirectUrl = data.isSuperAdmin ? '/super-admin'
+                            : data.isAdmin ? '/admin'
+                            : '/app';
           setTimeout(() => window.location.href = redirectUrl, 1500);
         } else {
           showMessage(data.error || 'Login fehlgeschlagen', 'error');

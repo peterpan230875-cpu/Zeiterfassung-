@@ -70,6 +70,7 @@ const noCache = (req, res, next) => {
 app.get('/', (req, res) => {
   if (req.session.userId) {
     if (req.session.isSuperAdmin) return res.redirect('/super-admin');
+    if (req.session.isAdmin) return res.redirect('/admin');
     return res.redirect('/app');
   }
   res.set('Cache-Control', 'no-store');
@@ -79,6 +80,7 @@ app.get('/', (req, res) => {
 app.get('/app', noCache, (req, res) => {
   if (!req.session.userId) return res.redirect('/');
   if (req.session.isSuperAdmin) return res.redirect('/super-admin');
+  if (req.session.isAdmin) return res.redirect('/admin');
   res.sendFile(path.join(__dirname, 'public', 'app.html'));
 });
 
@@ -148,6 +150,13 @@ app.post('/api/login', async (req, res) => {
     if (user.isSuperAdmin) {
       req.session.isSuperAdmin = true;
       return res.json({ success: true, redirect: '/super-admin', isSuperAdmin: true });
+    }
+
+    // Admin automatisch erkennen — Admins haben KEINE Zeiterfassung,
+    // werden zur Admin-Oberflaeche weitergeleitet
+    if (user.isAdmin) {
+      req.session.isAdmin = true;
+      return res.json({ success: true, redirect: '/admin', isAdmin: true });
     }
 
     res.json({ success: true, user: { username, name: user.name } });
