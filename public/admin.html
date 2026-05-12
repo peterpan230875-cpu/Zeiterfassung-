@@ -18,6 +18,7 @@
   --hol-bg:#F3E8FF;--hol-t:#6B21A8;
   --sun-bg:#FFF7ED;--sun-t:#9A3412;
   --sat-bg:#FEF3C7;--sat-t:#B45309;
+  --wt-wd:#16A34A;--wt-we:#DC2626;
   --u-bg:#EFF6FF; --u-t:#2563EB;
   --za-bg:#F0FDF4;--za-t:#14532D;
   --k-bg:#FEF2F2; --k-t:#991B1B;
@@ -34,6 +35,7 @@ body.dark{
   --hol-bg:#2E1065;--hol-t:#D8B4FE;
   --sun-bg:#1F1A0C;--sun-t:#FBD38D;
   --sat-bg:#2A1E05;--sat-t:#FCD34D;
+  --wt-wd:#4ADE80;--wt-we:#F87171;
   --u-bg:#1A2640; --u-t:#60A5FA;
   --za-bg:#0C2318;--za-t:#34D399;
   --k-bg:#2A1010; --k-t:#F87171;
@@ -128,6 +130,9 @@ td{padding:7px 10px;border-bottom:1px solid var(--brd);color:var(--txt);}
 tr.r-hol{background:var(--hol-bg);}tr.r-hol td{color:var(--hol-t);}
 tr.r-we{background:var(--sun-bg);} tr.r-we td{color:var(--sun-t);}
 tr.r-sat{background:var(--sat-bg);}tr.r-sat td{color:var(--sat-t);}
+.td-wt{color:var(--wt-wd);font-weight:600;}
+tr.r-we .td-wt,tr.r-sat .td-wt{color:var(--wt-we)!important;}
+tr.r-hol .td-wt{color:var(--hol-t)!important;}
 tr.r-u{background:var(--u-bg);}
 tr.r-za{background:var(--za-bg);}
 tr.r-k{background:var(--k-bg);}
@@ -569,9 +574,10 @@ function renderMonth(){
       ? ` <span class="badge-typ b-inv" title="${sd.label||''}">📦 Inventur</span>` : '';
     const isMonday=new Date(viewYear,viewMonth,d).getDay()===1;
     const kwHtml=isMonday?`<span class="kw-badge">KW ${getKW(viewYear,viewMonth,d)}</span>`:'';
+    const wtColor=cls==='r-hol'?'#6B21A8':(cls==='r-we'||cls==='r-sat')?'#DC2626':'#16A34A';
     rows+=`<tr class="${cls}">
       <td class="mono"><strong>${d}</strong></td>
-      <td>${dayWT}${kwHtml}${invBadge}</td>
+      <td class="td-wt" style="color:${wtColor}">${dayWT}${kwHtml}${invBadge}</td>
       <td>${vonTxt}</td>
       <td class="mono">${bisTxt}</td>
       <td class="mono" style="color:var(--txt);font-weight:700;white-space:nowrap;">${pauseTxt}</td>

@@ -62,32 +62,38 @@ app.use(session({
 // ── SEITEN ────────────────────────────────────────────────────────────────────
 app.get('/test', (req, res) => res.json({ status: 'ok' }));
 
+const noCache = (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+};
+
 app.get('/', (req, res) => {
   if (req.session.userId) {
     if (req.session.isSuperAdmin) return res.redirect('/super-admin');
     return res.redirect('/app');
   }
+  res.set('Cache-Control', 'no-store');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-app.get('/app', (req, res) => {
+app.get('/app', noCache, (req, res) => {
   if (!req.session.userId) return res.redirect('/');
   if (req.session.isSuperAdmin) return res.redirect('/super-admin');
   res.sendFile(path.join(__dirname, 'public', 'app.html'));
 });
 
 // ── ADMIN-SEITEN ─────────────────────────────────────────────────────────────
-app.get('/admin-login', (req, res) => {
+app.get('/admin-login', noCache, (req, res) => {
   if (req.session.isAdmin) return res.redirect('/admin');
   res.sendFile(path.join(__dirname, 'public', 'admin-login.html'));
 });
 
-app.get('/admin', (req, res) => {
+app.get('/admin', noCache, (req, res) => {
   if (!req.session.userId || !req.session.isAdmin) return res.redirect('/admin-login');
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-app.get('/admin-register', (req, res) => {
+app.get('/admin-register', noCache, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin-register.html'));
 });
 
@@ -564,12 +570,12 @@ app.delete('/api/admin/month-lock/:userId/:year/:month', async (req, res) => {
 });
 
 // ── SUPER-ADMIN SEITEN & API ─────────────────────────────────────────────────
-app.get('/super-admin-login', (req, res) => {
+app.get('/super-admin-login', noCache, (req, res) => {
   if (req.session.isSuperAdmin) return res.redirect('/super-admin');
   res.sendFile(path.join(__dirname, 'public', 'super-admin-login.html'));
 });
 
-app.get('/super-admin', (req, res) => {
+app.get('/super-admin', noCache, (req, res) => {
   if (!req.session.userId || !req.session.isSuperAdmin) return res.redirect('/');
   res.sendFile(path.join(__dirname, 'public', 'super-admin.html'));
 });

@@ -19,6 +19,8 @@
   --amber:    #D97706; --amber-bg:#FEF3C7; --amber-m:#FDE68A;
   --hol-bg:   #F3E8FF; --hol-t:#6B21A8;
   --sun-bg:   #FFF7ED; --sun-t:#9A3412;
+  --wt-wd:    #16A34A;
+  --wt-we:    #DC2626;
   --r:12px; --rs:8px;
   --sh-sm:0 1px 3px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.04);
   --sh:    0 2px 8px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.06);
@@ -35,6 +37,8 @@ body.dark {
   --amber:#FCD34D; --amber-bg:#2A1E05; --amber-m:#4A360A;
   --hol-bg:#2E1065; --hol-t:#D8B4FE;
   --sun-bg:#1F1A0C; --sun-t:#FBD38D;
+  --wt-wd:   #4ADE80;
+  --wt-we:   #F87171;
 }
 
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -155,7 +159,9 @@ tbody tr.click:hover{background:var(--sur2);cursor:pointer;}
 tbody td{padding:9px 12px;font-size:13px;vertical-align:middle;}
 
 .td-d{font-family:'JetBrains Mono',monospace;font-weight:600;width:42px;font-size:14px;padding-right:10px;}
-.td-w{font-size:11px;color:var(--muted);width:88px;font-weight:700;white-space:nowrap;padding-right:14px;}
+.td-w{font-size:11px;color:var(--wt-wd);width:88px;font-weight:700;white-space:nowrap;padding-right:14px;}
+tr.r-we .td-w,tr.r-sat .td-w{color:var(--wt-we)!important;}
+tr.r-hol .td-w{color:var(--hol-t)!important;}
 .td-t{font-family:'JetBrains Mono',monospace;font-size:13px;width:62px;}
 .td-p{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--txt);font-weight:700;width:65px;white-space:nowrap;}
 .td-b{font-size:12px;color:var(--txt2);}
@@ -213,12 +219,14 @@ tr.r-k{background:var(--red-bg);}
 .mob-card.mc-hol{background:var(--hol-bg)!important;}
 .mob-card.mc-hol .mc-day,.mob-card.mc-hol .mc-wt{color:var(--hol-t);}
 .mob-card.mc-we{background:var(--sun-bg)!important;}
-.mob-card.mc-we .mc-day,.mob-card.mc-we .mc-wt{color:var(--sun-t);}
+.mob-card.mc-we .mc-day{color:var(--sun-t);}
+.mob-card.mc-we .mc-wt{color:var(--wt-we);}
+.mob-card.mc-sat .mc-wt{color:var(--wt-we);}
 .mob-card.mc-u{background:var(--blue-bg);}
 .mob-card.mc-za{background:var(--green-bg);}
 .mob-card.mc-k{background:var(--red-bg);}
 .mc-day{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;width:28px;flex-shrink:0;}
-.mc-wt{font-size:11px;font-weight:700;color:var(--muted);width:24px;flex-shrink:0;}
+.mc-wt{font-size:11px;font-weight:700;color:var(--wt-wd);width:24px;flex-shrink:0;}
 .kw-badge{display:inline-block;font-size:10px;font-weight:700;color:var(--blue);
   letter-spacing:.4px;margin-left:8px;background:var(--blue-bg);border:1px solid var(--blue-m);
   padding:1px 7px;border-radius:8px;line-height:1.4;vertical-align:middle;white-space:nowrap;}
@@ -1470,6 +1478,9 @@ function renderTable(){
     // Zellen aufbauen
     const tdD=document.createElement("td");tdD.className="td-d";tdD.textContent=d;tr.appendChild(tdD);
     const tdW=document.createElement("td");tdW.className="td-w";tdW.textContent=dayWT;
+    if(holiday||isHeiligabend)tdW.style.color="#6B21A8";
+    else if(isSun(y,m,d)||isSat(y,m,d))tdW.style.color="#DC2626";
+    else tdW.style.color="#16A34A";
     if(new Date(y,m,d).getDay()===1){
       const kwSpan=document.createElement("span");kwSpan.className="kw-badge";
       kwSpan.textContent="KW "+getKW(y,m,d);
@@ -1573,6 +1584,7 @@ function renderMobile(){
     card.className="mob-card";
     if(holiday)card.classList.add("mc-hol");
     else if(isSun(y,m,d))card.classList.add("mc-we");
+    else if(sat)card.classList.add("mc-sat");
     else if(isClosed)card.classList.add("mc-closed");
     else if(typ==="urlaub")card.classList.add("mc-u");
     else if(typ==="zeitausgleich")card.classList.add("mc-za");
@@ -1582,6 +1594,9 @@ function renderMobile(){
     // Day + WT (+ KW am Montag)
     const dayDiv=document.createElement("div");dayDiv.className="mc-day";dayDiv.textContent=d;
     const wtDiv=document.createElement("div");wtDiv.className="mc-wt";wtDiv.textContent=dayWT;
+    if(holiday)wtDiv.style.color="#6B21A8";
+    else if(isSun(y,m,d)||sat)wtDiv.style.color="#DC2626";
+    else wtDiv.style.color="#16A34A";
     if(new Date(y,m,d).getDay()===1){
       const kw=document.createElement("span");kw.className="mc-kw";
       kw.textContent="KW"+getKW(y,m,d);
