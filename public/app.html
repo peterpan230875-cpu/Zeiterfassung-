@@ -1414,11 +1414,11 @@ function buildRow(d,key,dayWT,weekend,holiday,entry,typ,blocked){
   // Von/Bis Anzeige
   let vonTxt="—",bisTxt="—",pauseTxt="—",bemTxt="";
   if(holiday){vonTxt=holiday;}
-  else if(isHeiligabend){vonTxt="🎄 Heiligabend";}
+  else if(isHeiligabend){vonTxt="Heiligabend";}
   else if(sd&&sd.type==='closed'){vonTxt="Geschlossen"+(sd.label?" — "+sd.label:"");}
   else if(isSun(parseInt(key.split("-")[0]),parseInt(key.split("-")[1])-1,d)){vonTxt="Sonntag";}
-  else if(isSilvesterWD&&typ==="zeitausgleich"){vonTxt="🎆 Silvester (½ ZA · ½ frei)";}
-  else if(isSilvesterWD&&typ==="normal"){vonTxt="🎆 Silvester (½ frei · ½ ZA)";}
+  else if(isSilvesterWD&&typ==="zeitausgleich"){vonTxt="Silvester (½ ZA · ½ frei)";}
+  else if(isSilvesterWD&&typ==="normal"){vonTxt="Silvester (½ frei · ½ ZA)";}
   else if(typ==="urlaub"){vonTxt="Urlaub";}
   else if(typ==="zeitausgleich"){vonTxt="Zeitausgleich";}
   else if(typ==="krank"){vonTxt="Krank";}
@@ -1514,13 +1514,13 @@ function renderTable(){
     if(holiday){
       tdS.innerHTML=`<span class="badge b-hol">${holiday}</span>`;
     } else if(isHeiligabend){
-      tdS.innerHTML=`<span class="badge b-hol">🎄 Frei (Firmenregel)</span>`;
+      tdS.innerHTML=`<span class="badge b-hol">Frei (Firmenregel)</span>`;
     } else if(isClosed){
       tdS.innerHTML=`<span class="badge" style="background:#E5E7EB;color:#374151;border:1px solid #D1D5DB;">🔒 Geschlossen</span>`;
     } else if(isSun(y,m,d)){
       tdS.innerHTML=`<span class="badge b-we">Sonntag</span>`;
     } else if(isSilvesterWD){
-      tdS.innerHTML=`<span class="badge" style="background:#F0FDF4;color:#16A34A;border:1px solid #16A34A;">🎆 ½ ZA · ½ frei</span>`;
+      tdS.innerHTML=`<span class="badge" style="background:#F0FDF4;color:#16A34A;border:1px solid #16A34A;">½ ZA · ½ frei</span>`;
     } else if(isSat(y,m,d)){
       tdS.innerHTML=`<span class="badge" style="background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-m);">Samstag</span>`;
     } else {
@@ -2529,11 +2529,11 @@ function buildPrintHTML(){
 
     let von="",bis="",pause="",bem="",netto="",nettoColor="#2563EB";
     if(holiday){von=holiday;netto=ts.toFixed(2).replace(".",",");}
-    else if(isHeiligabend){von="🎄 Heiligabend";netto=ts.toFixed(2).replace(".",",");}
+    else if(isHeiligabend){von="Heiligabend";netto=ts.toFixed(2).replace(".",",");}
     else if(isClosed){von="🔒 Geschlossen"+(sd.label?" — "+sd.label:"");netto=ts.toFixed(2).replace(".",",");nettoColor="#374151";}
     else if(sun){von="Sonntag";}
     else if(isSilvesterWD){
-      if(typ==="zeitausgleich"){von="🎆 Silvester (½ ZA · ½ frei)";zaHalf++;nettoColor="#16A34A";}
+      if(typ==="zeitausgleich"){von="Silvester (½ ZA · ½ frei)";zaHalf++;nettoColor="#16A34A";}
       else if(entry&&entry.von){
         von=entry.von||"";bis=entry.bis||"";
         pause=entry.pause?(entry.pause+"'"):"";
@@ -2545,7 +2545,7 @@ function buildPrintHTML(){
           const net=Math.max(0,total-p);
           if(net>0){work++;totalMin+=net;netto=(net/60).toFixed(2).replace(".",",");}
         }
-      } else {von="🎆 Silvester (½ frei · ½ ZA)";}
+      } else {von="Silvester (½ frei · ½ ZA)";}
     }
     else if(sat){
       // Samstag: wenn Eintrag vorhanden, Zeiten zeigen — sonst nur "Samstag"

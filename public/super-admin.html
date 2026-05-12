@@ -403,14 +403,14 @@ function renderMonth(){
     else if(isHeiligabend){
       // 24.12. auf Werktag = kostenloser freier Tag (Firmenregel)
       cls='r-hol';
-      vonTxt='🎄 Heiligabend';
+      vonTxt='Heiligabend';
       netto=ts.toFixed(2).replace('.',',');
     }
     else if(isSilvesterWD){
       // 31.12. auf Werktag = ½ Tag ZA + ½ Tag gratis (Firmenregel)
       if(typ==='zeitausgleich'){
         cls='r-za';
-        vonTxt='<span style="color:var(--za-t);font-weight:700;">🎆 Silvester</span> <span style="font-size:11px;color:var(--txt2);">(½ ZA · ½ frei)</span>';
+        vonTxt='<span style="color:var(--za-t);font-weight:700;">Silvester</span> <span style="font-size:11px;color:var(--txt2);">(½ ZA · ½ frei)</span>';
         zaHalf++;
       } else if(e&&e.von){
         vonTxt=e.von||'';bisTxt=e.bis||'';
@@ -423,7 +423,7 @@ function renderMonth(){
           if(net>0){work++;totalMin+=net;netto=(net/60).toFixed(2).replace('.',',');}
         }
       } else {
-        vonTxt='<span style="color:var(--sat-t);font-weight:700;">🎆 Silvester</span> <span style="font-size:11px;color:var(--txt2);">(½ frei · ½ ZA eintragen)</span>';
+        vonTxt='<span style="color:var(--sat-t);font-weight:700;">Silvester</span> <span style="font-size:11px;color:var(--txt2);">(½ frei · ½ ZA eintragen)</span>';
       }
     }
     else if(sd&&sd.type==='closed'){
