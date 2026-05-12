@@ -196,15 +196,19 @@ app.post('/api/entry', async (req, res) => {
     }
 
     // Prüfe ob der Tag in einer Elternzeit liegt
-    const inLeave = await prisma.parentalLeave.findFirst({
-      where: {
-        userId: req.session.userId,
-        startDate: { lte: date },
-        endDate:   { gte: date }
+    try {
+      const inLeave = await prisma.parentalLeave.findFirst({
+        where: {
+          userId: req.session.userId,
+          startDate: { lte: date },
+          endDate:   { gte: date }
+        }
+      });
+      if (inLeave) {
+        return res.status(403).json({ error: 'Elternzeit — in diesem Zeitraum sind keine Einträge möglich' });
       }
-    });
-    if (inLeave) {
-      return res.status(403).json({ error: 'Elternzeit — in diesem Zeitraum sind keine Einträge möglich' });
+    } catch (e) {
+      // Tabelle existiert noch nicht — Eintrag erlauben (Safety-Net laeuft beim naechsten Aufruf)
     }
 
     const pauseInt = parseInt(pause) || 0;
@@ -390,9 +394,39 @@ app.delete('/api/admin/special-day/:date', async (req, res) => {
 });
 
 // ── ELTERNZEIT ────────────────────────────────────────────────────────────────
+// Safety-Net: Tabelle anlegen falls noch nicht vorhanden (z.B. wenn Vercel
+// das build/postinstall-Script nicht ausgefuehrt hat).
+let parentalLeaveTableEnsured = false;
+async function ensureParentalLeaveTable() {
+  if (parentalLeaveTableEnsured) return;
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "ParentalLeave" (
+        "id" TEXT PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "startDate" TEXT NOT NULL,
+        "endDate" TEXT NOT NULL,
+        "note" TEXT NOT NULL DEFAULT '',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "ParentalLeave_userId_fkey" FOREIGN KEY ("userId")
+          REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE
+      )
+    `);
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "ParentalLeave_userId_idx" ON "ParentalLeave"("userId")`
+    );
+    parentalLeaveTableEnsured = true;
+    console.log('✓ ParentalLeave Tabelle vorhanden / angelegt');
+  } catch (err) {
+    console.error('ensureParentalLeaveTable error:', err);
+  }
+}
+
 // Mitarbeiter ruft eigene Elternzeiten ab (zum Sperren im Kalender)
 app.get('/api/parental-leave', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
+  await ensureParentalLeaveTable();
   try {
     const leaves = await prisma.parentalLeave.findMany({
       where: { userId: req.session.userId },
@@ -401,13 +435,14 @@ app.get('/api/parental-leave', async (req, res) => {
     res.json({ leaves });
   } catch (err) {
     console.error('parental-leave GET error:', err);
-    res.status(500).json({ error: 'Fehler beim Laden' });
+    res.status(500).json({ error: 'Fehler beim Laden: '+(err.message||err) });
   }
 });
 
 // Admin: alle Elternzeiten mit Mitarbeiter-Info
 app.get('/api/admin/parental-leave', async (req, res) => {
   if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  await ensureParentalLeaveTable();
   try {
     const leaves = await prisma.parentalLeave.findMany({
       include: { user: { select: { id: true, name: true, username: true } } },
@@ -416,13 +451,14 @@ app.get('/api/admin/parental-leave', async (req, res) => {
     res.json({ leaves });
   } catch (err) {
     console.error('admin parental-leave GET error:', err);
-    res.status(500).json({ error: 'Fehler beim Laden' });
+    res.status(500).json({ error: 'Fehler beim Laden: '+(err.message||err) });
   }
 });
 
 // Admin: Elternzeit anlegen
 app.post('/api/admin/parental-leave', async (req, res) => {
   if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  await ensureParentalLeaveTable();
   try {
     const { userId, startDate, endDate, note } = req.body;
     if (!userId || !startDate || !endDate) {
@@ -437,13 +473,14 @@ app.post('/api/admin/parental-leave', async (req, res) => {
     res.json({ success: true, leave });
   } catch (err) {
     console.error('admin parental-leave POST error:', err);
-    res.status(500).json({ error: 'Fehler beim Speichern' });
+    res.status(500).json({ error: 'Fehler beim Speichern: '+(err.message||err) });
   }
 });
 
 // Admin: Elternzeit bearbeiten
 app.put('/api/admin/parental-leave/:id', async (req, res) => {
   if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  await ensureParentalLeaveTable();
   try {
     const { startDate, endDate, note } = req.body;
     if (!startDate || !endDate) {
@@ -459,19 +496,20 @@ app.put('/api/admin/parental-leave/:id', async (req, res) => {
     res.json({ success: true, leave });
   } catch (err) {
     console.error('admin parental-leave PUT error:', err);
-    res.status(500).json({ error: 'Fehler beim Aktualisieren' });
+    res.status(500).json({ error: 'Fehler beim Aktualisieren: '+(err.message||err) });
   }
 });
 
 // Admin: Elternzeit löschen
 app.delete('/api/admin/parental-leave/:id', async (req, res) => {
   if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  await ensureParentalLeaveTable();
   try {
     await prisma.parentalLeave.delete({ where: { id: req.params.id } });
     res.json({ success: true });
   } catch (err) {
     console.error('admin parental-leave DELETE error:', err);
-    res.status(500).json({ error: 'Fehler beim Löschen' });
+    res.status(500).json({ error: 'Fehler beim Löschen: '+(err.message||err) });
   }
 });
 

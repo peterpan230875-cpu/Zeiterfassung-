@@ -388,25 +388,29 @@ async function addParentalLeave(){
   if(!userId){alert('Bitte einen Mitarbeiter wählen');return;}
   if(!startDate||!endDate){alert('Bitte Von- und Bis-Datum wählen');return;}
   if(startDate>endDate){alert('Von-Datum muss vor Bis-Datum liegen');return;}
-  const res=await fetch('/api/admin/parental-leave',{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({userId,startDate,endDate,note})
-  });
-  if(res.ok){
-    const data=await res.json();
-    // Mitarbeiter-Info anreichern für lokale Liste
-    const user=users.find(u=>u.id===userId);
-    data.leave.user=user?{id:user.id,name:user.name,username:user.username}:null;
-    parentalLeaves.unshift(data.leave);
-    renderParentalLeaveList();
-    document.getElementById('el-user').value='';
-    document.getElementById('el-start').value='';
-    document.getElementById('el-end').value='';
-    document.getElementById('el-note').value='';
-    if(selectedUserId===userId) renderMonth();
-  } else {
-    const err=await res.json().catch(()=>({}));
-    alert(err.error||'Fehler beim Speichern');
+  try {
+    const res=await fetch('/api/admin/parental-leave',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({userId,startDate,endDate,note})
+    });
+    if(res.ok){
+      const data=await res.json();
+      // Mitarbeiter-Info anreichern für lokale Liste
+      const user=users.find(u=>u.id===userId);
+      data.leave.user=user?{id:user.id,name:user.name,username:user.username}:null;
+      parentalLeaves.unshift(data.leave);
+      renderParentalLeaveList();
+      document.getElementById('el-user').value='';
+      document.getElementById('el-start').value='';
+      document.getElementById('el-end').value='';
+      document.getElementById('el-note').value='';
+      if(selectedUserId===userId) renderMonth();
+    } else {
+      const err=await res.json().catch(()=>({error:'Server-Fehler ('+res.status+')'}));
+      alert('Fehler ['+res.status+']: '+(err.error||'Unbekannter Fehler'));
+    }
+  } catch(e) {
+    alert('Netzwerk-Fehler: '+e.message);
   }
 }
 

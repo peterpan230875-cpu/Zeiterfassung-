@@ -7,6 +7,7 @@
     "start": "node server.js",
     "dev": "node server.js",
     "build": "prisma generate && prisma db push --accept-data-loss",
+    "vercel-build": "prisma generate && prisma db push --accept-data-loss",
     "postinstall": "prisma generate"
   },
   "keywords": [
