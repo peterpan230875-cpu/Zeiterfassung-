@@ -205,13 +205,9 @@ body.dark tr.r-closed{background:#1F2937;}
 .sd-item .sd-tag{padding:1px 6px;border-radius:10px;font-size:10px;font-weight:700;flex-shrink:0;}
 .sd-item .sd-tag.inv{background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;}
 .sd-item .sd-tag.cls{background:#E5E7EB;color:#374151;border:1px solid #D1D5DB;}
-.sd-item .sd-tag.hol{background:#E9D5FF;color:#6B21A8;border:1px solid #D8B4FE;}
-.sd-item .sd-tag.fer{background:#FED7AA;color:#9A3412;border:1px solid #FDBA74;}
 .sd-item .sd-tag.sch{background:#DBEAFE;color:#1E40AF;border:1px solid #BFDBFE;}
 body.dark .sd-item .sd-tag.inv{background:#2A1E05;color:#FCD34D;border-color:#4A360A;}
 body.dark .sd-item .sd-tag.cls{background:#1F2937;color:#9CA3AF;border-color:#374151;}
-body.dark .sd-item .sd-tag.hol{background:#2E1065;color:#D8B4FE;border-color:#4C1D95;}
-body.dark .sd-item .sd-tag.fer{background:#1F1A0C;color:#FBD38D;border-color:#451A03;}
 body.dark .sd-item .sd-tag.sch{background:#1A2640;color:#60A5FA;border-color:#1E3860;}
 .sd-item .sd-lbl{flex:1;color:var(--txt2);min-width:0;font-size:11px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -295,8 +291,6 @@ body.dark .el-item .el-tag.ended{background:#1F2937;color:#9CA3AF;border-color:#
         <select id="sd-type">
           <option value="inventur">📦 Inventur</option>
           <option value="closed">🔒 Geschlossen</option>
-          <option value="feiertag">🎉 Feiertag</option>
-          <option value="betriebsferien">🏖️ Betriebsferien</option>
           <option value="schulung">🎓 Schulung</option>
         </select>
         <div style="display:flex;gap:6px;">
@@ -526,11 +520,9 @@ let specialDays=[];
 
 // Typen-Konfiguration
 const SD_TYPES = {
-  inventur:       { icon:'📦', label:'Inventur',       cls:'inv',  short:'Inv'  },
-  closed:         { icon:'🔒', label:'Geschlossen',    cls:'cls',  short:'Zu'   },
-  feiertag:       { icon:'🎉', label:'Feiertag',       cls:'hol',  short:'Fei'  },
-  betriebsferien: { icon:'🏖️', label:'Betriebsferien', cls:'fer',  short:'BF'   },
-  schulung:       { icon:'🎓', label:'Schulung',       cls:'sch',  short:'Sch'  }
+  inventur: { icon:'📦', label:'Inventur',    cls:'inv', short:'Inv' },
+  closed:   { icon:'🔒', label:'Geschlossen', cls:'cls', short:'Zu'  },
+  schulung: { icon:'🎓', label:'Schulung',    cls:'sch', short:'Sch' }
 };
 
 function fmtDate(s){
@@ -853,16 +845,6 @@ function renderMonth(){
       cls='r-closed';vonTxt='<span class="badge-typ b-closed">🔒 Geschlossen</span>'+(sd.label?' <span style="color:var(--txt2);font-size:11px;">'+sd.label+'</span>':'');
       netto=ts.toFixed(2).replace('.',',');
     }
-    else if(sd&&sd.type==='feiertag'){
-      cls='r-hol';vonTxt='<span style="color:var(--hol-t);font-weight:700;">🎉 '+(sd.label||'Feiertag')+'</span>';
-      bemTxt='Feiertag';
-      netto=ts.toFixed(2).replace('.',',');
-    }
-    else if(sd&&sd.type==='betriebsferien'){
-      cls='r-hol';vonTxt='<span style="color:var(--sun-t);font-weight:700;">🏖️ Betriebsferien'+(sd.label?' — '+sd.label:'')+'</span>';
-      bemTxt='Betriebsferien';
-      netto=ts.toFixed(2).replace('.',',');
-    }
     else if(sd&&sd.type==='schulung'&&!(e&&e.von)){
       vonTxt='<span style="color:#1E40AF;font-weight:700;">🎓 Schulung'+(sd.label?' — '+sd.label:'')+'</span>';
     }
@@ -907,15 +889,12 @@ function renderMonth(){
     const key=dk(viewYear,viewMonth,d);
     const sd2=getSpecialDay(key);
     const isClosed=sd2&&sd2.type==='closed';
-    const isAdminHoliday=sd2&&(sd2.type==='feiertag'||sd2.type==='betriebsferien');
     const isHb=viewMonth===11&&d===24&&!isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d);
     const isSv=viewMonth===11&&d===31&&!isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d);
     const isElt=!!getParentalLeaveForUserDate(selectedUserId,key);
     if(isClosed) closedDays++;
-    if(isAdminHoliday) closedDays++; // Admin-Feiertag/Betriebsferien: bezahlt
     if(isHb&&!FEIERTAGE[key]) closedDays++; // Heiligabend: volles Tagessoll gratis
-    // Elternzeit / Admin-Holidays: Tag zaehlt weder als Soll
-    if(!isElt && !isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d)&&!FEIERTAGE[key]&&!isClosed&&!isAdminHoliday&&!isHb){
+    if(!isElt && !isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d)&&!FEIERTAGE[key]&&!isClosed&&!isHb){
       if(isSv) sollArbeitstage+=0.5; // Silvester: nur halber Tag Pflicht
       else sollArbeitstage++;
     }

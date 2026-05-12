@@ -189,17 +189,13 @@ app.post('/api/entry', async (req, res) => {
     });
     if (lock) return res.status(403).json({ error: 'Monat ist abgeschlossen — keine Änderungen möglich' });
 
-    // Prüfe ob es ein "Geschlossen"-, Feiertag- oder Betriebsferien-Tag ist
+    // Pruefe ob es ein "Geschlossen"-Tag ist.
+    // An Geschlossen-Tagen ist NUR Urlaub oder Zeitausgleich erlaubt - keine normalen Arbeitszeiten.
     const sd = await prisma.specialDay.findUnique({ where: { date } });
-    if (sd) {
-      if (sd.type === 'closed') {
-        return res.status(403).json({ error: 'Geschäft an diesem Tag geschlossen — keine Eingabe möglich' });
-      }
-      if (sd.type === 'feiertag') {
-        return res.status(403).json({ error: 'Feiertag — keine Eingabe möglich' });
-      }
-      if (sd.type === 'betriebsferien') {
-        return res.status(403).json({ error: 'Betriebsferien — keine Eingabe möglich' });
+    if (sd && sd.type === 'closed') {
+      const allowedTypes = ['urlaub', 'zeitausgleich'];
+      if (!allowedTypes.includes(type)) {
+        return res.status(403).json({ error: 'Geschäft geschlossen — nur Urlaub oder Zeitausgleich möglich' });
       }
     }
 
@@ -372,7 +368,7 @@ app.get('/api/special-days', async (req, res) => {
 });
 
 // Erlaubte Typen fuer Sondertage
-const SPECIAL_DAY_TYPES = ['inventur', 'closed', 'feiertag', 'betriebsferien', 'schulung'];
+const SPECIAL_DAY_TYPES = ['inventur', 'closed', 'schulung'];
 
 // Safety-Net: rangeId-Spalte hinzufuegen falls sie noch nicht existiert
 let specialDayRangeIdEnsured = false;
