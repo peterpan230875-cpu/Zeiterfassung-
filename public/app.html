@@ -17,7 +17,7 @@
   --green:    #14532D; --green-bg:#F0FDF4; --green-m:#BBF7D0;
   --red:      #991B1B; --red-bg:#FEF2F2; --red-m:#FECACA;
   --amber:    #D97706; --amber-bg:#FEF3C7; --amber-m:#FDE68A;
-  --hol-bg:   #FEE2E2; --hol-t:#991B1B;
+  --hol-bg:   #F3E8FF; --hol-t:#6B21A8;
   --sun-bg:   #FFF7ED; --sun-t:#9A3412;
   --r:12px; --rs:8px;
   --sh-sm:0 1px 3px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.04);
@@ -33,7 +33,7 @@ body.dark {
   --green:#34D399; --green-bg:#0C2318; --green-m:#134530;
   --red:#F87171; --red-bg:#2A1010; --red-m:#4A1A1A;
   --amber:#FCD34D; --amber-bg:#2A1E05; --amber-m:#4A360A;
-  --hol-bg:#2A1010; --hol-t:#FCA5A5;
+  --hol-bg:#2E1065; --hol-t:#D8B4FE;
   --sun-bg:#1F1A0C; --sun-t:#FBD38D;
 }
 
@@ -2493,9 +2493,9 @@ function buildPrintHTML(){
     // ── Farben exakt wie in der App ──────────────────────────────────────────
     let bg="", vonColor="", numColor="#111", accentBorder="";
     if(holiday||isHeiligabend){
-      bg="background:#FEE2E2;";
-      vonColor="color:#991B1B;font-weight:700;";
-      numColor="#991B1B";
+      bg="background:#F3E8FF;";
+      vonColor="color:#6B21A8;font-weight:700;";
+      numColor="#6B21A8";
       accentBorder="border-left:3px solid #DC2626;padding-left:3px;";
     } else if(isClosed){
       bg="background:#F3F4F6;";
@@ -2705,7 +2705,7 @@ tr:last-child td{border-bottom:none;}
   <span class="leg-item" style="background:#EFF6FF;border-left:3px solid #2563EB;">🏖 Urlaub</span>
   <span class="leg-item" style="background:#F0FDF4;border-left:3px solid #16A34A;">🔄 Zeitausgleich</span>
   <span class="leg-item" style="background:#FEF2F2;border-left:3px solid #DC2626;">🤒 Krank</span>
-  <span class="leg-item" style="background:#FEE2E2;border-left:3px solid #DC2626;color:#991B1B;">Feiertag</span>
+  <span class="leg-item" style="background:#F3E8FF;border-left:3px solid #6B21A8;color:#6B21A8;">Feiertag</span>
   <span class="leg-item" style="background:#FEF3C7;color:#B45309;">Samstag</span>
 </div>
 <div class="footer">
