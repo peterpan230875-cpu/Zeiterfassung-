@@ -386,7 +386,7 @@ function renderMonth(){
 
     const sd=getSpecialDay(key);
     let cls='', vonTxt='', bisTxt='', pauseTxt='', bemTxt='', netto='';
-    if(holiday){cls='r-hol';vonTxt=holiday;netto=ts.toFixed(2).replace('.',',');}
+    if(holiday){cls='r-hol';vonTxt=holiday;bemTxt='Feiertag';netto=ts.toFixed(2).replace('.',',');}
     else if(sun){cls='r-we';vonTxt='Sonntag';}
     else if(sat){
       // Samstag: wenn Eintrag mit Zeiten vorhanden, diese anzeigen
@@ -409,6 +409,7 @@ function renderMonth(){
       // 24.12. auf Werktag = kostenloser freier Tag (Firmenregel)
       cls='r-hol';
       vonTxt='Heiligabend';
+      bemTxt='Feiertag';
       netto=ts.toFixed(2).replace('.',',');
     }
     else if(isSilvesterWD){

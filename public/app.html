@@ -1421,8 +1421,8 @@ function buildRow(d,key,dayWT,weekend,holiday,entry,typ,blocked){
 
   // Von/Bis Anzeige
   let vonTxt="—",bisTxt="—",pauseTxt="—",bemTxt="";
-  if(holiday){vonTxt=holiday;}
-  else if(isHeiligabend){vonTxt="Heiligabend";}
+  if(holiday){vonTxt=holiday;bemTxt="Feiertag";}
+  else if(isHeiligabend){vonTxt="Heiligabend";bemTxt="Feiertag";}
   else if(sd&&sd.type==='closed'){vonTxt="Geschlossen"+(sd.label?" — "+sd.label:"");}
   else if(isSun(parseInt(key.split("-")[0]),parseInt(key.split("-")[1])-1,d)){vonTxt="Sonntag";}
   else if(isSilvesterWD&&typ==="zeitausgleich"){vonTxt="Silvester";bemTxt="Halber Tag Zeitausgleich nehmen";}
@@ -2543,8 +2543,8 @@ function buildPrintHTML(){
     }
 
     let von="",bis="",pause="",bem="",netto="",nettoColor="#2563EB";
-    if(holiday){von=holiday;netto=ts.toFixed(2).replace(".",",");}
-    else if(isHeiligabend){von="Heiligabend";netto=ts.toFixed(2).replace(".",",");}
+    if(holiday){von=holiday;bem="Feiertag";netto=ts.toFixed(2).replace(".",",");}
+    else if(isHeiligabend){von="Heiligabend";bem="Feiertag";netto=ts.toFixed(2).replace(".",",");}
     else if(isClosed){von="🔒 Geschlossen"+(sd.label?" — "+sd.label:"");netto=ts.toFixed(2).replace(".",",");nettoColor="#374151";}
     else if(sun){von="Sonntag";}
     else if(isSilvesterWD){
