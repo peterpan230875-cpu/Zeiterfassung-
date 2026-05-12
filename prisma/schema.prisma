@@ -16,9 +16,10 @@ model User {
   isSuperAdmin Boolean  @default(false)
   createdAt    DateTime @default(now())
 
-  entries     Entry[]
-  settings    Settings?
-  monthLocks  MonthLock[]
+  entries        Entry[]
+  settings       Settings?
+  monthLocks     MonthLock[]
+  parentalLeaves ParentalLeave[]
 }
 
 model MonthLock {
@@ -87,6 +88,21 @@ model SpecialDay {
   label     String   @default("")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ParentalLeave {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  startDate String   // YYYY-MM-DD
+  endDate   String   // YYYY-MM-DD
+  note      String   @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model AdminCodeUsage {

@@ -22,6 +22,7 @@
   --u-bg:#DBEAFE; --u-t:#2563EB;
   --za-bg:#DCFCE7;--za-t:#14532D;
   --k-bg:#FEE2E2; --k-t:#991B1B;
+  --elt-bg:#FCE7F3;--elt-t:#9D174D;
 }
 body.dark{
   --bg:#0F0F11;
@@ -39,6 +40,7 @@ body.dark{
   --u-bg:#1A2640; --u-t:#60A5FA;
   --za-bg:#0C2318;--za-t:#34D399;
   --k-bg:#2A1010; --k-t:#F87171;
+  --elt-bg:#3A0F25;--elt-t:#F9A8D4;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{
@@ -130,6 +132,7 @@ td{padding:7px 10px;border-bottom:1px solid var(--brd);color:var(--txt);}
 tr.r-hol{background:var(--hol-bg);}tr.r-hol td{color:var(--hol-t);}
 tr.r-we{background:var(--sun-bg);} tr.r-we td{color:var(--sun-t);}
 tr.r-sat{background:var(--sun-bg);}tr.r-sat td{color:var(--sun-t);}
+tr.r-elt{background:var(--elt-bg);}tr.r-elt td{color:var(--elt-t);}
 .td-wt{color:var(--wt-wd);font-weight:600;}
 tr.r-we .td-wt,tr.r-sat .td-wt{color:var(--wt-we)!important;}
 tr.r-hol .td-wt{color:var(--hol-t)!important;}
@@ -245,6 +248,20 @@ body.dark .sd-item .sd-tag.cls{background:#1F2937;color:#9CA3AF;border-color:#37
       </div>
       <div class="sd-list" id="sd-list"></div>
     </div>
+
+    <div class="panel" style="margin-top:14px;">
+      <h2>👶 Elternzeit</h2>
+      <div class="sd-row">
+        <select id="el-user"></select>
+        <div style="display:flex;gap:6px;">
+          <input type="date" id="el-start" style="flex:1;" title="Von"/>
+          <input type="date" id="el-end" style="flex:1;" title="Bis"/>
+        </div>
+        <input type="text" id="el-note" placeholder="Bemerkung (z.B. Elternzeit Kind 1)"/>
+        <button class="sd-add" onclick="addParentalLeave()">+ Elternzeit eintragen</button>
+      </div>
+      <div class="sd-list" id="el-list"></div>
+    </div>
   </div>
 
   <div class="panel">
@@ -304,10 +321,11 @@ function getKW(y,m,d){
 }
 
 async function loadUsers(){
-  const [uRes,lRes,sRes]=await Promise.all([
+  const [uRes,lRes,sRes,pRes]=await Promise.all([
     fetch('/api/admin/users'),
     fetch('/api/admin/month-locks'),
-    fetch('/api/special-days')
+    fetch('/api/special-days'),
+    fetch('/api/admin/parental-leave')
   ]);
   if(!uRes.ok){
     if(uRes.status===403){window.location.href='/admin-login';return;}
@@ -317,7 +335,117 @@ async function loadUsers(){
   users=data.users||[];
   if(lRes.ok){const d=await lRes.json();allLocks=d.locks||[];}
   if(sRes.ok){const d=await sRes.json();specialDays=d.days||[];renderSpecialDays();}
+  if(pRes.ok){const d=await pRes.json();parentalLeaves=d.leaves||[];}
+  renderParentalLeaveUI();
   renderUsers();
+}
+
+// ── ELTERNZEIT ────────────────────────────────────────────────────────────────
+let parentalLeaves=[];
+
+function renderParentalLeaveUI(){
+  // Mitarbeiter-Dropdown füllen
+  const sel=document.getElementById('el-user');
+  if(sel){
+    sel.innerHTML='<option value="">— Mitarbeiter wählen —</option>'+
+      users.map(u=>`<option value="${u.id}">${u.name} (${u.username})</option>`).join('');
+  }
+  renderParentalLeaveList();
+}
+
+function renderParentalLeaveList(){
+  const el=document.getElementById('el-list');
+  if(!el) return;
+  if(!parentalLeaves.length){
+    el.innerHTML='<p style="color:var(--muted);font-size:13px;text-align:center;padding:14px;">Keine Elternzeiten eingetragen</p>';
+    return;
+  }
+  const today=new Date().toISOString().slice(0,10);
+  el.innerHTML='';
+  parentalLeaves.forEach(p=>{
+    const div=document.createElement('div');div.className='sd-item';
+    const sd=new Date(p.startDate+'T00:00:00');
+    const ed=new Date(p.endDate+'T00:00:00');
+    const fmt=(d)=>String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getFullYear()).slice(2);
+    const isActive=p.startDate<=today && p.endDate>=today;
+    const statusCls=isActive?'inv':'cls';
+    const statusLbl=isActive?'👶 Aktiv':(p.endDate<today?'✓ Beendet':'⏳ Geplant');
+    const userName=p.user?p.user.name:'?';
+    div.innerHTML=`<span class="sd-date">${fmt(sd)}–${fmt(ed)}</span>
+      <span class="sd-tag ${statusCls}">${statusLbl}</span>
+      <span class="sd-lbl"><strong>${userName}</strong>${p.note?' · '+p.note:''}</span>
+      <button class="sd-del" onclick="editParentalLeave('${p.id}')" title="Bearbeiten" style="margin-right:4px;">✎</button>
+      <button class="sd-del" onclick="deleteParentalLeave('${p.id}')" title="Löschen">✕</button>`;
+    el.appendChild(div);
+  });
+}
+
+async function addParentalLeave(){
+  const userId=document.getElementById('el-user').value;
+  const startDate=document.getElementById('el-start').value;
+  const endDate=document.getElementById('el-end').value;
+  const note=document.getElementById('el-note').value.trim();
+  if(!userId){alert('Bitte einen Mitarbeiter wählen');return;}
+  if(!startDate||!endDate){alert('Bitte Von- und Bis-Datum wählen');return;}
+  if(startDate>endDate){alert('Von-Datum muss vor Bis-Datum liegen');return;}
+  const res=await fetch('/api/admin/parental-leave',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({userId,startDate,endDate,note})
+  });
+  if(res.ok){
+    const data=await res.json();
+    // Mitarbeiter-Info anreichern für lokale Liste
+    const user=users.find(u=>u.id===userId);
+    data.leave.user=user?{id:user.id,name:user.name,username:user.username}:null;
+    parentalLeaves.unshift(data.leave);
+    renderParentalLeaveList();
+    document.getElementById('el-user').value='';
+    document.getElementById('el-start').value='';
+    document.getElementById('el-end').value='';
+    document.getElementById('el-note').value='';
+    if(selectedUserId===userId) renderMonth();
+  } else {
+    const err=await res.json().catch(()=>({}));
+    alert(err.error||'Fehler beim Speichern');
+  }
+}
+
+async function deleteParentalLeave(id){
+  if(!confirm('Diese Elternzeit wirklich löschen?'))return;
+  const res=await fetch('/api/admin/parental-leave/'+id,{method:'DELETE'});
+  if(res.ok){
+    const removed=parentalLeaves.find(p=>p.id===id);
+    parentalLeaves=parentalLeaves.filter(p=>p.id!==id);
+    renderParentalLeaveList();
+    if(removed && selectedUserId===removed.userId) renderMonth();
+  }
+}
+
+async function editParentalLeave(id){
+  const p=parentalLeaves.find(x=>x.id===id);if(!p)return;
+  const newStart=prompt('Von-Datum (YYYY-MM-DD):',p.startDate);
+  if(!newStart)return;
+  const newEnd=prompt('Bis-Datum (YYYY-MM-DD):',p.endDate);
+  if(!newEnd)return;
+  const newNote=prompt('Bemerkung:',p.note||'');
+  if(newNote===null)return;
+  const res=await fetch('/api/admin/parental-leave/'+id,{
+    method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({startDate:newStart,endDate:newEnd,note:newNote})
+  });
+  if(res.ok){
+    const data=await res.json();
+    Object.assign(p,data.leave);
+    renderParentalLeaveList();
+    if(selectedUserId===p.userId) renderMonth();
+  } else {
+    const err=await res.json().catch(()=>({}));
+    alert(err.error||'Fehler beim Aktualisieren');
+  }
+}
+
+function getParentalLeaveForUserDate(userId,key){
+  return parentalLeaves.find(p=>p.userId===userId && p.startDate<=key && p.endDate>=key);
 }
 
 let specialDays=[];
@@ -505,8 +633,14 @@ function renderMonth(){
     const isSilvesterWD=(viewMonth===11&&d===31&&!sun&&!sat);
 
     const sd=getSpecialDay(key);
+    const elt=getParentalLeaveForUserDate(selectedUserId,key);
     let cls='', vonTxt='', bisTxt='', pauseTxt='', bemTxt='', netto='';
-    if(holiday){cls='r-hol';vonTxt=holiday;bemTxt='Feiertag';netto=ts.toFixed(2).replace('.',',');}
+    if(elt){
+      cls='r-elt';
+      vonTxt='Elternzeit';
+      bemTxt=elt.note||'Elternzeit';
+    }
+    else if(holiday){cls='r-hol';vonTxt=holiday;bemTxt='Feiertag';netto=ts.toFixed(2).replace('.',',');}
     else if(sun){cls='r-we';vonTxt='Sonntag';}
     else if(sat){
       // Samstag: wenn Eintrag mit Zeiten vorhanden, diese anzeigen
@@ -596,9 +730,11 @@ function renderMonth(){
     const isClosed=sd2&&sd2.type==='closed';
     const isHb=viewMonth===11&&d===24&&!isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d);
     const isSv=viewMonth===11&&d===31&&!isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d);
+    const isElt=!!getParentalLeaveForUserDate(selectedUserId,key);
     if(isClosed) closedDays++;
     if(isHb&&!FEIERTAGE[key]) closedDays++; // Heiligabend: volles Tagessoll gratis
-    if(!isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d)&&!FEIERTAGE[key]&&!isClosed&&!isHb){
+    // Elternzeit: Tag zählt weder als Soll noch als Closed
+    if(!isElt && !isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d)&&!FEIERTAGE[key]&&!isClosed&&!isHb){
       if(isSv) sollArbeitstage+=0.5; // Silvester: nur halber Tag Pflicht
       else sollArbeitstage++;
     }

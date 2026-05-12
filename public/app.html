@@ -19,6 +19,7 @@
   --amber:    #D97706; --amber-bg:#FEF3C7; --amber-m:#FDE68A;
   --hol-bg:   #E9D5FF; --hol-t:#6B21A8;
   --sun-bg:   #FED7AA; --sun-t:#9A3412;
+  --elt-bg:   #FCE7F3; --elt-t:#9D174D;
   --wt-wd:    #16A34A;
   --wt-we:    #DC2626;
   --r:12px; --rs:8px;
@@ -37,6 +38,7 @@ body.dark {
   --amber:#FCD34D; --amber-bg:#2A1E05; --amber-m:#4A360A;
   --hol-bg:#2E1065; --hol-t:#D8B4FE;
   --sun-bg:#1F1A0C; --sun-t:#FBD38D;
+  --elt-bg:#3A0F25; --elt-t:#F9A8D4;
   --wt-wd:   #4ADE80;
   --wt-we:   #F87171;
 }
@@ -173,6 +175,8 @@ tr.r-we{background:var(--sun-bg)!important;}
 tr.r-we td{color:var(--sun-t);}
 tr.r-sat{background:var(--sun-bg)!important;}
 tr.r-sat td{color:var(--sun-t);}
+tr.r-elt{background:var(--elt-bg)!important;}
+tr.r-elt td{color:var(--elt-t);}
 tr.r-u{background:var(--blue-bg);}
 tr.r-za{background:var(--green-bg);}
 tr.r-k{background:var(--red-bg);}
@@ -224,6 +228,8 @@ tr.r-k{background:var(--red-bg);}
 .mob-card.mc-sat{background:var(--sun-bg)!important;}
 .mob-card.mc-sat .mc-day{color:var(--sun-t);}
 .mob-card.mc-sat .mc-wt{color:var(--wt-we);}
+.mob-card.mc-elt{background:var(--elt-bg)!important;}
+.mob-card.mc-elt .mc-day,.mob-card.mc-elt .mc-wt{color:var(--elt-t);}
 .mob-card.mc-u{background:var(--blue-bg);}
 .mob-card.mc-za{background:var(--green-bg);}
 .mob-card.mc-k{background:var(--red-bg);}
@@ -1042,6 +1048,9 @@ let monthLocks=[]; // Array von { year, month, lockedAt }
 // Sondertage (Inventur / Geschlossen) — vom Admin verwaltet
 let specialDays=[]; // Array von { date, type: 'inventur'|'closed', label }
 function getSpecialDay(key){return specialDays.find(d=>d.date===key);}
+// Elternzeit — vom Admin verwaltet
+let parentalLeaves=[]; // Array von { id, startDate, endDate, note }
+function getParentalLeave(key){return parentalLeaves.find(p=>p.startDate<=key && p.endDate>=key);}
 let sheetDay=null,wkMonday=null,wkWeekDays=[];
 
 // ── PERSIST ──────────────────────────────────────────────────────────────────
@@ -1089,18 +1098,29 @@ async function loadSpecialDays(){
   } catch(e){}
 }
 
+async function loadParentalLeaves(){
+  try{
+    const res=await fetch('/api/parental-leave');
+    if(!res.ok) return;
+    const d=await res.json();
+    parentalLeaves=d.leaves||[];
+  } catch(e){}
+}
+
 // Automatisch neu laden wenn der Tab wieder sichtbar wird
 // → fängt Admin-Freigabe ohne manuellen Refresh ab
 document.addEventListener('visibilitychange', () => {
   if(document.visibilityState==='visible'){
     loadMonthLocks();
     loadSpecialDays();
+    loadParentalLeaves();
     if(typeof loadEntriesFromServer==='function') loadEntriesFromServer();
   }
 });
 window.addEventListener('focus', () => {
   if(typeof loadMonthLocks==='function') loadMonthLocks();
   if(typeof loadSpecialDays==='function') loadSpecialDays();
+  if(typeof loadParentalLeaves==='function') loadParentalLeaves();
 });
 // Prüft welche Werktage im Monat noch nicht ausgefüllt sind
 function findIncompleteDays(year,month){
@@ -1259,6 +1279,9 @@ function calculateMonthSaldo(y,m){
     const sat=isSat(y,m,d);
     const sd=getSpecialDay(key);
     const isClosed=sd&&sd.type==='closed';
+    const isElt=!!getParentalLeave(key);
+    // Elternzeit-Tage: weder Soll noch Ist
+    if(isElt) continue;
     // Geschlossen-Tage: Mitarbeiter muss Urlaub oder ZA nehmen (nicht automatisch bezahlt!)
     if(!sun&&!holiday&&!sat) sollArbeitstage++;
     if(sun||holiday) continue; // Nur Sonntage und Feiertage überspringen
@@ -1384,9 +1407,15 @@ function buildRow(d,key,dayWT,weekend,holiday,entry,typ,blocked){
   const wh=parseFloat(state.wochenstunden)||38.5;
   const ts=wh/5;
   const sd=getSpecialDay(key);
+  const elt=getParentalLeave(key);
   const [ky,km]=key.split("-").map(Number);
   const isHeiligabend=(km===12&&d===24&&!isSun(ky,km-1,d)&&!isSat(ky,km-1,d));
   const isSilvesterWD=(km===12&&d===31&&!isSun(ky,km-1,d)&&!isSat(ky,km-1,d));
+
+  // Elternzeit: keine Netto-Berechnung, leeres Badge
+  if(elt){
+    return {nettoEl:"",vonTxt:"Elternzeit",bisTxt:"—",pauseTxt:"—",bemTxt:elt.note||"Elternzeit",nettoMin:0};
+  }
 
   // Netto berechnen
   let nettoMin=0,nettoEl="";
@@ -1459,10 +1488,12 @@ function renderTable(){
     const isInventur=sd&&sd.type==='inventur';
     const isHeiligabend=(m===11&&d===24&&!isSat(y,m,d)&&!isSun(y,m,d));
     const isSilvesterWD=(m===11&&d===31&&!isSat(y,m,d)&&!isSun(y,m,d));
-    const blocked=!!(holiday||isSun(y,m,d)||isClosed||isHeiligabend);
+    const elt=getParentalLeave(key);
+    const blocked=!!(holiday||isSun(y,m,d)||isClosed||isHeiligabend||elt);
 
     const tr=document.createElement("tr");
-    if(holiday)tr.className="r-hol";
+    if(elt)tr.className="r-elt";
+    else if(holiday)tr.className="r-hol";
     else if(isSun(y,m,d))tr.className="r-we";
     else if(isClosed)tr.className="r-closed";
     else if(isHeiligabend)tr.className="r-hol"; // Heiligabend = frei wie Feiertag
@@ -1479,7 +1510,8 @@ function renderTable(){
     // Zellen aufbauen
     const tdD=document.createElement("td");tdD.className="td-d";tdD.textContent=d;tr.appendChild(tdD);
     const tdW=document.createElement("td");tdW.className="td-w";tdW.textContent=dayWT;
-    if(holiday||isHeiligabend)tdW.style.color="#6B21A8";
+    if(elt)tdW.style.color="#9D174D";
+    else if(holiday||isHeiligabend)tdW.style.color="#6B21A8";
     else if(isSun(y,m,d)||isSat(y,m,d))tdW.style.color="#DC2626";
     else tdW.style.color="#16A34A";
     if(new Date(y,m,d).getDay()===1){
@@ -1523,7 +1555,9 @@ function renderTable(){
 
     // Status
     const tdS=document.createElement("td");tdS.className="td-s";
-    if(holiday){
+    if(elt){
+      tdS.innerHTML=`<span class="badge" style="background:var(--elt-bg);color:var(--elt-t);">👶 Elternzeit</span>`;
+    } else if(holiday){
       tdS.innerHTML=`<span class="badge b-hol">${holiday}</span>`;
     } else if(isHeiligabend){
       tdS.innerHTML=`<span class="badge b-hol">Frei (Firmenregel)</span>`;
@@ -1578,12 +1612,14 @@ function renderMobile(){
     const sd=getSpecialDay(key);
     const isClosed=sd&&sd.type==='closed';
     const isInventur=sd&&sd.type==='inventur';
-    const blocked=!!(holiday||isSun(y,m,d)); // Nur Sonntage & Feiertage blockiert
-    const noTypBtn=!!(holiday||isSun(y,m,d)||sat); // Geschlossen erlaubt U/ZA!
+    const elt=getParentalLeave(key);
+    const blocked=!!(holiday||isSun(y,m,d)||elt); // Nur Sonntage, Feiertage & Elternzeit blockiert
+    const noTypBtn=!!(holiday||isSun(y,m,d)||sat||elt); // Geschlossen erlaubt U/ZA!
 
     const card=document.createElement("div");
     card.className="mob-card";
-    if(holiday)card.classList.add("mc-hol");
+    if(elt)card.classList.add("mc-elt");
+    else if(holiday)card.classList.add("mc-hol");
     else if(isSun(y,m,d))card.classList.add("mc-we");
     else if(sat)card.classList.add("mc-sat");
     else if(isClosed)card.classList.add("mc-closed");
@@ -1595,7 +1631,8 @@ function renderMobile(){
     // Day + WT (+ KW am Montag)
     const dayDiv=document.createElement("div");dayDiv.className="mc-day";dayDiv.textContent=d;
     const wtDiv=document.createElement("div");wtDiv.className="mc-wt";wtDiv.textContent=dayWT;
-    if(holiday)wtDiv.style.color="#6B21A8";
+    if(elt)wtDiv.style.color="#9D174D";
+    else if(holiday)wtDiv.style.color="#6B21A8";
     else if(isSun(y,m,d)||sat)wtDiv.style.color="#DC2626";
     else wtDiv.style.color="#16A34A";
     if(new Date(y,m,d).getDay()===1){
@@ -1703,9 +1740,12 @@ function renderStats(){
     const sat=isSat(y,m,d);
     const sd=getSpecialDay(key);
     const isClosed=sd&&sd.type==='closed';
+    const isElt=!!getParentalLeave(key);
     // Feste Firmenregeln
     const isHb=m===11&&d===24&&!sun&&!sat;
     const isSv=m===11&&d===31&&!sun&&!sat;
+    // Elternzeit: Tag wird voellig uebersprungen
+    if(isElt) continue;
     if(isClosed) closedDays++;
     if(isHb&&!holiday) closedDays++; // Heiligabend: volles Tagessoll gratis
     if(!sun&&!holiday&&!sat&&!isClosed&&!isHb){
@@ -3145,6 +3185,9 @@ applyDark(state.darkMode||false);
 
     await loadSpecialDays();
     console.log('✓ Sondertage vom Server geladen');
+
+    await loadParentalLeaves();
+    console.log('✓ Elternzeiten vom Server geladen');
 
     render();
     console.log('✓ UI gerendert');

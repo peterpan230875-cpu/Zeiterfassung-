@@ -195,6 +195,18 @@ app.post('/api/entry', async (req, res) => {
       return res.status(403).json({ error: 'Geschäft an diesem Tag geschlossen — keine Eingabe möglich' });
     }
 
+    // Prüfe ob der Tag in einer Elternzeit liegt
+    const inLeave = await prisma.parentalLeave.findFirst({
+      where: {
+        userId: req.session.userId,
+        startDate: { lte: date },
+        endDate:   { gte: date }
+      }
+    });
+    if (inLeave) {
+      return res.status(403).json({ error: 'Elternzeit — in diesem Zeitraum sind keine Einträge möglich' });
+    }
+
     const pauseInt = parseInt(pause) || 0;
     const vonVal = von && von !== '' ? von : null;
     const bisVal = bis && bis !== '' ? bis : null;
@@ -373,6 +385,92 @@ app.delete('/api/admin/special-day/:date', async (req, res) => {
     await prisma.specialDay.deleteMany({ where: { date: req.params.date } });
     res.json({ success: true });
   } catch (err) {
+    res.status(500).json({ error: 'Fehler beim Löschen' });
+  }
+});
+
+// ── ELTERNZEIT ────────────────────────────────────────────────────────────────
+// Mitarbeiter ruft eigene Elternzeiten ab (zum Sperren im Kalender)
+app.get('/api/parental-leave', async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
+  try {
+    const leaves = await prisma.parentalLeave.findMany({
+      where: { userId: req.session.userId },
+      orderBy: { startDate: 'asc' }
+    });
+    res.json({ leaves });
+  } catch (err) {
+    console.error('parental-leave GET error:', err);
+    res.status(500).json({ error: 'Fehler beim Laden' });
+  }
+});
+
+// Admin: alle Elternzeiten mit Mitarbeiter-Info
+app.get('/api/admin/parental-leave', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  try {
+    const leaves = await prisma.parentalLeave.findMany({
+      include: { user: { select: { id: true, name: true, username: true } } },
+      orderBy: [{ startDate: 'desc' }]
+    });
+    res.json({ leaves });
+  } catch (err) {
+    console.error('admin parental-leave GET error:', err);
+    res.status(500).json({ error: 'Fehler beim Laden' });
+  }
+});
+
+// Admin: Elternzeit anlegen
+app.post('/api/admin/parental-leave', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  try {
+    const { userId, startDate, endDate, note } = req.body;
+    if (!userId || !startDate || !endDate) {
+      return res.status(400).json({ error: 'Mitarbeiter, Von- und Bis-Datum erforderlich' });
+    }
+    if (startDate > endDate) {
+      return res.status(400).json({ error: 'Von-Datum muss vor Bis-Datum liegen' });
+    }
+    const leave = await prisma.parentalLeave.create({
+      data: { userId, startDate, endDate, note: note || '' }
+    });
+    res.json({ success: true, leave });
+  } catch (err) {
+    console.error('admin parental-leave POST error:', err);
+    res.status(500).json({ error: 'Fehler beim Speichern' });
+  }
+});
+
+// Admin: Elternzeit bearbeiten
+app.put('/api/admin/parental-leave/:id', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  try {
+    const { startDate, endDate, note } = req.body;
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'Von- und Bis-Datum erforderlich' });
+    }
+    if (startDate > endDate) {
+      return res.status(400).json({ error: 'Von-Datum muss vor Bis-Datum liegen' });
+    }
+    const leave = await prisma.parentalLeave.update({
+      where: { id: req.params.id },
+      data: { startDate, endDate, note: note || '' }
+    });
+    res.json({ success: true, leave });
+  } catch (err) {
+    console.error('admin parental-leave PUT error:', err);
+    res.status(500).json({ error: 'Fehler beim Aktualisieren' });
+  }
+});
+
+// Admin: Elternzeit löschen
+app.delete('/api/admin/parental-leave/:id', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  try {
+    await prisma.parentalLeave.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('admin parental-leave DELETE error:', err);
     res.status(500).json({ error: 'Fehler beim Löschen' });
   }
 });
