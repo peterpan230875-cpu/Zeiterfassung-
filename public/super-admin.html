@@ -438,6 +438,19 @@ function renderMonth(){
       cls='r-closed';vonTxt='<span class="badge-typ b-closed">🔒 Geschlossen</span>'+(sd.label?' <span style="color:var(--txt2);font-size:11px;">'+sd.label+'</span>':'');
       netto=ts.toFixed(2).replace('.',',');
     }
+    else if(sd&&sd.type==='feiertag'){
+      cls='r-hol';vonTxt='<span style="color:var(--hol-t);font-weight:700;">🎉 '+(sd.label||'Feiertag')+'</span>';
+      bemTxt='Feiertag';
+      netto=ts.toFixed(2).replace('.',',');
+    }
+    else if(sd&&sd.type==='betriebsferien'){
+      cls='r-hol';vonTxt='<span style="color:var(--sun-t);font-weight:700;">🏖️ Betriebsferien'+(sd.label?' — '+sd.label:'')+'</span>';
+      bemTxt='Betriebsferien';
+      netto=ts.toFixed(2).replace('.',',');
+    }
+    else if(sd&&sd.type==='schulung'&&!(e&&e.von)){
+      vonTxt='<span style="color:#1E40AF;font-weight:700;">🎓 Schulung'+(sd.label?' — '+sd.label:'')+'</span>';
+    }
     else if(typ==='urlaub'){cls='r-u';vonTxt='<span style="color:var(--u-t);font-weight:700;">Urlaub</span>';urlaub++;netto=ts.toFixed(2).replace('.',',');}
     else if(typ==='zeitausgleich'){cls='r-za';vonTxt='<span style="color:var(--za-t);font-weight:700;">Zeitausgleich</span>';za++;}
     else if(typ==='krank'){cls='r-k';vonTxt='<span style="color:var(--k-t);font-weight:700;">Krank</span>';krank++;netto=ts.toFixed(2).replace('.',',');}

@@ -189,10 +189,18 @@ app.post('/api/entry', async (req, res) => {
     });
     if (lock) return res.status(403).json({ error: 'Monat ist abgeschlossen — keine Änderungen möglich' });
 
-    // Prüfe ob es ein "Geschlossen"-Tag ist
+    // Prüfe ob es ein "Geschlossen"-, Feiertag- oder Betriebsferien-Tag ist
     const sd = await prisma.specialDay.findUnique({ where: { date } });
-    if (sd && sd.type === 'closed') {
-      return res.status(403).json({ error: 'Geschäft an diesem Tag geschlossen — keine Eingabe möglich' });
+    if (sd) {
+      if (sd.type === 'closed') {
+        return res.status(403).json({ error: 'Geschäft an diesem Tag geschlossen — keine Eingabe möglich' });
+      }
+      if (sd.type === 'feiertag') {
+        return res.status(403).json({ error: 'Feiertag — keine Eingabe möglich' });
+      }
+      if (sd.type === 'betriebsferien') {
+        return res.status(403).json({ error: 'Betriebsferien — keine Eingabe möglich' });
+      }
     }
 
     // Prüfe ob der Tag in einer Elternzeit liegt
@@ -363,23 +371,130 @@ app.get('/api/special-days', async (req, res) => {
   }
 });
 
+// Erlaubte Typen fuer Sondertage
+const SPECIAL_DAY_TYPES = ['inventur', 'closed', 'feiertag', 'betriebsferien', 'schulung'];
+
+// Safety-Net: rangeId-Spalte hinzufuegen falls sie noch nicht existiert
+let specialDayRangeIdEnsured = false;
+async function ensureSpecialDayRangeId() {
+  if (specialDayRangeIdEnsured) return;
+  try {
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "SpecialDay" ADD COLUMN IF NOT EXISTS "rangeId" TEXT`
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "SpecialDay_rangeId_idx" ON "SpecialDay"("rangeId")`
+    );
+    specialDayRangeIdEnsured = true;
+  } catch (err) {
+    console.error('ensureSpecialDayRangeId error:', err);
+  }
+}
+
 app.post('/api/admin/special-day', async (req, res) => {
   if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  await ensureSpecialDayRangeId();
   try {
     const { date, type, label } = req.body;
     if (!date || !type) return res.status(400).json({ error: 'Datum und Typ erforderlich' });
-    if (type !== 'inventur' && type !== 'closed')
-      return res.status(400).json({ error: 'Typ muss inventur oder closed sein' });
+    if (!SPECIAL_DAY_TYPES.includes(type))
+      return res.status(400).json({ error: 'Ungueltiger Typ' });
 
     const day = await prisma.specialDay.upsert({
       where: { date },
-      update: { type, label: label || '' },
+      update: { type, label: label || '', rangeId: null },
       create: { date, type, label: label || '' }
     });
     res.json({ success: true, day });
   } catch (err) {
     console.error('special-day error:', err);
-    res.status(500).json({ error: 'Fehler beim Speichern' });
+    res.status(500).json({ error: 'Fehler beim Speichern: '+(err.message||err) });
+  }
+});
+
+// Bereich anlegen: ein Eintrag pro Tag, alle mit selber rangeId
+app.post('/api/admin/special-day-range', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  await ensureSpecialDayRangeId();
+  try {
+    const { startDate, endDate, type, label } = req.body;
+    if (!startDate || !endDate || !type)
+      return res.status(400).json({ error: 'Start, Ende und Typ erforderlich' });
+    if (!SPECIAL_DAY_TYPES.includes(type))
+      return res.status(400).json({ error: 'Ungueltiger Typ' });
+    if (startDate > endDate)
+      return res.status(400).json({ error: 'Start muss vor Ende liegen' });
+
+    // rangeId generieren
+    const rangeId = 'rng_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+    // Alle Tage zwischen Start und Ende anlegen
+    const start = new Date(startDate + 'T00:00:00Z');
+    const end = new Date(endDate + 'T00:00:00Z');
+    const days = [];
+    for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+      const dateStr = d.toISOString().slice(0, 10);
+      days.push(dateStr);
+    }
+    if (days.length > 366)
+      return res.status(400).json({ error: 'Zeitraum zu lang (max. 366 Tage)' });
+
+    // Upsert jeder Tag — vorhandene Eintraege werden ueberschrieben
+    const created = [];
+    for (const dateStr of days) {
+      const day = await prisma.specialDay.upsert({
+        where: { date: dateStr },
+        update: { type, label: label || '', rangeId },
+        create: { date: dateStr, type, label: label || '', rangeId }
+      });
+      created.push(day);
+    }
+    res.json({ success: true, days: created, rangeId, count: created.length });
+  } catch (err) {
+    console.error('special-day-range error:', err);
+    res.status(500).json({ error: 'Fehler beim Speichern: '+(err.message||err) });
+  }
+});
+
+// Einzelnen Tag bearbeiten (Typ / Label)
+app.put('/api/admin/special-day/:date', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  await ensureSpecialDayRangeId();
+  try {
+    const { type, label } = req.body;
+    if (!type) return res.status(400).json({ error: 'Typ erforderlich' });
+    if (!SPECIAL_DAY_TYPES.includes(type))
+      return res.status(400).json({ error: 'Ungueltiger Typ' });
+
+    const day = await prisma.specialDay.update({
+      where: { date: req.params.date },
+      data: { type, label: label || '' }
+    });
+    res.json({ success: true, day });
+  } catch (err) {
+    console.error('special-day PUT error:', err);
+    res.status(500).json({ error: 'Fehler beim Aktualisieren: '+(err.message||err) });
+  }
+});
+
+// Ganze Range bearbeiten (Typ / Label aller Tage)
+app.put('/api/admin/special-day-range/:rangeId', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  await ensureSpecialDayRangeId();
+  try {
+    const { type, label } = req.body;
+    if (!type) return res.status(400).json({ error: 'Typ erforderlich' });
+    if (!SPECIAL_DAY_TYPES.includes(type))
+      return res.status(400).json({ error: 'Ungueltiger Typ' });
+
+    const result = await prisma.specialDay.updateMany({
+      where: { rangeId: req.params.rangeId },
+      data: { type, label: label || '' }
+    });
+    res.json({ success: true, count: result.count });
+  } catch (err) {
+    console.error('special-day-range PUT error:', err);
+    res.status(500).json({ error: 'Fehler beim Aktualisieren: '+(err.message||err) });
   }
 });
 
@@ -390,6 +505,18 @@ app.delete('/api/admin/special-day/:date', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Fehler beim Löschen' });
+  }
+});
+
+// Ganze Range loeschen
+app.delete('/api/admin/special-day-range/:rangeId', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  await ensureSpecialDayRangeId();
+  try {
+    const result = await prisma.specialDay.deleteMany({ where: { rangeId: req.params.rangeId } });
+    res.json({ success: true, count: result.count });
+  } catch (err) {
+    res.status(500).json({ error: 'Fehler beim Loeschen: '+(err.message||err) });
   }
 });
 

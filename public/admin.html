@@ -205,8 +205,14 @@ body.dark tr.r-closed{background:#1F2937;}
 .sd-item .sd-tag{padding:1px 6px;border-radius:10px;font-size:10px;font-weight:700;flex-shrink:0;}
 .sd-item .sd-tag.inv{background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;}
 .sd-item .sd-tag.cls{background:#E5E7EB;color:#374151;border:1px solid #D1D5DB;}
+.sd-item .sd-tag.hol{background:#E9D5FF;color:#6B21A8;border:1px solid #D8B4FE;}
+.sd-item .sd-tag.fer{background:#FED7AA;color:#9A3412;border:1px solid #FDBA74;}
+.sd-item .sd-tag.sch{background:#DBEAFE;color:#1E40AF;border:1px solid #BFDBFE;}
 body.dark .sd-item .sd-tag.inv{background:#2A1E05;color:#FCD34D;border-color:#4A360A;}
 body.dark .sd-item .sd-tag.cls{background:#1F2937;color:#9CA3AF;border-color:#374151;}
+body.dark .sd-item .sd-tag.hol{background:#2E1065;color:#D8B4FE;border-color:#4C1D95;}
+body.dark .sd-item .sd-tag.fer{background:#1F1A0C;color:#FBD38D;border-color:#451A03;}
+body.dark .sd-item .sd-tag.sch{background:#1A2640;color:#60A5FA;border-color:#1E3860;}
 .sd-item .sd-lbl{flex:1;color:var(--txt2);min-width:0;font-size:11px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 /* Elternzeit-Eintrag: groesseres Card-Layout */
@@ -281,13 +287,22 @@ body.dark .el-item .el-tag.ended{background:#1F2937;color:#9CA3AF;border-color:#
       <div id="user-list"></div>
     </div>
     <div class="panel">
-      <h2>📅 Sondertage</h2>
+      <h2>📅 Betriebliche Tage</h2>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4;">
+        Eintrag wirkt automatisch für <strong id="sd-emp-count">alle</strong> Mitarbeiter.
+      </div>
       <div class="sd-row">
-        <input type="date" id="sd-date"/>
         <select id="sd-type">
           <option value="inventur">📦 Inventur</option>
           <option value="closed">🔒 Geschlossen</option>
+          <option value="feiertag">🎉 Feiertag</option>
+          <option value="betriebsferien">🏖️ Betriebsferien</option>
+          <option value="schulung">🎓 Schulung</option>
         </select>
+        <div style="display:flex;gap:6px;">
+          <input type="date" id="sd-start" style="flex:1;" title="Von"/>
+          <input type="date" id="sd-end" style="flex:1;" title="Bis (optional, leer = Einzeltag)"/>
+        </div>
         <input type="text" id="sd-label" placeholder="Beschreibung (optional)"/>
         <button class="sd-add" onclick="addSpecialDay()">+ Hinzufügen</button>
       </div>
@@ -509,58 +524,146 @@ function getParentalLeaveForUserDate(userId,key){
 
 let specialDays=[];
 
+// Typen-Konfiguration
+const SD_TYPES = {
+  inventur:       { icon:'📦', label:'Inventur',       cls:'inv',  short:'Inv'  },
+  closed:         { icon:'🔒', label:'Geschlossen',    cls:'cls',  short:'Zu'   },
+  feiertag:       { icon:'🎉', label:'Feiertag',       cls:'hol',  short:'Fei'  },
+  betriebsferien: { icon:'🏖️', label:'Betriebsferien', cls:'fer',  short:'BF'   },
+  schulung:       { icon:'🎓', label:'Schulung',       cls:'sch',  short:'Sch'  }
+};
+
+function fmtDate(s){
+  const dt=new Date(s+'T00:00:00');
+  const wd=dt.toLocaleDateString('de-DE',{weekday:'short'}).replace('.','');
+  return wd+' '+String(dt.getDate()).padStart(2,'0')+'.'+String(dt.getMonth()+1).padStart(2,'0')+'.'+dt.getFullYear();
+}
+
 function renderSpecialDays(){
   const el=document.getElementById('sd-list');
   if(!el) return;
+  // Mitarbeiterzahl in der Hilfetext aktualisieren
+  const empCount=document.getElementById('sd-emp-count');
+  if(empCount){
+    empCount.textContent=users.length===1?'1 Mitarbeiter':(users.length+' Mitarbeiter');
+  }
   if(!specialDays.length){
-    el.innerHTML='<p style="color:var(--muted);font-size:13px;text-align:center;padding:14px;">Keine Sondertage angelegt</p>';
+    el.innerHTML='<p style="color:var(--muted);font-size:13px;text-align:center;padding:14px;">Keine betrieblichen Eintraege</p>';
     return;
   }
-  el.innerHTML='';
+  // Nach rangeId gruppieren (Einzeltage haben kein rangeId und werden einzeln dargestellt)
+  const groups=[];
+  const seen=new Set();
   specialDays.forEach(d=>{
+    if(d.rangeId){
+      if(seen.has(d.rangeId)) return;
+      seen.add(d.rangeId);
+      const all=specialDays.filter(x=>x.rangeId===d.rangeId).sort((a,b)=>a.date.localeCompare(b.date));
+      groups.push({type:'range', rangeId:d.rangeId, days:all});
+    } else {
+      groups.push({type:'single', day:d});
+    }
+  });
+  // Sortieren nach Anfangsdatum
+  groups.sort((a,b)=>{
+    const da=a.type==='single'?a.day.date:a.days[0].date;
+    const db=b.type==='single'?b.day.date:b.days[0].date;
+    return da.localeCompare(db);
+  });
+
+  el.innerHTML='';
+  groups.forEach(g=>{
     const div=document.createElement('div');div.className='sd-item';
-    const dt=new Date(d.date+'T00:00:00');
-    const wd=dt.toLocaleDateString('de-DE',{weekday:'short'}).replace('.','');
-    const dateStr=wd+' '+String(dt.getDate()).padStart(2,'0')+'.'+String(dt.getMonth()+1).padStart(2,'0')+'.'+String(dt.getFullYear()).slice(2);
-    const typeCls=d.type==='inventur'?'inv':'cls';
-    const typeLbl=d.type==='inventur'?'📦 Inv':'🔒 Zu';
+    let typeKey, dateStr, label, actions;
+    if(g.type==='single'){
+      typeKey=g.day.type;
+      dateStr=fmtDate(g.day.date);
+      label=g.day.label||'';
+      actions=`<button class="sd-del" onclick="deleteSpecialDay('${g.day.date}')" title="Löschen">✕</button>`;
+    } else {
+      typeKey=g.days[0].type;
+      const first=g.days[0].date;
+      const last=g.days[g.days.length-1].date;
+      dateStr=fmtDate(first)+' – '+fmtDate(last)+' ('+g.days.length+' Tage)';
+      label=g.days[0].label||'';
+      actions=`<button class="sd-del" onclick="deleteSpecialDayRange('${g.rangeId}')" title="Ganze Reihe löschen">✕</button>`;
+    }
+    const cfg=SD_TYPES[typeKey]||{icon:'',label:typeKey,cls:'cls',short:typeKey};
     div.innerHTML=`<span class="sd-date">${dateStr}</span>
-      <span class="sd-tag ${typeCls}">${typeLbl}</span>
-      <span class="sd-lbl">${d.label||''}</span>
-      <button class="sd-del" onclick="deleteSpecialDay('${d.date}')" title="Löschen">✕</button>`;
+      <span class="sd-tag ${cfg.cls}">${cfg.icon} ${cfg.label}</span>
+      <span class="sd-lbl">${label}</span>
+      ${actions}`;
     el.appendChild(div);
   });
 }
 
 async function addSpecialDay(){
-  const date=document.getElementById('sd-date').value;
+  const start=document.getElementById('sd-start').value;
+  const end=document.getElementById('sd-end').value;
   const type=document.getElementById('sd-type').value;
   const label=document.getElementById('sd-label').value.trim();
-  if(!date){alert('Bitte ein Datum wählen');return;}
-  const res=await fetch('/api/admin/special-day',{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({date,type,label})
-  });
-  if(res.ok){
-    const d=await res.json();
-    // Update lokale Liste
-    specialDays=specialDays.filter(x=>x.date!==date).concat(d.day).sort((a,b)=>a.date.localeCompare(b.date));
-    renderSpecialDays();
-    document.getElementById('sd-date').value='';
-    document.getElementById('sd-label').value='';
-    if(selectedUserId) renderMonth(); // Tabelle des Mitarbeiters aktualisieren
-  } else {
-    alert('Fehler beim Speichern');
+  if(!start){alert('Bitte ein Von-Datum wählen');return;}
+
+  const isRange=end && end!==start;
+  if(isRange && end<start){alert('Bis-Datum muss nach Von-Datum liegen');return;}
+
+  try {
+    let res;
+    if(isRange){
+      res=await fetch('/api/admin/special-day-range',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({startDate:start,endDate:end,type,label})
+      });
+    } else {
+      res=await fetch('/api/admin/special-day',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({date:start,type,label})
+      });
+    }
+    if(res.ok){
+      const data=await res.json();
+      if(isRange){
+        // Bestehende Tage im Bereich entfernen, neue hinzufuegen
+        const newDates=new Set(data.days.map(d=>d.date));
+        specialDays=specialDays.filter(x=>!newDates.has(x.date)).concat(data.days);
+      } else {
+        specialDays=specialDays.filter(x=>x.date!==start).concat(data.day);
+      }
+      specialDays.sort((a,b)=>a.date.localeCompare(b.date));
+      renderSpecialDays();
+      document.getElementById('sd-start').value='';
+      document.getElementById('sd-end').value='';
+      document.getElementById('sd-label').value='';
+      if(selectedUserId) renderMonth();
+    } else {
+      const err=await res.json().catch(()=>({error:'Server-Fehler ('+res.status+')'}));
+      alert('Fehler ['+res.status+']: '+(err.error||'Unbekannt'));
+    }
+  } catch(e) {
+    alert('Netzwerk-Fehler: '+e.message);
   }
 }
 
 async function deleteSpecialDay(date){
-  if(!confirm('Diesen Sondertag wirklich löschen?')) return;
+  if(!confirm('Diesen Tag wirklich löschen?')) return;
   const res=await fetch('/api/admin/special-day/'+date,{method:'DELETE'});
   if(res.ok){
     specialDays=specialDays.filter(x=>x.date!==date);
     renderSpecialDays();
     if(selectedUserId) renderMonth();
+  }
+}
+
+async function deleteSpecialDayRange(rangeId){
+  if(!confirm('Die gesamte Reihe wirklich löschen?')) return;
+  const res=await fetch('/api/admin/special-day-range/'+rangeId,{method:'DELETE'});
+  if(res.ok){
+    specialDays=specialDays.filter(x=>x.rangeId!==rangeId);
+    renderSpecialDays();
+    if(selectedUserId) renderMonth();
+  } else {
+    const err=await res.json().catch(()=>({}));
+    alert('Fehler: '+(err.error||'Unbekannt'));
   }
 }
 
@@ -750,6 +853,19 @@ function renderMonth(){
       cls='r-closed';vonTxt='<span class="badge-typ b-closed">🔒 Geschlossen</span>'+(sd.label?' <span style="color:var(--txt2);font-size:11px;">'+sd.label+'</span>':'');
       netto=ts.toFixed(2).replace('.',',');
     }
+    else if(sd&&sd.type==='feiertag'){
+      cls='r-hol';vonTxt='<span style="color:var(--hol-t);font-weight:700;">🎉 '+(sd.label||'Feiertag')+'</span>';
+      bemTxt='Feiertag';
+      netto=ts.toFixed(2).replace('.',',');
+    }
+    else if(sd&&sd.type==='betriebsferien'){
+      cls='r-hol';vonTxt='<span style="color:var(--sun-t);font-weight:700;">🏖️ Betriebsferien'+(sd.label?' — '+sd.label:'')+'</span>';
+      bemTxt='Betriebsferien';
+      netto=ts.toFixed(2).replace('.',',');
+    }
+    else if(sd&&sd.type==='schulung'&&!(e&&e.von)){
+      vonTxt='<span style="color:#1E40AF;font-weight:700;">🎓 Schulung'+(sd.label?' — '+sd.label:'')+'</span>';
+    }
     else if(typ==='urlaub'){cls='r-u';vonTxt='<span style="color:var(--u-t);font-weight:700;">Urlaub</span>';urlaub++;netto=ts.toFixed(2).replace('.',',');}
     else if(typ==='zeitausgleich'){cls='r-za';vonTxt='<span style="color:var(--za-t);font-weight:700;">Zeitausgleich</span>';za++;}
     else if(typ==='krank'){cls='r-k';vonTxt='<span style="color:var(--k-t);font-weight:700;">Krank</span>';krank++;netto=ts.toFixed(2).replace('.',',');}
@@ -764,9 +880,13 @@ function renderMonth(){
         if(net>0){work++;totalMin+=net;netto=(net/60).toFixed(2).replace('.',',');}
       }
     }
-    // Inventur-Badge zusätzlich an die WT-Spalte hängen
-    const invBadge=(sd&&sd.type==='inventur')
-      ? ` <span class="badge-typ b-inv" title="${sd.label||''}">📦 Inventur</span>` : '';
+    // Marker-Badge fuer Inventur/Schulung an die WT-Spalte
+    let invBadge='';
+    if(sd&&sd.type==='inventur'){
+      invBadge=` <span class="badge-typ b-inv" title="${sd.label||''}">📦 Inventur</span>`;
+    } else if(sd&&sd.type==='schulung'&&e&&e.von){
+      invBadge=` <span class="badge-typ" style="background:#DBEAFE;color:#1E40AF;border:1px solid #BFDBFE;" title="${sd.label||''}">🎓 Schulung</span>`;
+    }
     const isMonday=new Date(viewYear,viewMonth,d).getDay()===1;
     const kwHtml=isMonday?`<span class="kw-badge">KW ${getKW(viewYear,viewMonth,d)}</span>`:'';
     const wtColor=cls==='r-hol'?'#6B21A8':(cls==='r-we'||cls==='r-sat')?'#DC2626':'#16A34A';
@@ -787,13 +907,15 @@ function renderMonth(){
     const key=dk(viewYear,viewMonth,d);
     const sd2=getSpecialDay(key);
     const isClosed=sd2&&sd2.type==='closed';
+    const isAdminHoliday=sd2&&(sd2.type==='feiertag'||sd2.type==='betriebsferien');
     const isHb=viewMonth===11&&d===24&&!isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d);
     const isSv=viewMonth===11&&d===31&&!isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d);
     const isElt=!!getParentalLeaveForUserDate(selectedUserId,key);
     if(isClosed) closedDays++;
+    if(isAdminHoliday) closedDays++; // Admin-Feiertag/Betriebsferien: bezahlt
     if(isHb&&!FEIERTAGE[key]) closedDays++; // Heiligabend: volles Tagessoll gratis
-    // Elternzeit: Tag zählt weder als Soll noch als Closed
-    if(!isElt && !isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d)&&!FEIERTAGE[key]&&!isClosed&&!isHb){
+    // Elternzeit / Admin-Holidays: Tag zaehlt weder als Soll
+    if(!isElt && !isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d)&&!FEIERTAGE[key]&&!isClosed&&!isAdminHoliday&&!isHb){
       if(isSv) sollArbeitstage+=0.5; // Silvester: nur halber Tag Pflicht
       else sollArbeitstage++;
     }

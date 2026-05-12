@@ -177,6 +177,8 @@ tr.r-sat{background:var(--sun-bg)!important;}
 tr.r-sat td{color:var(--sun-t);}
 tr.r-elt{background:var(--elt-bg)!important;}
 tr.r-elt td{color:var(--elt-t);}
+tr.r-bf{background:var(--sun-bg)!important;}
+tr.r-bf td{color:var(--sun-t);}
 tr.r-u{background:var(--blue-bg);}
 tr.r-za{background:var(--green-bg);}
 tr.r-k{background:var(--red-bg);}
@@ -1279,9 +1281,10 @@ function calculateMonthSaldo(y,m){
     const sat=isSat(y,m,d);
     const sd=getSpecialDay(key);
     const isClosed=sd&&sd.type==='closed';
+    const isAdminFree=sd&&(sd.type==='feiertag'||sd.type==='betriebsferien');
     const isElt=!!getParentalLeave(key);
-    // Elternzeit-Tage: weder Soll noch Ist
-    if(isElt) continue;
+    // Elternzeit / Admin-Feiertage / Betriebsferien: weder Soll noch Ist
+    if(isElt||isAdminFree) continue;
     // Geschlossen-Tage: Mitarbeiter muss Urlaub oder ZA nehmen (nicht automatisch bezahlt!)
     if(!sun&&!holiday&&!sat) sollArbeitstage++;
     if(sun||holiday) continue; // Nur Sonntage und Feiertage überspringen
@@ -1419,7 +1422,7 @@ function buildRow(d,key,dayWT,weekend,holiday,entry,typ,blocked){
 
   // Netto berechnen
   let nettoMin=0,nettoEl="";
-  if(holiday||isHeiligabend){
+  if(holiday||isHeiligabend||(sd&&(sd.type==='feiertag'||sd.type==='betriebsferien'))){
     const s=document.createElement("span");
     s.className="nbadge nb-red";s.textContent=ts.toFixed(2).replace(".",",")+" h";
     nettoEl=s.outerHTML;
@@ -1453,6 +1456,8 @@ function buildRow(d,key,dayWT,weekend,holiday,entry,typ,blocked){
   let vonTxt="—",bisTxt="—",pauseTxt="—",bemTxt="";
   if(holiday){vonTxt=holiday;bemTxt="Feiertag";}
   else if(isHeiligabend){vonTxt="Heiligabend";bemTxt="Feiertag";}
+  else if(sd&&sd.type==='feiertag'){vonTxt=sd.label||"Feiertag";bemTxt="Feiertag";}
+  else if(sd&&sd.type==='betriebsferien'){vonTxt="Betriebsferien"+(sd.label?" — "+sd.label:"");bemTxt="Betriebsferien";}
   else if(sd&&sd.type==='closed'){vonTxt="Geschlossen"+(sd.label?" — "+sd.label:"");}
   else if(isSun(parseInt(key.split("-")[0]),parseInt(key.split("-")[1])-1,d)){vonTxt="Sonntag";}
   else if(isSilvesterWD&&typ==="zeitausgleich"){vonTxt="Silvester";bemTxt="Halber Tag Zeitausgleich nehmen";}
@@ -1486,14 +1491,18 @@ function renderTable(){
     const sd=getSpecialDay(key);
     const isClosed=sd&&sd.type==='closed';
     const isInventur=sd&&sd.type==='inventur';
+    const isAdminFeiertag=sd&&sd.type==='feiertag';
+    const isBetriebsferien=sd&&sd.type==='betriebsferien';
+    const isSchulung=sd&&sd.type==='schulung';
     const isHeiligabend=(m===11&&d===24&&!isSat(y,m,d)&&!isSun(y,m,d));
     const isSilvesterWD=(m===11&&d===31&&!isSat(y,m,d)&&!isSun(y,m,d));
     const elt=getParentalLeave(key);
-    const blocked=!!(holiday||isSun(y,m,d)||isClosed||isHeiligabend||elt);
+    const blocked=!!(holiday||isSun(y,m,d)||isClosed||isAdminFeiertag||isBetriebsferien||isHeiligabend||elt);
 
     const tr=document.createElement("tr");
     if(elt)tr.className="r-elt";
-    else if(holiday)tr.className="r-hol";
+    else if(holiday||isAdminFeiertag)tr.className="r-hol";
+    else if(isBetriebsferien)tr.className="r-bf";
     else if(isSun(y,m,d))tr.className="r-we";
     else if(isClosed)tr.className="r-closed";
     else if(isHeiligabend)tr.className="r-hol"; // Heiligabend = frei wie Feiertag
@@ -1511,7 +1520,8 @@ function renderTable(){
     const tdD=document.createElement("td");tdD.className="td-d";tdD.textContent=d;tr.appendChild(tdD);
     const tdW=document.createElement("td");tdW.className="td-w";tdW.textContent=dayWT;
     if(elt)tdW.style.color="#9D174D";
-    else if(holiday||isHeiligabend)tdW.style.color="#6B21A8";
+    else if(holiday||isHeiligabend||isAdminFeiertag)tdW.style.color="#6B21A8";
+    else if(isBetriebsferien)tdW.style.color="#9A3412";
     else if(isSun(y,m,d)||isSat(y,m,d))tdW.style.color="#DC2626";
     else tdW.style.color="#16A34A";
     if(new Date(y,m,d).getDay()===1){
@@ -1559,6 +1569,10 @@ function renderTable(){
       tdS.innerHTML=`<span class="badge" style="background:var(--elt-bg);color:var(--elt-t);">Elternzeit</span>`;
     } else if(holiday){
       tdS.innerHTML=`<span class="badge b-hol">${holiday}</span>`;
+    } else if(isAdminFeiertag){
+      tdS.innerHTML=`<span class="badge b-hol">🎉 ${sd.label||'Feiertag'}</span>`;
+    } else if(isBetriebsferien){
+      tdS.innerHTML=`<span class="badge" style="background:var(--sun-bg);color:var(--sun-t);">🏖️ Betriebsferien</span>`;
     } else if(isHeiligabend){
       tdS.innerHTML=`<span class="badge b-hol">Frei (Firmenregel)</span>`;
     } else if(isClosed){
@@ -1612,14 +1626,17 @@ function renderMobile(){
     const sd=getSpecialDay(key);
     const isClosed=sd&&sd.type==='closed';
     const isInventur=sd&&sd.type==='inventur';
+    const isAdminFeiertag=sd&&sd.type==='feiertag';
+    const isBetriebsferien=sd&&sd.type==='betriebsferien';
     const elt=getParentalLeave(key);
-    const blocked=!!(holiday||isSun(y,m,d)||elt); // Nur Sonntage, Feiertage & Elternzeit blockiert
-    const noTypBtn=!!(holiday||isSun(y,m,d)||sat||elt); // Geschlossen erlaubt U/ZA!
+    const blocked=!!(holiday||isAdminFeiertag||isBetriebsferien||isSun(y,m,d)||elt);
+    const noTypBtn=!!(holiday||isAdminFeiertag||isBetriebsferien||isSun(y,m,d)||sat||elt);
 
     const card=document.createElement("div");
     card.className="mob-card";
     if(elt)card.classList.add("mc-elt");
-    else if(holiday)card.classList.add("mc-hol");
+    else if(holiday||isAdminFeiertag)card.classList.add("mc-hol");
+    else if(isBetriebsferien)card.classList.add("mc-we");
     else if(isSun(y,m,d))card.classList.add("mc-we");
     else if(sat)card.classList.add("mc-sat");
     else if(isClosed)card.classList.add("mc-closed");
@@ -1740,6 +1757,7 @@ function renderStats(){
     const sat=isSat(y,m,d);
     const sd=getSpecialDay(key);
     const isClosed=sd&&sd.type==='closed';
+    const isAdminFree=sd&&(sd.type==='feiertag'||sd.type==='betriebsferien');
     const isElt=!!getParentalLeave(key);
     // Feste Firmenregeln
     const isHb=m===11&&d===24&&!sun&&!sat;
@@ -1747,12 +1765,13 @@ function renderStats(){
     // Elternzeit: Tag wird voellig uebersprungen
     if(isElt) continue;
     if(isClosed) closedDays++;
+    if(isAdminFree) closedDays++; // Admin-Feiertag/Betriebsferien: bezahlt
     if(isHb&&!holiday) closedDays++; // Heiligabend: volles Tagessoll gratis
-    if(!sun&&!holiday&&!sat&&!isClosed&&!isHb){
+    if(!sun&&!holiday&&!sat&&!isClosed&&!isAdminFree&&!isHb){
       if(isSv) sollArbeitstage+=0.5; // Silvester: nur halber Tag Pflicht
       else sollArbeitstage++;
     }
-    if(sun||holiday||isClosed||isHb)continue;
+    if(sun||holiday||isClosed||isAdminFree||isHb)continue;
     const e=emp.entries[key];
     if(!e)continue;
     if(e.typ==="urlaub")urlaub++;

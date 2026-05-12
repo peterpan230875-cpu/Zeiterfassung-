@@ -84,10 +84,13 @@ model Session {
 model SpecialDay {
   id        String   @id @default(cuid())
   date      String   @unique
-  type      String   // "inventur" | "closed"
+  type      String   // "inventur" | "closed" | "feiertag" | "betriebsferien" | "schulung"
   label     String   @default("")
+  rangeId   String?  // optional: gruppiert Mehrtages-Eintraege (alle Tage einer Spanne haben dieselbe rangeId)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([rangeId])
 }
 
 model ParentalLeave {
