@@ -239,8 +239,7 @@ tr.r-k{background:var(--red-bg);}
 .mc-summary{display:flex;flex-direction:column;align-items:flex-end;gap:3px;}
 .mc-pause{
   font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;
-  color:var(--txt);background:var(--bg2);padding:2px 8px;
-  border:1px solid var(--brd);border-radius:6px;white-space:nowrap;
+  color:var(--txt);white-space:nowrap;
 }
 .mc-netto{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;}
 .mc-btns{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;}
@@ -1650,7 +1649,7 @@ function renderMobile(){
     const isNormalWork=entry&&entry.von&&entry.bis&&(!entry.typ||entry.typ==="normal");
     if(isNormalWork && entry.pause){
       const pDiv=document.createElement("div");pDiv.className="mc-pause";
-      pDiv.textContent="🍴 "+entry.pause+" min";
+      pDiv.textContent=entry.pause+" min";
       summary.appendChild(pDiv);
     }
     if(nettoEl){
