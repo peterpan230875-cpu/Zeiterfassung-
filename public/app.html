@@ -99,11 +99,8 @@ body.dark #hdr{background:rgba(28,28,30,.94);}
 .hbtn-green{background:var(--green-bg);color:var(--green);border-color:var(--green-m);}
 .hbtn-green:hover{background:var(--green-m);}
 
-/* Emp Tabs */
-#emp-tabs{
-  display:flex;gap:0;overflow-x:auto;scrollbar-width:none;
-  border-top:1px solid var(--brd);padding:0 16px;
-}
+/* Emp Tabs - ausgeblendet (Name steht oben rechts) */
+#emp-tabs{display:none;}
 #emp-tabs::-webkit-scrollbar{display:none;}
 .emp-tab{
   flex-shrink:0;padding:9px 14px;border:none;border-bottom:2px solid transparent;
@@ -497,7 +494,7 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
   #hdr-version{order:1;flex-shrink:0;}
   #hdr-spacer{order:1;flex:1;}
   #user-info{order:1;margin-left:0!important;padding-left:0!important;border-left:none!important;gap:4px;}
-  #user-name{display:none!important;}
+  #user-name{display:inline!important;font-size:11px!important;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
   /* Zeile 2: Monatsnavigation – zentriert, volle Breite */
   #month-nav{
@@ -658,7 +655,7 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
       <button class="hbtn" onclick="openSettingsSheet()">⚙️</button>
     </div>
     <div id="user-info">
-      <span id="user-name" style="font-size:12px;font-weight:500;color:var(--txt2);"></span>
+      <span id="user-name" style="font-size:13px;font-weight:700;color:var(--blue);"></span>
       <button class="hbtn" onclick="handleLogout()" title="Logout">🚪</button>
     </div>
   </div>
