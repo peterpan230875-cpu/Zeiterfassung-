@@ -527,13 +527,14 @@ function renderMonth(){
     }
     else if(isSilvesterWD){
       // 31.12. auf Werktag = ½ Tag ZA + ½ Tag gratis (Firmenregel)
+      bemTxt='Halber Tag Zeitausgleich nehmen';
       if(typ==='zeitausgleich'){
         cls='r-za';
         vonTxt='Silvester';
         zaHalf++;
       } else if(e&&e.von){
         vonTxt=e.von||'';bisTxt=e.bis||'';
-        pauseTxt=e.pause?(e.pause+"'"):'';bemTxt=e.bemerkung||'';
+        pauseTxt=e.pause?(e.pause+"'"):'';
         if(e.von&&e.bis){
           const [vh,vm]=e.von.split(':').map(Number);
           const [bh,bm]=e.bis.split(':').map(Number);

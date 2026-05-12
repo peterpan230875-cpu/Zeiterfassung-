@@ -1417,8 +1417,8 @@ function buildRow(d,key,dayWT,weekend,holiday,entry,typ,blocked){
   else if(isHeiligabend){vonTxt="Heiligabend";}
   else if(sd&&sd.type==='closed'){vonTxt="Geschlossen"+(sd.label?" — "+sd.label:"");}
   else if(isSun(parseInt(key.split("-")[0]),parseInt(key.split("-")[1])-1,d)){vonTxt="Sonntag";}
-  else if(isSilvesterWD&&typ==="zeitausgleich"){vonTxt="Silvester";}
-  else if(isSilvesterWD&&typ==="normal"){vonTxt="Silvester";}
+  else if(isSilvesterWD&&typ==="zeitausgleich"){vonTxt="Silvester";bemTxt="Halber Tag Zeitausgleich nehmen";}
+  else if(isSilvesterWD&&typ==="normal"){vonTxt="Silvester";bemTxt="Halber Tag Zeitausgleich nehmen";}
   else if(typ==="urlaub"){vonTxt="Urlaub";}
   else if(typ==="zeitausgleich"){vonTxt="Zeitausgleich";}
   else if(typ==="krank"){vonTxt="Krank";}
@@ -1520,7 +1520,7 @@ function renderTable(){
     } else if(isSun(y,m,d)){
       tdS.innerHTML=`<span class="badge b-we">Sonntag</span>`;
     } else if(isSilvesterWD){
-      tdS.innerHTML=`<span class="badge" style="background:#F0FDF4;color:#16A34A;border:1px solid #16A34A;">½ ZA · ½ frei</span>`;
+      tdS.innerHTML=`<span class="badge" style="background:#F0FDF4;color:#16A34A;border:1px solid #16A34A;">Silvester</span>`;
     } else if(isSat(y,m,d)){
       tdS.innerHTML=`<span class="badge" style="background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-m);">Samstag</span>`;
     } else {
@@ -2533,11 +2533,11 @@ function buildPrintHTML(){
     else if(isClosed){von="🔒 Geschlossen"+(sd.label?" — "+sd.label:"");netto=ts.toFixed(2).replace(".",",");nettoColor="#374151";}
     else if(sun){von="Sonntag";}
     else if(isSilvesterWD){
+      bem="Halber Tag Zeitausgleich nehmen";
       if(typ==="zeitausgleich"){von="Silvester";zaHalf++;nettoColor="#16A34A";}
       else if(entry&&entry.von){
         von=entry.von||"";bis=entry.bis||"";
         pause=entry.pause?(entry.pause+"'"):"";
-        bem=entry.bemerkung||"";
         if(entry.von&&entry.bis){
           const [vh,vm2]=entry.von.split(":").map(Number);
           const [bh,bm2]=entry.bis.split(":").map(Number);
