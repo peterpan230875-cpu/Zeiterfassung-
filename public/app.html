@@ -1424,7 +1424,7 @@ function buildRow(d,key,dayWT,weekend,holiday,entry,typ,blocked){
   else if(typ==="krank"){vonTxt="Krank";}
   else if(entry){
     vonTxt=entry.von||"—";bisTxt=entry.bis||"—";
-    pauseTxt=entry.pause?(entry.pause+"'"):"—";
+    pauseTxt=entry.pause?(entry.pause+" min"):"—";
     bemTxt=entry.bemerkung||"";
   }
 
@@ -1634,7 +1634,7 @@ function renderMobile(){
     const isNormalWork=entry&&entry.von&&entry.bis&&(!entry.typ||entry.typ==="normal");
     if(isNormalWork && entry.pause){
       const pDiv=document.createElement("div");pDiv.className="mc-pause";
-      pDiv.textContent="🍴 "+entry.pause+"'";
+      pDiv.textContent="🍴 "+entry.pause+" min";
       summary.appendChild(pDiv);
     }
     if(nettoEl){
@@ -2466,7 +2466,7 @@ function buildPdfPreview(){
     let von="",bis="",pause="",bem="";
     if(holiday){von=holiday;}else if(sun){von="Sonntag";}
     else if(typ!=="normal"){von=tLabels[typ]||"";}
-    else if(entry){von=entry.von||"";bis=entry.bis||"";pause=entry.pause?(entry.pause+"'"):"";bem=entry.bemerkung||"";}
+    else if(entry){von=entry.von||"";bis=entry.bis||"";pause=entry.pause?(entry.pause+" min"):"";bem=entry.bemerkung||"";}
     html+=`<tr class="${cls}"><td><strong>${d}</strong></td><td>${dayWT}</td><td>${von}</td><td>${bis}</td><td>${pause}</td><td>${bem}</td></tr>`;
   }
   html+="</table>";
@@ -2537,7 +2537,7 @@ function buildPrintHTML(){
       if(typ==="zeitausgleich"){von="Silvester";zaHalf++;nettoColor="#16A34A";}
       else if(entry&&entry.von){
         von=entry.von||"";bis=entry.bis||"";
-        pause=entry.pause?(entry.pause+"'"):"";
+        pause=entry.pause?(entry.pause+" min"):"";
         if(entry.von&&entry.bis){
           const [vh,vm2]=entry.von.split(":").map(Number);
           const [bh,bm2]=entry.bis.split(":").map(Number);
@@ -2551,7 +2551,7 @@ function buildPrintHTML(){
       // Samstag: wenn Eintrag vorhanden, Zeiten zeigen — sonst nur "Samstag"
       if(entry&&entry.von){
         von=entry.von||"";bis=entry.bis||"";
-        pause=entry.pause?(entry.pause+"'"):"";
+        pause=entry.pause?(entry.pause+" min"):"";
         bem=entry.bemerkung||"";
         if(entry.von&&entry.bis){
           const [vh,vm2]=entry.von.split(":").map(Number);
@@ -2571,7 +2571,7 @@ function buildPrintHTML(){
       else if(typ==="krank"){krank++;netto=ts.toFixed(2).replace(".",",");nettoColor="#DC2626";}
     } else if(entry){
       von=entry.von||"";bis=entry.bis||"";
-      pause=entry.pause?(entry.pause+"'"):"";
+      pause=entry.pause?(entry.pause+" min"):"";
       bem=entry.bemerkung||"";
       if(entry.von&&entry.bis){
         const [vh,vm2]=entry.von.split(":").map(Number);

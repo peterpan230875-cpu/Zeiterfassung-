@@ -388,7 +388,7 @@ function renderMonth(){
       cls='r-sat';
       if(e&&e.von){
         vonTxt=e.von||'';bisTxt=e.bis||'';
-        pauseTxt=e.pause?(e.pause+"'"):'';bemTxt=e.bemerkung||'';
+        pauseTxt=e.pause?(e.pause+" min"):'';bemTxt=e.bemerkung||'';
         if(e.von&&e.bis){
           const [vh,vm]=e.von.split(':').map(Number);
           const [bh,bm]=e.bis.split(':').map(Number);
@@ -415,7 +415,7 @@ function renderMonth(){
         zaHalf++;
       } else if(e&&e.von){
         vonTxt=e.von||'';bisTxt=e.bis||'';
-        pauseTxt=e.pause?(e.pause+"'"):'';
+        pauseTxt=e.pause?(e.pause+" min"):'';
         if(e.von&&e.bis){
           const [vh,vm]=e.von.split(':').map(Number);
           const [bh,bm]=e.bis.split(':').map(Number);
@@ -436,7 +436,7 @@ function renderMonth(){
     else if(typ==='krank'){cls='r-k';vonTxt='<span style="color:var(--k-t);font-weight:700;">Krank</span>';krank++;netto=ts.toFixed(2).replace('.',',');}
     else if(e&&e.von){
       vonTxt=e.von||'';bisTxt=e.bis||'';
-      pauseTxt=e.pause?(e.pause+"'"):'';bemTxt=e.bemerkung||'';
+      pauseTxt=e.pause?(e.pause+" min"):'';bemTxt=e.bemerkung||'';
       if(e.von&&e.bis){
         const [vh,vm]=e.von.split(':').map(Number);
         const [bh,bm]=e.bis.split(':').map(Number);
