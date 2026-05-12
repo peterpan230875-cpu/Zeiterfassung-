@@ -209,6 +209,51 @@ body.dark .sd-item .sd-tag.inv{background:#2A1E05;color:#FCD34D;border-color:#4A
 body.dark .sd-item .sd-tag.cls{background:#1F2937;color:#9CA3AF;border-color:#374151;}
 .sd-item .sd-lbl{flex:1;color:var(--txt2);min-width:0;font-size:11px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* Elternzeit-Eintrag: groesseres Card-Layout */
+.el-item{
+  display:flex;flex-direction:column;gap:6px;padding:12px 14px;
+  border:1px solid var(--brd);border-radius:10px;background:var(--sur2);
+  margin-bottom:8px;
+}
+.el-item .el-top{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.el-item .el-name{
+  font-size:15px;font-weight:700;color:var(--txt);
+  flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.el-item .el-tag{
+  padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;flex-shrink:0;
+}
+.el-item .el-tag.active{background:#DCFCE7;color:#14532D;border:1px solid #BBF7D0;}
+.el-item .el-tag.planned{background:#DBEAFE;color:#1E40AF;border:1px solid #BFDBFE;}
+.el-item .el-tag.ended{background:#E5E7EB;color:#374151;border:1px solid #D1D5DB;}
+body.dark .el-item .el-tag.active{background:#0C2318;color:#34D399;border-color:#134530;}
+body.dark .el-item .el-tag.planned{background:#1A2640;color:#60A5FA;border-color:#1E3860;}
+body.dark .el-item .el-tag.ended{background:#1F2937;color:#9CA3AF;border-color:#374151;}
+.el-item .el-meta{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  font-size:13px;color:var(--txt2);
+}
+.el-item .el-dates{
+  font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--txt);
+}
+.el-item .el-note{
+  font-style:italic;color:var(--txt2);
+}
+.el-item .el-actions{
+  display:flex;gap:6px;flex-shrink:0;
+}
+.el-item .el-btn{
+  padding:6px 10px;border:1px solid var(--brd);border-radius:6px;
+  background:var(--sur);font-size:13px;font-weight:700;cursor:pointer;
+  display:inline-flex;align-items:center;gap:4px;transition:background .15s;
+}
+.el-item .el-btn:hover{background:var(--bg);}
+.el-item .el-btn.edit{color:var(--u-t);}
+.el-item .el-btn.del{color:var(--k-t);}
+
 .sd-item .sd-del{
   padding:4px 8px;border:1px solid var(--brd);border-radius:6px;cursor:pointer;
   background:var(--sur);color:var(--k-t);font-size:11px;font-weight:700;flex-shrink:0;
@@ -363,19 +408,29 @@ function renderParentalLeaveList(){
   const today=new Date().toISOString().slice(0,10);
   el.innerHTML='';
   parentalLeaves.forEach(p=>{
-    const div=document.createElement('div');div.className='sd-item';
+    const div=document.createElement('div');div.className='el-item';
     const sd=new Date(p.startDate+'T00:00:00');
     const ed=new Date(p.endDate+'T00:00:00');
-    const fmt=(d)=>String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getFullYear()).slice(2);
+    const fmt=(d)=>String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();
     const isActive=p.startDate<=today && p.endDate>=today;
-    const statusCls=isActive?'inv':'cls';
-    const statusLbl=isActive?'👶 Aktiv':(p.endDate<today?'✓ Beendet':'⏳ Geplant');
+    const isEnded=p.endDate<today;
+    const statusCls=isActive?'active':(isEnded?'ended':'planned');
+    const statusLbl=isActive?'Aktiv':(isEnded?'Beendet':'Geplant');
     const userName=p.user?p.user.name:'?';
-    div.innerHTML=`<span class="sd-date">${fmt(sd)}–${fmt(ed)}</span>
-      <span class="sd-tag ${statusCls}">${statusLbl}</span>
-      <span class="sd-lbl"><strong>${userName}</strong>${p.note?' · '+p.note:''}</span>
-      <button class="sd-del" onclick="editParentalLeave('${p.id}')" title="Bearbeiten" style="margin-right:4px;">✎</button>
-      <button class="sd-del" onclick="deleteParentalLeave('${p.id}')" title="Löschen">✕</button>`;
+    const userInitials=userName.split(' ').map(s=>s[0]||'').join('').slice(0,2).toUpperCase();
+    div.innerHTML=`
+      <div class="el-top">
+        <div class="el-name">${userName}${p.user&&p.user.username?' <span style="color:var(--muted);font-weight:500;font-size:13px;">('+p.user.username+')</span>':''}</div>
+        <span class="el-tag ${statusCls}">${statusLbl}</span>
+        <div class="el-actions">
+          <button class="el-btn edit" onclick="editParentalLeave('${p.id}')" title="Bearbeiten">✎ Bearbeiten</button>
+          <button class="el-btn del" onclick="deleteParentalLeave('${p.id}')" title="Löschen">✕ Löschen</button>
+        </div>
+      </div>
+      <div class="el-meta">
+        <span class="el-dates">${fmt(sd)} – ${fmt(ed)}</span>
+        ${p.note?`<span class="el-note">· ${p.note}</span>`:''}
+      </div>`;
     el.appendChild(div);
   });
 }
