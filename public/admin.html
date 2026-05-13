@@ -266,32 +266,32 @@ body.dark .el-item .el-tag.ended{background:#1F2937;color:#9CA3AF;border-color:#
 <body>
 
 <div id="hdr">
-  <h1>🔒 Admin Portal</h1>
+  <h1>Admin Portal</h1>
   <span class="badge">READ-ONLY</span>
   <span style="font-size:11px;color:rgba(255,255,255,.5);font-family:'JetBrains Mono',monospace;">v2.8</span>
   <span style="font-size:9px;color:rgba(255,255,255,.35);margin-left:8px;">· Entwickelt von S.Michlenz</span>
   <div class="spacer"></div>
   <span id="admin-name" style="font-size:13px;opacity:.7;"></span>
-  <button class="btn btn-theme" id="themeBtn" onclick="toggleTheme()" title="Dunkelmodus umschalten">🌙</button>
-  <button class="btn btn-logout" onclick="logout()">🚪 Abmelden</button>
+  <button class="btn btn-theme" id="themeBtn" onclick="toggleTheme()" title="Dunkelmodus umschalten">Dark</button>
+  <button class="btn btn-logout" onclick="logout()">Abmelden</button>
 </div>
 
 <div id="main">
   <div>
     <div class="panel" style="margin-bottom:14px;">
-      <h2>👥 Mitarbeiter</h2>
+      <h2>Mitarbeiter</h2>
       <div id="user-list"></div>
     </div>
     <div class="panel">
-      <h2>📅 Betriebliche Tage</h2>
+      <h2>Betriebliche Tage</h2>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4;">
         Eintrag wirkt automatisch für <strong id="sd-emp-count">alle</strong> Mitarbeiter.
       </div>
       <div class="sd-row">
         <select id="sd-type">
-          <option value="inventur">📦 Inventur</option>
-          <option value="closed">🔒 Geschlossen</option>
-          <option value="schulung">🎓 Schulung</option>
+          <option value="inventur">Inventur</option>
+          <option value="closed">Geschlossen</option>
+          <option value="schulung">Schulung</option>
         </select>
         <div style="display:flex;gap:6px;">
           <input type="date" id="sd-start" style="flex:1;" title="Von"/>
@@ -304,7 +304,7 @@ body.dark .el-item .el-tag.ended{background:#1F2937;color:#9CA3AF;border-color:#
     </div>
 
     <div class="panel" style="margin-top:14px;">
-      <h2>👶 Elternzeit</h2>
+      <h2>Elternzeit</h2>
       <div class="sd-row">
         <select id="el-user"></select>
         <div style="display:flex;gap:6px;">
@@ -326,13 +326,13 @@ body.dark .el-item .el-tag.ended{background:#1F2937;color:#9CA3AF;border-color:#
       <button onclick="changeMonth(1)">›</button>
     </div>
     <div id="lock-status">
-      <span style="font-size:20px;">🔒</span>
+      <span style="font-size:13px;font-weight:700;">LOCK</span>
       <div>
         <div>Monat abgeschlossen</div>
         <div class="lock-info" id="lock-info"></div>
       </div>
       <div class="spacer"></div>
-      <button class="btn-release" onclick="releaseMonth()">🔓 Wieder freigeben</button>
+      <button class="btn-release" onclick="releaseMonth()">Wieder freigeben</button>
     </div>
     <div id="stats" style="display:none;"></div>
     <div id="entries-area"></div>
@@ -432,8 +432,8 @@ function renderParentalLeaveList(){
         <div class="el-name">${userName}${p.user&&p.user.username?' <span style="color:var(--muted);font-weight:500;font-size:13px;">('+p.user.username+')</span>':''}</div>
         <span class="el-tag ${statusCls}">${statusLbl}</span>
         <div class="el-actions">
-          <button class="el-btn edit" onclick="editParentalLeave('${p.id}')" title="Bearbeiten">✎ Bearbeiten</button>
-          <button class="el-btn del" onclick="deleteParentalLeave('${p.id}')" title="Löschen">✕ Löschen</button>
+          <button class="el-btn edit" onclick="editParentalLeave('${p.id}')" title="Bearbeiten">Bearbeiten</button>
+          <button class="el-btn del" onclick="deleteParentalLeave('${p.id}')" title="Löschen">Löschen</button>
         </div>
       </div>
       <div class="el-meta">
@@ -520,9 +520,9 @@ let specialDays=[];
 
 // Typen-Konfiguration
 const SD_TYPES = {
-  inventur: { icon:'📦', label:'Inventur',    cls:'inv', short:'Inv' },
-  closed:   { icon:'🔒', label:'Geschlossen', cls:'cls', short:'Zu'  },
-  schulung: { icon:'🎓', label:'Schulung',    cls:'sch', short:'Sch' }
+  inventur: { icon:'', label:'Inventur',    cls:'inv', short:'Inv' },
+  closed:   { icon:'', label:'Geschlossen', cls:'cls', short:'Zu'  },
+  schulung: { icon:'', label:'Schulung',    cls:'sch', short:'Sch' }
 };
 
 function fmtDate(s){
@@ -571,18 +571,18 @@ function renderSpecialDays(){
       typeKey=g.day.type;
       dateStr=fmtDate(g.day.date);
       label=g.day.label||'';
-      actions=`<button class="sd-del" onclick="deleteSpecialDay('${g.day.date}')" title="Löschen">✕</button>`;
+      actions=`<button class="sd-del" onclick="deleteSpecialDay('${g.day.date}')" title="Löschen">Löschen</button>`;
     } else {
       typeKey=g.days[0].type;
       const first=g.days[0].date;
       const last=g.days[g.days.length-1].date;
       dateStr=fmtDate(first)+' – '+fmtDate(last)+' ('+g.days.length+' Tage)';
       label=g.days[0].label||'';
-      actions=`<button class="sd-del" onclick="deleteSpecialDayRange('${g.rangeId}')" title="Ganze Reihe löschen">✕</button>`;
+      actions=`<button class="sd-del" onclick="deleteSpecialDayRange('${g.rangeId}')" title="Ganze Reihe löschen">Löschen</button>`;
     }
     const cfg=SD_TYPES[typeKey]||{icon:'',label:typeKey,cls:'cls',short:typeKey};
     div.innerHTML=`<span class="sd-date">${dateStr}</span>
-      <span class="sd-tag ${cfg.cls}">${cfg.icon} ${cfg.label}</span>
+      <span class="sd-tag ${cfg.cls}">${cfg.label}</span>
       <span class="sd-lbl">${label}</span>
       ${actions}`;
     el.appendChild(div);
@@ -677,7 +677,7 @@ function renderUsers(){
   users.forEach(u=>{
     const closed=userHasLockForView(u.id);
     const statusCls=closed?'month-closed':'month-open';
-    const ico=closed?'✅':'⏳';
+    const ico=closed?'zu':'offen';
     const d=document.createElement('div');
     d.className='user-item '+statusCls+(u.id===selectedUserId?' active':'');
     d.innerHTML=`<div class="name">${u.name}<span class="lock-ind">${ico}</span></div>`;
@@ -749,7 +749,7 @@ function renderMonth(){
     const u=users.find(x=>x.id===selectedUserId);
     document.getElementById('entries-area').innerHTML=`
       <div style="text-align:center;padding:50px 20px;color:var(--muted);">
-        <div style="font-size:48px;margin-bottom:14px;">⏳</div>
+        <div style="font-size:13px;font-weight:700;letter-spacing:2px;margin-bottom:14px;color:var(--txt2);">OFFEN</div>
         <div style="font-size:16px;font-weight:700;color:var(--txt);margin-bottom:6px;">
           Monat noch nicht abgeschlossen
         </div>
@@ -842,11 +842,11 @@ function renderMonth(){
       }
     }
     else if(sd&&sd.type==='closed'){
-      cls='r-closed';vonTxt='<span class="badge-typ b-closed">🔒 Geschlossen</span>'+(sd.label?' <span style="color:var(--txt2);font-size:11px;">'+sd.label+'</span>':'');
+      cls='r-closed';vonTxt='<span class="badge-typ b-closed">Geschlossen</span>'+(sd.label?' <span style="color:var(--txt2);font-size:11px;">'+sd.label+'</span>':'');
       netto=ts.toFixed(2).replace('.',',');
     }
     else if(sd&&sd.type==='schulung'&&!(e&&e.von)){
-      vonTxt='<span style="color:#1E40AF;font-weight:700;">🎓 Schulung'+(sd.label?' — '+sd.label:'')+'</span>';
+      vonTxt='<span style="color:#1E40AF;font-weight:700;">Schulung'+(sd.label?' — '+sd.label:'')+'</span>';
     }
     else if(typ==='urlaub'){cls='r-u';vonTxt='<span style="color:var(--u-t);font-weight:700;">Urlaub</span>';urlaub++;netto=ts.toFixed(2).replace('.',',');}
     else if(typ==='zeitausgleich'){cls='r-za';vonTxt='<span style="color:var(--za-t);font-weight:700;">Zeitausgleich</span>';za++;}
@@ -865,9 +865,9 @@ function renderMonth(){
     // Marker-Badge fuer Inventur/Schulung an die WT-Spalte
     let invBadge='';
     if(sd&&sd.type==='inventur'){
-      invBadge=` <span class="badge-typ b-inv" title="${sd.label||''}">📦 Inventur</span>`;
+      invBadge=` <span class="badge-typ b-inv" title="${sd.label||''}">Inventur</span>`;
     } else if(sd&&sd.type==='schulung'&&e&&e.von){
-      invBadge=` <span class="badge-typ" style="background:#DBEAFE;color:#1E40AF;border:1px solid #BFDBFE;" title="${sd.label||''}">🎓 Schulung</span>`;
+      invBadge=` <span class="badge-typ" style="background:#DBEAFE;color:#1E40AF;border:1px solid #BFDBFE;" title="${sd.label||''}">Schulung</span>`;
     }
     const isMonday=new Date(viewYear,viewMonth,d).getDay()===1;
     const kwHtml=isMonday?`<span class="kw-badge">KW ${getKW(viewYear,viewMonth,d)}</span>`:'';
@@ -980,7 +980,7 @@ function renderMonth(){
       </table>
     </div>
     <p style="margin-top:14px;font-size:12px;color:#A09890;text-align:center;">
-      🔒 Read-Only · Wochenstunden Soll: ${wh} h · Tagessoll: ${ts.toFixed(2).replace('.',',')} h
+      Read-Only · Wochenstunden Soll: ${wh} h · Tagessoll: ${ts.toFixed(2).replace('.',',')} h
     </p>
   `;
 
@@ -1005,7 +1005,7 @@ async function logout(){
 // ── DARK MODE ───────────────────────────────────────────────────────────────
 function applyTheme(dark){
   document.body.classList.toggle('dark',dark);
-  document.getElementById('themeBtn').textContent=dark?'☀️':'🌙';
+  document.getElementById('themeBtn').textContent=dark?'Hell':'Dark';
   document.getElementById('themeBtn').title=dark?'Hellmodus':'Dunkelmodus';
 }
 function toggleTheme(){
@@ -1018,7 +1018,7 @@ applyTheme(localStorage.getItem('admin_dark')==='1');
 
 // Init
 fetch('/api/user').then(r=>r.json()).then(d=>{
-  if(d.name)document.getElementById('admin-name').textContent='👤 '+d.name;
+  if(d.name)document.getElementById('admin-name').textContent=d.name;
 });
 loadUsers();
 </script>
