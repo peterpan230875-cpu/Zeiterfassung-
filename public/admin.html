@@ -63,9 +63,34 @@ body{
 }
 .btn-logout{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);}
 .btn-logout:hover{background:rgba(255,255,255,.2);}
-.btn-theme{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);
-  width:36px;height:36px;padding:0;font-size:16px;display:inline-flex;align-items:center;justify-content:center;}
-.btn-theme:hover{background:rgba(255,255,255,.2);}
+/* Theme-Toggle: Slider-Switch mit Sonne/Mond */
+.theme-switch{
+  position:relative;display:inline-block;width:58px;height:30px;cursor:pointer;flex-shrink:0;
+}
+.theme-switch input{opacity:0;width:0;height:0;}
+.theme-switch .track{
+  position:absolute;inset:0;background:rgba(255,255,255,.15);
+  border:1px solid rgba(255,255,255,.25);border-radius:30px;
+  transition:background .25s;
+}
+.theme-switch .thumb{
+  position:absolute;top:3px;left:3px;width:22px;height:22px;
+  background:#FCD34D;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;line-height:1;
+  transition:left .25s,background .25s;
+  box-shadow:0 1px 4px rgba(0,0,0,.3);
+}
+.theme-switch input:checked + .track{background:rgba(255,255,255,.25);}
+.theme-switch input:checked + .track .thumb{
+  left:32px;background:#1F2937;color:#FCD34D;
+}
+.theme-switch .ico-sun,.theme-switch .ico-moon{
+  position:absolute;top:50%;transform:translateY(-50%);
+  font-size:12px;opacity:.6;pointer-events:none;
+}
+.theme-switch .ico-sun{left:8px;color:#FCD34D;}
+.theme-switch .ico-moon{right:8px;color:#E5E7EB;}
 
 #main{display:grid;grid-template-columns:280px 1fr;gap:20px;padding:20px;max-width:1400px;margin:0 auto;}
 @media(max-width:800px){#main{grid-template-columns:1fr;}}
@@ -272,7 +297,14 @@ body.dark .el-item .el-tag.ended{background:#1F2937;color:#9CA3AF;border-color:#
   <span style="font-size:9px;color:rgba(255,255,255,.35);margin-left:8px;">· Entwickelt von S.Michlenz</span>
   <div class="spacer"></div>
   <span id="admin-name" style="font-size:13px;opacity:.7;"></span>
-  <button class="btn btn-theme" id="themeBtn" onclick="toggleTheme()" title="Dunkelmodus umschalten">Dark</button>
+  <label class="theme-switch" title="Dunkelmodus umschalten">
+    <input type="checkbox" id="themeBtn" onchange="toggleTheme()"/>
+    <span class="track">
+      <span class="ico-sun">☀</span>
+      <span class="ico-moon">☾</span>
+      <span class="thumb">☀</span>
+    </span>
+  </label>
   <button class="btn btn-logout" onclick="logout()">Abmelden</button>
 </div>
 
@@ -1005,8 +1037,11 @@ async function logout(){
 // ── DARK MODE ───────────────────────────────────────────────────────────────
 function applyTheme(dark){
   document.body.classList.toggle('dark',dark);
-  document.getElementById('themeBtn').textContent=dark?'Hell':'Dark';
-  document.getElementById('themeBtn').title=dark?'Hellmodus':'Dunkelmodus';
+  const cb=document.getElementById('themeBtn');
+  if(cb) cb.checked=!!dark;
+  // Thumb-Icon: Sonne wenn hell, Mond wenn dunkel
+  const thumb=document.querySelector('.theme-switch .thumb');
+  if(thumb) thumb.textContent=dark?'☾':'☀';
 }
 function toggleTheme(){
   const dark=!document.body.classList.contains('dark');
