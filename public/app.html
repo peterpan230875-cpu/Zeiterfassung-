@@ -2022,7 +2022,10 @@ function saveEntry(){
   const pause=customPause?customPause:(activePause?activePause.dataset.val:"30");
   const bem=document.getElementById("inp-bem").value.trim();
   const curTyp=emp.entries[sheetDay]?emp.entries[sheetDay].typ||"normal":"normal";
-  emp.entries[sheetDay]={von,bis,pause,bemerkung:bem,typ:curTyp};
+  // Wenn echte Arbeitszeiten eingetragen werden, wird der Tag automatisch
+  // zum normalen Arbeitstag - das ueberschreibt ein vorheriges Urlaub/ZA/Krank.
+  const newTyp=(von||bis)?"normal":curTyp;
+  emp.entries[sheetDay]={von,bis,pause,bemerkung:bem,typ:newTyp};
   saveState();
   // Sende Eintrag zum Server
   syncEntryToServer(sheetDay, emp.entries[sheetDay]);
