@@ -3,3 +3,7 @@ node_modules/
 .DS_Store
 *.log
 data/
+
+# Lokale Setup-Skripte mit Klartext-Passwoertern
+create-admin.js
+backup-*.zip
