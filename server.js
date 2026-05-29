@@ -843,6 +843,76 @@ app.delete('/api/admin/month-lock/:userId/:year/:month', async (req, res) => {
   }
 });
 
+// ── ADMIN-FREIGABE "FERTIG ZUR UNTERSCHRIFT" ──────────────────────────────────
+// Safety-Net: Spalten ergaenzen falls noch nicht in DB
+let monthLockApprovalColsEnsured = false;
+async function ensureMonthLockApprovalCols() {
+  if (monthLockApprovalColsEnsured) return;
+  try {
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "MonthLock" ADD COLUMN IF NOT EXISTS "adminApprovedAt" TIMESTAMP(3)`
+    );
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "MonthLock" ADD COLUMN IF NOT EXISTS "adminApprovedBy" TEXT`
+    );
+    monthLockApprovalColsEnsured = true;
+  } catch (err) {
+    console.error('ensureMonthLockApprovalCols error:', err);
+  }
+}
+
+// Admin markiert Monat als "Fertig zur Unterschrift"
+app.post('/api/admin/month-approve', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  await ensureMonthLockApprovalCols();
+  try {
+    const { userId, year, month } = req.body;
+    if (!userId || !year || !month) {
+      return res.status(400).json({ error: 'userId, year, month erforderlich' });
+    }
+    // Pruefen: Monat muss zuerst vom Mitarbeiter abgeschlossen sein
+    const lock = await prisma.monthLock.findUnique({
+      where: { userId_year_month: { userId, year: parseInt(year), month: parseInt(month) } }
+    });
+    if (!lock) {
+      return res.status(400).json({ error: 'Monat muss zuerst vom Mitarbeiter abgeschlossen werden' });
+    }
+    const updated = await prisma.monthLock.update({
+      where: { userId_year_month: { userId, year: parseInt(year), month: parseInt(month) } },
+      data: {
+        adminApprovedAt: new Date(),
+        adminApprovedBy: req.session.username || req.session.name || 'admin'
+      }
+    });
+    res.json({ success: true, lock: updated });
+  } catch (err) {
+    console.error('month-approve error:', err);
+    res.status(500).json({ error: 'Fehler bei Freigabe: '+(err.message||err) });
+  }
+});
+
+// Admin widerruft die Freigabe
+app.delete('/api/admin/month-approve/:userId/:year/:month', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  await ensureMonthLockApprovalCols();
+  try {
+    const updated = await prisma.monthLock.update({
+      where: {
+        userId_year_month: {
+          userId: req.params.userId,
+          year: parseInt(req.params.year),
+          month: parseInt(req.params.month)
+        }
+      },
+      data: { adminApprovedAt: null, adminApprovedBy: null }
+    });
+    res.json({ success: true, lock: updated });
+  } catch (err) {
+    console.error('month-approve DELETE error:', err);
+    res.status(500).json({ error: 'Fehler beim Widerrufen: '+(err.message||err) });
+  }
+});
+
 // ── SUPER-ADMIN SEITEN & API ─────────────────────────────────────────────────
 app.get('/super-admin-login', noCache, (req, res) => {
   if (req.session.isSuperAdmin) return res.redirect('/super-admin');

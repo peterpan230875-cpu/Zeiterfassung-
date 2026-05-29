@@ -30,7 +30,11 @@ model MonthLock {
   year      Int
   month     Int       // 1-12
 
-  lockedAt  DateTime  @default(now())
+  lockedAt           DateTime  @default(now())
+
+  // Admin-Freigabe: gesetzt wenn der Admin das Monat als "fertig zur Unterschrift" markiert hat
+  adminApprovedAt    DateTime?
+  adminApprovedBy    String?
 
   @@unique([userId, year, month])
   @@index([userId])

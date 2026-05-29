@@ -1373,8 +1373,32 @@ function renderLockState(){
   if(locked){
     const info=getLockInfo(state.year,state.month);
     const dt=info?.lockedAt?new Date(info.lockedAt).toLocaleDateString('de-DE'):'';
-    document.getElementById('lock-banner-sub').textContent=
-      `${MON[state.month]} ${state.year}${dt?' · abgeschlossen am '+dt:''}`;
+    const isApproved=!!info?.adminApprovedAt;
+    const approveDate=info?.adminApprovedAt?new Date(info.adminApprovedAt).toLocaleDateString('de-DE'):'';
+    const approvedBy=info?.adminApprovedBy||'Admin';
+
+    // Banner-Hauptzeile + Stil je nach Status
+    const lockTitle=banner.querySelector('div > div:first-child');
+    const lockIcon=banner.querySelector('.lock-icon');
+    if(isApproved){
+      // Approved-Stil: Gruen-Badge mit klarem "Bereit zur Unterschrift"-Hinweis
+      banner.style.background='#DCFCE7';
+      banner.style.borderColor='#16A34A';
+      banner.style.color='#14532D';
+      if(lockIcon) lockIcon.textContent='✓';
+      if(lockTitle) lockTitle.textContent='Bereit zur Unterschrift';
+      document.getElementById('lock-banner-sub').textContent=
+        `${MON[state.month]} ${state.year} · von ${approvedBy} freigegeben am ${approveDate}`;
+    } else {
+      // Normaler Lock (vom Mitarbeiter abgeschlossen, aber noch nicht vom Admin freigegeben)
+      banner.style.background='';
+      banner.style.borderColor='';
+      banner.style.color='';
+      if(lockIcon) lockIcon.textContent='🔒';
+      if(lockTitle) lockTitle.textContent='Monat abgeschlossen';
+      document.getElementById('lock-banner-sub').textContent=
+        `${MON[state.month]} ${state.year}${dt?' · abgeschlossen am '+dt:''} · wartet auf Admin-Freigabe`;
+    }
     banner.classList.add('show');
     closeBar.style.display='none';
     // Tabellenzeilen ausgrauen + Klicks deaktivieren
