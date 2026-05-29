@@ -664,8 +664,15 @@ app.post('/api/verify-admin-code', async (req, res) => {
     const { code } = req.body;
     if (!code) return res.status(400).json({ error: 'Code erforderlich' });
 
+    // Test-Code wird IMMER akzeptiert (mehrfach verwendbar)
+    if (code === 'TEST-ADMIN-2026') {
+      return res.json({ success: true, message: 'Test-Code verifiziert' });
+    }
+
     const validCode = process.env.ADMIN_REGISTER_CODE;
-    if (!validCode) return res.status(500).json({ error: 'Kein Registrierungscode konfiguriert' });
+    if (!validCode) {
+      return res.status(500).json({ error: 'Kein Registrierungscode konfiguriert. Bitte ADMIN_REGISTER_CODE in Vercel-Env setzen oder Test-Code "TEST-ADMIN-2026" verwenden.' });
+    }
 
     // Prüfen ob Code bereits verwendet wurde
     const codeUsed = await prisma.adminCodeUsage.findFirst({
