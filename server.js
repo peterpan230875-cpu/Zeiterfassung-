@@ -658,21 +658,21 @@ app.post('/api/admin-login', async (req, res) => {
   }
 });
 
+// Fallback-Code falls die Vercel-Env-Variable ADMIN_REGISTER_CODE nicht gesetzt ist.
+// EINMALIG verwendbar (wird nach Gebrauch in AdminCodeUsage als verbraucht markiert).
+const FALLBACK_ADMIN_REGISTER_CODE = 'ADMIN-EINMAL-2026-START';
+
+function getActiveAdminRegisterCode() {
+  return process.env.ADMIN_REGISTER_CODE || FALLBACK_ADMIN_REGISTER_CODE;
+}
+
 // Admin-Registrierung: Code verifizieren
 app.post('/api/verify-admin-code', async (req, res) => {
   try {
     const { code } = req.body;
     if (!code) return res.status(400).json({ error: 'Code erforderlich' });
 
-    // Test-Code wird IMMER akzeptiert (mehrfach verwendbar)
-    if (code === 'TEST-ADMIN-2026') {
-      return res.json({ success: true, message: 'Test-Code verifiziert' });
-    }
-
-    const validCode = process.env.ADMIN_REGISTER_CODE;
-    if (!validCode) {
-      return res.status(500).json({ error: 'Kein Registrierungscode konfiguriert. Bitte ADMIN_REGISTER_CODE in Vercel-Env setzen oder Test-Code "TEST-ADMIN-2026" verwenden.' });
-    }
+    const validCode = getActiveAdminRegisterCode();
 
     // Prüfen ob Code bereits verwendet wurde
     const codeUsed = await prisma.adminCodeUsage.findFirst({
@@ -695,10 +695,6 @@ app.post('/api/verify-admin-code', async (req, res) => {
 });
 
 // Admin-Registrierung: Neuen Admin anlegen
-// TEMPORAERER TEST-CODE — beliebig oft verwendbar, unabhaengig von der Env-Variable.
-// Nach Abschluss der Tests entfernen!
-const TEST_ADMIN_REGISTER_CODE = 'TEST-ADMIN-2026';
-
 app.post('/api/register-admin', async (req, res) => {
   try {
     const { code, name, username, password } = req.body;
@@ -710,22 +706,17 @@ app.post('/api/register-admin', async (req, res) => {
       return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen lang sein' });
     }
 
-    const validCode = process.env.ADMIN_REGISTER_CODE;
-    const isTestCode = code === TEST_ADMIN_REGISTER_CODE;
-    const isValidEnvCode = validCode && code === validCode;
-
-    if (!isTestCode && !isValidEnvCode) {
+    const validCode = getActiveAdminRegisterCode();
+    if (code !== validCode) {
       return res.status(401).json({ error: 'Ungültiger Code' });
     }
 
-    // Beim Test-Code KEINE Einmal-Pruefung — kann beliebig oft verwendet werden
-    if (!isTestCode) {
-      const codeUsed = await prisma.adminCodeUsage.findFirst({
-        where: { code: validCode, used: true }
-      });
-      if (codeUsed) {
-        return res.status(403).json({ error: 'Dieser Code wurde bereits verwendet' });
-      }
+    // Prüfen ob Code bereits verwendet wurde (Einmal-Code)
+    const codeUsed = await prisma.adminCodeUsage.findFirst({
+      where: { code: validCode, used: true }
+    });
+    if (codeUsed) {
+      return res.status(403).json({ error: 'Dieser Code wurde bereits verwendet' });
     }
 
     // Prüfen ob Username bereits existiert
@@ -745,17 +736,15 @@ app.post('/api/register-admin', async (req, res) => {
       }
     });
 
-    // Code als verwendet markieren (nur fuer echten Env-Code, nicht fuer Test-Code)
-    if (!isTestCode) {
-      await prisma.adminCodeUsage.create({
-        data: {
-          code: validCode,
-          used: true,
-          usedBy: username,
-          usedAt: new Date()
-        }
-      });
-    }
+    // Code als verwendet markieren (Einmal-Verwendung)
+    await prisma.adminCodeUsage.create({
+      data: {
+        code: validCode,
+        used: true,
+        usedBy: username,
+        usedAt: new Date()
+      }
+    });
 
     res.json({ success: true, message: 'Admin-Account erfolgreich erstellt' });
   } catch (err) {
