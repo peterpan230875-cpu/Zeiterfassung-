@@ -1181,7 +1181,11 @@ function countMonthUrlaub(y,m){
   let cnt=0;
   for(let d=1;d<=days;d++){
     const e=emp.entries[dk(y,m,d)];
-    if(e&&e.typ==="urlaub") cnt++;
+    if(e&&e.typ==="urlaub"){
+      // Silvester-Urlaub zaehlt nur als halber Tag
+      const isSv=m===11&&d===31&&new Date(y,m,d).getDay()!==0&&new Date(y,m,d).getDay()!==6;
+      cnt += isSv ? 0.5 : 1;
+    }
   }
   return cnt;
 }
@@ -1271,7 +1275,7 @@ function calculateMonthSaldo(y,m){
   const wh=parseFloat(state.wochenstunden)||38.5;
   const tSoll=wh/5;
   const tSollMin=tSoll*60;
-  let totalMin=0,urlaub=0,krank=0,closedDays=0,sollArbeitstage=0;
+  let totalMin=0,urlaub=0,urlaubHalf=0,krank=0,closedDays=0,sollArbeitstage=0;
   for(let d=1;d<=days;d++){
     const key=dk(y,m,d);
     const holiday=FEIERTAGE[key];
@@ -1279,15 +1283,23 @@ function calculateMonthSaldo(y,m){
     const sat=isSat(y,m,d);
     const sd=getSpecialDay(key);
     const isClosed=sd&&sd.type==='closed';
+    const isHb=m===11&&d===24&&!sun&&!sat;
+    const isSv=m===11&&d===31&&!sun&&!sat;
     const isElt=!!getParentalLeave(key);
     // Elternzeit: weder Soll noch Ist
     if(isElt) continue;
-    // Geschlossen-Tage: Mitarbeiter muss Urlaub oder ZA nehmen (nicht automatisch bezahlt!)
-    if(!sun&&!holiday&&!sat) sollArbeitstage++;
-    if(sun||holiday) continue; // Nur Sonntage und Feiertage überspringen
+    // Soll: Werktage. Heiligabend = 0, Silvester = 0.5
+    if(!sun&&!holiday&&!sat&&!isHb){
+      if(isSv) sollArbeitstage+=0.5;
+      else sollArbeitstage++;
+    }
+    if(sun||holiday) continue;
     const e=emp.entries[key];
     if(!e) continue;
-    if(e.typ==="urlaub") urlaub++;
+    if(e.typ==="urlaub"){
+      if(isSv) urlaubHalf++;
+      else urlaub++;
+    }
     else if(e.typ==="krank") krank++;
     else if(e.von&&e.bis){
       const [vh,vm]=e.von.split(":").map(Number);
@@ -1298,7 +1310,7 @@ function calculateMonthSaldo(y,m){
     }
   }
   const sollMin=sollArbeitstage*tSollMin;
-  const istMin=totalMin+(urlaub+krank)*tSollMin; // Urlaub & Krank zählen, ZA & Geschlossen nicht!
+  const istMin=totalMin+(urlaub+krank+urlaubHalf*0.5)*tSollMin;
   return (istMin-sollMin)/60;
 }
 
@@ -1479,8 +1491,9 @@ function buildRow(d,key,dayWT,weekend,holiday,entry,typ,blocked){
   else if(isHeiligabend){vonTxt="Heiligabend";bemTxt="Feiertag";}
   else if(sd&&sd.type==='closed'){vonTxt="Geschlossen"+(sd.label?" — "+sd.label:"");}
   else if(isSun(parseInt(key.split("-")[0]),parseInt(key.split("-")[1])-1,d)){vonTxt="Sonntag";}
-  else if(isSilvesterWD&&typ==="zeitausgleich"){vonTxt="Silvester";bemTxt="Halber Tag Zeitausgleich nehmen";}
-  else if(isSilvesterWD&&typ==="normal"){vonTxt="Silvester";bemTxt="Halber Tag Zeitausgleich nehmen";}
+  else if(isSilvesterWD&&typ==="zeitausgleich"){vonTxt="Silvester";bemTxt="½ Tag Zeitausgleich genommen";}
+  else if(isSilvesterWD&&typ==="urlaub"){vonTxt="Silvester";bemTxt="½ Tag Urlaub genommen";}
+  else if(isSilvesterWD){vonTxt="Silvester";bemTxt="½ Tag Urlaub oder ZA nehmen";}
   else if(typ==="urlaub"){vonTxt="Urlaub";}
   else if(typ==="zeitausgleich"){vonTxt="Zeitausgleich";}
   else if(typ==="krank"){vonTxt="Krank";}
@@ -1514,8 +1527,8 @@ function renderTable(){
     const isHeiligabend=(m===11&&d===24&&!isSat(y,m,d)&&!isSun(y,m,d));
     const isSilvesterWD=(m===11&&d===31&&!isSat(y,m,d)&&!isSun(y,m,d));
     const elt=getParentalLeave(key);
-    // blocked = keine normale Eingabe; isClosed erlaubt aber U/ZA-Buttons
-    const blocked=!!(holiday||isSun(y,m,d)||isClosed||isHeiligabend||elt);
+    // blocked = keine normale Eingabe; isClosed/Silvester erlaubt aber U/ZA-Buttons
+    const blocked=!!(holiday||isSun(y,m,d)||isClosed||isSilvesterWD||isHeiligabend||elt);
 
     const tr=document.createElement("tr");
     if(elt)tr.className="r-elt";
@@ -1525,7 +1538,9 @@ function renderTable(){
     else if(isClosed&&typ==="zeitausgleich")tr.className="r-za";
     else if(isClosed)tr.className="r-closed";
     else if(isHeiligabend)tr.className="r-hol"; // Heiligabend = frei wie Feiertag
+    else if(isSilvesterWD&&typ==="urlaub")tr.className="r-u";
     else if(isSilvesterWD&&typ==="zeitausgleich")tr.className="r-za";
+    else if(isSilvesterWD)tr.className="r-closed";
     else if(isSat(y,m,d))tr.className="r-sat";
     else if(typ==="urlaub")tr.className="r-u";
     else if(typ==="zeitausgleich")tr.className="r-za";
@@ -1612,7 +1627,25 @@ function renderTable(){
     } else if(isSun(y,m,d)){
       tdS.innerHTML=`<span class="badge b-we">Sonntag</span>`;
     } else if(isSilvesterWD){
-      tdS.innerHTML=`<span class="badge" style="background:#F0FDF4;color:#16A34A;border:1px solid #16A34A;">Silvester</span>`;
+      // Silvester: Badge + U/ZA-Buttons (1/2 Tag muss als U oder ZA genommen werden)
+      const wrap=document.createElement("div");
+      wrap.style.cssText="display:flex;gap:6px;align-items:center;flex-wrap:wrap;";
+      wrap.onclick=e=>e.stopPropagation();
+      const lbl=document.createElement("span");
+      lbl.className="badge";
+      lbl.style.cssText="background:#F0FDF4;color:#16A34A;border:1px solid #16A34A;";
+      lbl.textContent='Silvester (½ Tag U/ZA)';
+      wrap.appendChild(lbl);
+      const btns=document.createElement("div");btns.style.cssText="display:flex;gap:3px;";
+      [["U","q-u","urlaub"],["ZA","q-za","zeitausgleich"]].forEach(([txt,cls,t])=>{
+        const b=document.createElement("button");
+        b.className="qbtn "+cls+(typ===t?" qa":"");
+        b.textContent=txt;b.title=t;
+        b.onclick=e=>{e.stopPropagation();quickSetTyp(key,t);};
+        btns.appendChild(b);
+      });
+      wrap.appendChild(btns);
+      tdS.appendChild(wrap);
     } else if(isSat(y,m,d)){
       tdS.innerHTML=`<span class="badge" style="background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-m);">Samstag</span>`;
     } else {
@@ -1774,7 +1807,7 @@ function renderStats(){
   const emp=curEmp();
   const y=state.year,m=state.month;
   const days=daysIn(y,m);
-  let work=0,urlaub=0,za=0,zaHalf=0,krank=0,nettoMinGesamt=0,sollArbeitstage=0,closedDays=0;
+  let work=0,urlaub=0,urlaubHalf=0,za=0,zaHalf=0,krank=0,nettoMinGesamt=0,sollArbeitstage=0,closedDays=0;
   const wh=parseFloat(state.wochenstunden)||38.5;
   const tSoll=wh/5;
   const tSollMin=tSoll*60;
@@ -1801,7 +1834,10 @@ function renderStats(){
     if(sun||holiday||isClosed||isHb)continue;
     const e=emp.entries[key];
     if(!e)continue;
-    if(e.typ==="urlaub")urlaub++;
+    if(e.typ==="urlaub"){
+      if(isSv) urlaubHalf++; // Silvester-Urlaub zählt nur als halber Tag
+      else urlaub++;
+    }
     else if(e.typ==="zeitausgleich"){
       if(isSv) zaHalf++; // Silvester-ZA zählt nur als halber Tag
       else za++;
@@ -1819,7 +1855,8 @@ function renderStats(){
 
   const sollMin=sollArbeitstage*tSollMin;
   // Geschlossene Tage (inkl. Heiligabend) zählen wie Feiertage (bezahlt, kein Soll)
-  const istMin=nettoMinGesamt+(urlaub+krank+closedDays)*tSollMin; // ZA zählt nicht
+  // Silvester-Urlaub (urlaubHalf) zählt nur als halber Tag im Ist
+  const istMin=nettoMinGesamt+(urlaub+krank+closedDays+urlaubHalf*0.5)*tSollMin; // ZA zählt nicht
   const saldoMin=istMin-sollMin;
   const saldoH=saldoMin/60;
   const sign=saldoH>=0?"+":"";
@@ -1843,10 +1880,12 @@ function renderStats(){
      </span>`;
 
   // Urlaub: links = NUR dieser Monat genommen (rot), rechts = Jahres-Rest (grün)
+  // Silvester-Urlaub zählt nur als halber Tag
   const anspruch=parseInt(state.urlaubsanspruch)||30;
   const urlaubTotal=getCumulativeUrlaub(y,m);
   const urlaubRest=Math.max(0,anspruch-urlaubTotal);
-  const urlaubMonthStr=urlaub>0?("-"+urlaub):"0";
+  const urlaubMonth=urlaub+urlaubHalf*0.5;
+  const urlaubMonthStr=urlaubMonth>0?("-"+urlaubMonth.toString().replace(".",",")):"0";
   document.getElementById("st-urlaub").innerHTML=
     `<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
        <span style="color:var(--red);">${urlaubMonthStr}</span>
@@ -2638,19 +2677,14 @@ function buildPrintHTML(){
     else if(isClosed){von="🔒 Geschlossen"+(sd.label?" — "+sd.label:"");netto=ts.toFixed(2).replace(".",",");nettoColor="#374151";}
     else if(sun){von="Sonntag";}
     else if(isSilvesterWD){
-      bem="Halber Tag Zeitausgleich nehmen";
-      if(typ==="zeitausgleich"){von="Silvester";zaHalf++;nettoColor="#16A34A";}
-      else if(entry&&entry.von){
-        von=entry.von||"";bis=entry.bis||"";
-        pause=entry.pause?(entry.pause+" min"):"";
-        if(entry.von&&entry.bis){
-          const [vh,vm2]=entry.von.split(":").map(Number);
-          const [bh,bm2]=entry.bis.split(":").map(Number);
-          const total=(bh*60+bm2)-(vh*60+vm2);const p=parseInt(entry.pause||"0")||0;
-          const net=Math.max(0,total-p);
-          if(net>0){work++;totalMin+=net;netto=(net/60).toFixed(2).replace(".",",");}
-        }
-      } else {von="Silvester";}
+      // Silvester ist geschlossen - 1/2 Tag geschenkt, 1/2 Tag muss als U oder ZA genommen werden
+      if(typ==="zeitausgleich"){
+        von="Silvester";bem="½ Tag Zeitausgleich genommen";zaHalf++;nettoColor="#16A34A";
+      } else if(typ==="urlaub"){
+        von="Silvester";bem="½ Tag Urlaub genommen";urlaub+=0.5;nettoColor="#2563EB";
+      } else {
+        von="Silvester";bem="½ Tag Urlaub oder ZA nehmen";
+      }
     }
     else if(sat){
       // Samstag: wenn Eintrag vorhanden, Zeiten zeigen — sonst nur "Samstag"

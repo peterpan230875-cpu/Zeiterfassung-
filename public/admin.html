@@ -805,7 +805,7 @@ function renderMonth(){
   const ts=wh/5;
   const days=daysIn(viewYear,viewMonth);
   const tLabels={urlaub:"Urlaub",zeitausgleich:"Zeitausgleich",krank:"Krank"};
-  let work=0,urlaub=0,za=0,zaHalf=0,krank=0,totalMin=0;
+  let work=0,urlaub=0,urlaubHalf=0,za=0,zaHalf=0,krank=0,totalMin=0;
   const entriesByKey={};
   currentEntries.forEach(e=>{entriesByKey[e.date]=e;});
 
@@ -857,24 +857,21 @@ function renderMonth(){
       netto=ts.toFixed(2).replace('.',',');
     }
     else if(isSilvesterWD){
-      // 31.12. auf Werktag = ½ Tag ZA + ½ Tag gratis (Firmenregel)
-      bemTxt='Halber Tag Zeitausgleich nehmen';
+      // 31.12. auf Werktag = geschlossen. ½ Tag geschenkt, ½ Tag muss als U oder ZA genommen werden.
       if(typ==='zeitausgleich'){
         cls='r-za';
-        vonTxt='Silvester';
+        vonTxt='<span style="color:var(--za-t);font-weight:700;">Silvester — Zeitausgleich</span>';
+        bemTxt='½ Tag Zeitausgleich genommen';
         zaHalf++;
-      } else if(e&&e.von){
-        vonTxt=e.von||'';bisTxt=e.bis||'';
-        pauseTxt=e.pause?(e.pause+" min"):'';
-        if(e.von&&e.bis){
-          const [vh,vm]=e.von.split(':').map(Number);
-          const [bh,bm]=e.bis.split(':').map(Number);
-          const total=(bh*60+bm)-(vh*60+vm);const p=parseInt(e.pause||0)||0;
-          const net=Math.max(0,total-p);
-          if(net>0){work++;totalMin+=net;netto=(net/60).toFixed(2).replace('.',',');}
-        }
+      } else if(typ==='urlaub'){
+        cls='r-u';
+        vonTxt='<span style="color:var(--u-t);font-weight:700;">Silvester — Urlaub</span>';
+        bemTxt='½ Tag Urlaub genommen';
+        urlaubHalf++;
       } else {
-        vonTxt='Silvester';
+        cls='r-closed';
+        vonTxt='<span class="badge-typ b-closed">Silvester</span>';
+        bemTxt='½ Tag Urlaub oder ZA nehmen';
       }
     }
     else if(sd&&sd.type==='closed'){
@@ -935,8 +932,9 @@ function renderMonth(){
       else sollArbeitstage++;
     }
   }
-  // Geschlossene Tage (inkl. Heiligabend) zählen als bezahlt
-  const istMin=totalMin+(urlaub+krank+closedDays)*ts*60;
+  // Geschlossene Tage (inkl. Heiligabend) zählen als bezahlt.
+  // Silvester-Urlaub zählt nur als halber Tag.
+  const istMin=totalMin+(urlaub+krank+closedDays+urlaubHalf*0.5)*ts*60;
   const sollMin=sollArbeitstage*ts*60;
   const saldo=istMin-sollMin;
   const sign=saldo>0?'+':saldo<0?'-':'±';
@@ -980,16 +978,23 @@ function renderMonth(){
     startMonthKey=viewYear+"-01";
     baseUrlaub=0;
   }
-  // Alle Urlaubseinträge zwischen startMonthKey und ustK (inkl.) zählen für Rest
+  // Alle Urlaubseinträge zwischen startMonthKey und ustK (inkl.) zählen für Rest.
+  // Silvester-Urlaub zählt nur als halber Tag.
   let urlaubInRange=0;
   currentEntries.forEach(e=>{
     if(e.type!=='urlaub') return;
     const mk=e.date.substring(0,7);
-    if(mk>=startMonthKey && mk<=ustK) urlaubInRange++;
+    if(mk>=startMonthKey && mk<=ustK){
+      const [eY,eM,eD]=e.date.split('-').map(Number);
+      const dt=new Date(eY,eM-1,eD);
+      const isSv=eM===12 && eD===31 && dt.getDay()!==0 && dt.getDay()!==6;
+      urlaubInRange += isSv ? 0.5 : 1;
+    }
   });
   const urlaubTotal=baseUrlaub+urlaubInRange;
   const urlaubRest=Math.max(0,anspruch-urlaubTotal);
-  const urlaubMonthStr=urlaub>0?("-"+urlaub):"0";
+  const urlaubMonth=urlaub+urlaubHalf*0.5;
+  const urlaubMonthStr=urlaubMonth>0?("-"+urlaubMonth.toString().replace(".",",")):"0";
   const urlaubStr=`<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
     <span style="color:var(--k-t);">${urlaubMonthStr}</span>
     <span style="color:var(--za-t);">${urlaubRest}</span>
@@ -1005,7 +1010,7 @@ function renderMonth(){
     <div class="stat"><div class="lbl">Zeitausgleich</div><div class="val" style="color:${zaColor};">${zaStr}</div></div>
     <div class="stat"><div class="lbl">Krank</div><div class="val red">${krank}</div></div>
     <div class="stat"><div class="lbl">Gesamt</div><div class="val blue">${totalMin>0?Math.floor(totalMin/60)+'h '+Math.round(totalMin%60)+'m':'—'}</div></div>
-    <div class="stat"><div class="lbl">Saldo</div><div class="val" style="color:${saldoColor};">${(work+urlaub+krank+za+zaHalf)?saldoStr:'—'}</div></div>
+    <div class="stat"><div class="lbl">Saldo</div><div class="val" style="color:${saldoColor};">${(work+urlaub+urlaubHalf+krank+za+zaHalf)?saldoStr:'—'}</div></div>
   `;
 
   document.getElementById('entries-area').innerHTML=`

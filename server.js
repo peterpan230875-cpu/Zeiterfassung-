@@ -199,6 +199,18 @@ app.post('/api/entry', async (req, res) => {
       }
     }
 
+    // Firmenregel: Silvester (31.12. Mo-Fr) ist geschlossen.
+    // ½ Tag geschenkt, ½ Tag muss als Urlaub oder Zeitausgleich genommen werden.
+    const [yStr2, mStr2, dStr2] = date.split('-');
+    const sv = new Date(parseInt(yStr2), parseInt(mStr2)-1, parseInt(dStr2));
+    const isSilvesterWD = sv.getMonth()===11 && sv.getDate()===31 && sv.getDay()!==0 && sv.getDay()!==6;
+    if (isSilvesterWD) {
+      const allowedTypes = ['urlaub', 'zeitausgleich'];
+      if (!allowedTypes.includes(type)) {
+        return res.status(403).json({ error: 'Silvester — nur ½ Tag Urlaub oder Zeitausgleich möglich' });
+      }
+    }
+
     // Prüfe ob der Tag in einer Elternzeit liegt
     try {
       const inLeave = await prisma.parentalLeave.findFirst({
