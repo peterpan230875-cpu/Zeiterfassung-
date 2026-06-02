@@ -2109,10 +2109,16 @@ function bruttoMinutes(von, bis){
 }
 
 // Kurz-Warn-Modal: zeigt kurze, fette Warnung und liefert Promise<boolean>
+// opts: { icon?: string, confirmLabel?: string }
 let _warnResolve = null;
-function showWarning(text, sub){
+function showWarning(text, sub, opts){
+  opts = opts || {};
   document.getElementById('warn-text').textContent = text;
   document.getElementById('warn-sub').textContent  = sub || '';
+  const iconEl = document.querySelector('#warn-modal .warn-icon');
+  if(iconEl) iconEl.textContent = opts.icon || '⚠️';
+  const btn = document.querySelector('#warn-modal .warn-btn.confirm');
+  if(btn) btn.textContent = opts.confirmLabel || 'Trotzdem speichern';
   document.getElementById('warn-modal').classList.add('open');
   return new Promise(res => { _warnResolve = res; });
 }
@@ -2392,7 +2398,12 @@ async function clearWeek(){
   const range=fmt(wkMonday)+"–"+fmt(last);
 
   const word = targets.length===1?'Eintrag':'Einträge';
-  if(!confirm(`${targets.length} ${word} in KW ${kw} (${range}) wirklich löschen?`)) return;
+  const ok = await showWarning(
+    `${targets.length} ${word} löschen?`,
+    `KW ${kw} · ${range}`,
+    { icon: '🗑', confirmLabel: 'Löschen' }
+  );
+  if(!ok) return;
 
   // Lokal + Server löschen
   await Promise.all(targets.map(d=>{
