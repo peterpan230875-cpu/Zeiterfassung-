@@ -635,6 +635,31 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
 .confirm-btn.cancel{background:var(--bg2);color:var(--txt2);border:1.5px solid var(--brd);}
 .confirm-btn.confirm{background:#DC2626;color:#fff;box-shadow:0 4px 12px rgba(220,38,38,.3);}
 .confirm-btn.confirm:hover{background:#B91C1C;}
+
+/* Kurz-Warn-Modal (Arbeitszeitgesetz) */
+#warn-modal{
+  position:fixed;inset:0;z-index:400;display:none;
+  align-items:center;justify-content:center;padding:20px;
+  background:rgba(0,0,0,.65);backdrop-filter:blur(8px);
+}
+#warn-modal.open{display:flex;}
+.warn-card{
+  background:var(--sur);border-radius:16px;padding:24px;
+  width:100%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.4);
+  text-align:center;
+}
+.warn-icon{font-size:36px;margin-bottom:6px;line-height:1;}
+.warn-text{font-size:18px;font-weight:800;line-height:1.35;margin-bottom:6px;color:var(--txt);}
+.warn-sub{font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:18px;letter-spacing:.2px;}
+.warn-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.warn-btn{
+  padding:12px;border:none;border-radius:10px;font-family:'Figtree',sans-serif;
+  font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;
+}
+.warn-btn.cancel{background:var(--bg2);color:var(--txt2);border:1.5px solid var(--brd);}
+.warn-btn.cancel:hover{background:var(--brd);}
+.warn-btn.confirm{background:#DC2626;color:#fff;box-shadow:0 4px 12px rgba(220,38,38,.3);}
+.warn-btn.confirm:hover{background:#B91C1C;}
 </style>
 </head>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -727,6 +752,19 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
     <div class="confirm-row">
       <button class="confirm-btn cancel" onclick="closeConfirmModal()">Abbrechen</button>
       <button class="confirm-btn confirm" id="confirm-yes" onclick="doCloseMonth()">Ja, abschließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kurz-Warn-Modal fuer Arbeitszeitgesetz -->
+<div id="warn-modal">
+  <div class="warn-card">
+    <div class="warn-icon">⚠️</div>
+    <div class="warn-text" id="warn-text">—</div>
+    <div class="warn-sub" id="warn-sub">—</div>
+    <div class="warn-row">
+      <button class="warn-btn cancel" onclick="warnReject()">Abbrechen</button>
+      <button class="warn-btn confirm" onclick="warnAccept()">Trotzdem speichern</button>
     </div>
   </div>
 </div>
@@ -2070,38 +2108,45 @@ function bruttoMinutes(von, bis){
   return total > 0 ? total : 0;
 }
 
-// Prueft Arbeitszeitgesetz-Regeln. Zeigt Warnungen via confirm()-Dialog.
-// Rueckgabewert: true = User will speichern, false = User hat abgebrochen.
-function checkWorkTimeWarnings(von, bis, pauseMin){
+// Kurz-Warn-Modal: zeigt kurze, fette Warnung und liefert Promise<boolean>
+let _warnResolve = null;
+function showWarning(text, sub){
+  document.getElementById('warn-text').textContent = text;
+  document.getElementById('warn-sub').textContent  = sub || '';
+  document.getElementById('warn-modal').classList.add('open');
+  return new Promise(res => { _warnResolve = res; });
+}
+function warnAccept(){
+  document.getElementById('warn-modal').classList.remove('open');
+  if(_warnResolve){_warnResolve(true);_warnResolve=null;}
+}
+function warnReject(){
+  document.getElementById('warn-modal').classList.remove('open');
+  if(_warnResolve){_warnResolve(false);_warnResolve=null;}
+}
+
+// Prueft Arbeitszeitgesetz-Regeln. Zeigt Warnungen ueber das Warn-Modal.
+// Rueckgabewert (Promise): true = User will speichern, false = abgebrochen.
+async function checkWorkTimeWarnings(von, bis, pauseMin){
   const brutto = bruttoMinutes(von, bis);
-  if(brutto <= 0) return true; // keine Zeiten = keine Warnung
+  if(brutto <= 0) return true;
 
   // §4 ArbZG: >6 Stunden Arbeit erfordern mindestens 30 Min Pause
   if(brutto > 360 && pauseMin === 0){
-    if(!confirm(
-      "⚠️ Pause fehlt\n\n" +
-      "Du hast mehr als 6 Stunden eingetragen, aber keine Pause angegeben.\n\n" +
-      "Nach §4 Arbeitszeitgesetz ist bei mehr als 6 Stunden eine Pause von mindestens 30 Minuten Pflicht.\n\n" +
-      "Trotzdem speichern?"
-    )) return false;
+    if(!await showWarning('Über 6 Stunden ohne Pause', '§4 ArbZG · Pause ≥ 30 min Pflicht')) return false;
   }
 
   // §3 ArbZG: Max 10 Stunden netto Arbeitszeit pro Tag
   const netto = Math.max(0, brutto - pauseMin);
   if(netto > 600){
     const hStr = (netto/60).toFixed(1).replace('.',',');
-    if(!confirm(
-      "⚠️ Arbeitszeitgesetz\n\n" +
-      "Du hast " + hStr + " Stunden netto Arbeitszeit eingetragen.\n\n" +
-      "Nach §3 Arbeitszeitgesetz sind maximal 10 Stunden pro Tag erlaubt.\n\n" +
-      "Trotzdem speichern?"
-    )) return false;
+    if(!await showWarning(hStr + ' h Arbeitszeit', '§3 ArbZG · max. 10 h pro Tag')) return false;
   }
 
   return true;
 }
 
-function saveEntry(){
+async function saveEntry(){
   if(!sheetDay)return;
 
   // Prüfen ob Tag "Geschlossen" ist
@@ -2129,7 +2174,7 @@ function saveEntry(){
 
   // Arbeitszeitgesetz-Check (nur wenn echte Arbeitszeiten eingetragen sind)
   if(von && bis){
-    if(!checkWorkTimeWarnings(von, bis, parseInt(pause)||0)) return;
+    if(!await checkWorkTimeWarnings(von, bis, parseInt(pause)||0)) return;
   }
 
   const curTyp=emp.entries[sheetDay]?emp.entries[sheetDay].typ||"normal":"normal";
@@ -2292,7 +2337,7 @@ function openWeekSheet(){
 
 function closeWeekSheet(){document.getElementById("wk-sheet").classList.remove("open");closeOv();}
 
-function saveWeek(){
+async function saveWeek(){
   const emp=curEmp();
   const vh=document.getElementById("wv-h").value;
   const vm=document.getElementById("wv-m").value;
@@ -2307,7 +2352,7 @@ function saveWeek(){
 
   // Arbeitszeitgesetz-Check (einmal pro Woche, da alle Tage gleiche Zeiten haben)
   if(isShift && von && bis){
-    if(!checkWorkTimeWarnings(von, bis, parseInt(pause)||0)) return;
+    if(!await checkWorkTimeWarnings(von, bis, parseInt(pause)||0)) return;
   }
 
   let count=0;
