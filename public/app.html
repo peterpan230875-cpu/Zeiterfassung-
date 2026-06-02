@@ -2060,6 +2060,47 @@ function setTyp(typ){
   toast("✓ "+labels[typ]);
 }
 
+// ── ARBEITSZEITGESETZ-CHECK ─────────────────────────────────────────────────
+// Helper: Brutto-Arbeitszeit in Minuten (Von bis Bis, ohne Pause-Abzug)
+function bruttoMinutes(von, bis){
+  if(!von || !bis) return 0;
+  const [vh,vm] = von.split(':').map(Number);
+  const [bh,bm] = bis.split(':').map(Number);
+  const total = (bh*60+bm) - (vh*60+vm);
+  return total > 0 ? total : 0;
+}
+
+// Prueft Arbeitszeitgesetz-Regeln. Zeigt Warnungen via confirm()-Dialog.
+// Rueckgabewert: true = User will speichern, false = User hat abgebrochen.
+function checkWorkTimeWarnings(von, bis, pauseMin){
+  const brutto = bruttoMinutes(von, bis);
+  if(brutto <= 0) return true; // keine Zeiten = keine Warnung
+
+  // §4 ArbZG: >6 Stunden Arbeit erfordern mindestens 30 Min Pause
+  if(brutto > 360 && pauseMin === 0){
+    if(!confirm(
+      "⚠️ Pause fehlt\n\n" +
+      "Du hast mehr als 6 Stunden eingetragen, aber keine Pause angegeben.\n\n" +
+      "Nach §4 Arbeitszeitgesetz ist bei mehr als 6 Stunden eine Pause von mindestens 30 Minuten Pflicht.\n\n" +
+      "Trotzdem speichern?"
+    )) return false;
+  }
+
+  // §3 ArbZG: Max 10 Stunden netto Arbeitszeit pro Tag
+  const netto = Math.max(0, brutto - pauseMin);
+  if(netto > 600){
+    const hStr = (netto/60).toFixed(1).replace('.',',');
+    if(!confirm(
+      "⚠️ Arbeitszeitgesetz\n\n" +
+      "Du hast " + hStr + " Stunden netto Arbeitszeit eingetragen.\n\n" +
+      "Nach §3 Arbeitszeitgesetz sind maximal 10 Stunden pro Tag erlaubt.\n\n" +
+      "Trotzdem speichern?"
+    )) return false;
+  }
+
+  return true;
+}
+
 function saveEntry(){
   if(!sheetDay)return;
 
@@ -2085,6 +2126,12 @@ function saveEntry(){
   const customPause=document.getElementById("inp-pause-custom").value.trim();
   const pause=customPause?customPause:(activePause?activePause.dataset.val:"30");
   const bem=document.getElementById("inp-bem").value.trim();
+
+  // Arbeitszeitgesetz-Check (nur wenn echte Arbeitszeiten eingetragen sind)
+  if(von && bis){
+    if(!checkWorkTimeWarnings(von, bis, parseInt(pause)||0)) return;
+  }
+
   const curTyp=emp.entries[sheetDay]?emp.entries[sheetDay].typ||"normal":"normal";
   // Wenn echte Arbeitszeiten eingetragen werden, wird der Tag automatisch
   // zum normalen Arbeitstag - das ueberschreibt ein vorheriges Urlaub/ZA/Krank.
@@ -2256,8 +2303,14 @@ function saveWeek(){
   const activePause=document.querySelector("#wk-pause-row .ppill.pa");
   const customPause=document.getElementById("wk-pause-custom").value.trim();
   const pause=customPause?customPause:(activePause?activePause.dataset.val:"30");
-  let count=0;
   const isShift=(wkTyp==="frueh"||wkTyp==="spaet");
+
+  // Arbeitszeitgesetz-Check (einmal pro Woche, da alle Tage gleiche Zeiten haben)
+  if(isShift && von && bis){
+    if(!checkWorkTimeWarnings(von, bis, parseInt(pause)||0)) return;
+  }
+
+  let count=0;
   wkWeekDays.forEach(d=>{
     if(d.skip||d.blocked)return;
     if(isShift){
