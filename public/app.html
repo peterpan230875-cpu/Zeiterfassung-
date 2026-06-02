@@ -846,6 +846,7 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
       <div id="wk-day-checks" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
     </div>
     <div class="btn-row">
+      <button class="btn btn-danger" onclick="clearWeek()">Woche löschen</button>
       <button class="btn btn-primary" onclick="saveWeek()">✓ Woche eintragen</button>
     </div>
   </div>
@@ -2270,6 +2271,39 @@ function saveWeek(){
     count++;
   });
   saveState();render();closeWeekSheet();toast("✓ "+count+" Tage eingetragen");
+}
+
+async function clearWeek(){
+  const emp=curEmp();
+  if(!wkMonday||!wkWeekDays||!wkWeekDays.length){toast("Keine Woche ausgewählt");return;}
+
+  // Lock-Check: Monatssperre des Montags der Woche
+  if(isMonthLocked(wkMonday.getFullYear(), wkMonday.getMonth())){
+    toast("🔒 Monat ist abgeschlossen");return;
+  }
+
+  // Vorhandene Einträge sammeln (Sa wird mitgenommen falls dort ein Eintrag liegt;
+  // Sonntag/Feiertag/Geschlossen sind via blocked übersprungen)
+  const targets=wkWeekDays.filter(d=>!d.blocked && emp.entries[d.key]);
+  if(targets.length===0){toast("Keine Einträge in dieser Woche");return;}
+
+  // KW + Datumsbereich für Bestätigung
+  const kw=getKW(wkMonday.getFullYear(), wkMonday.getMonth(), wkMonday.getDate());
+  const last=wkWeekDays[wkWeekDays.length-1].date;
+  const fmt=(dt)=>String(dt.getDate()).padStart(2,'0')+'.'+String(dt.getMonth()+1).padStart(2,'0')+'.'+dt.getFullYear();
+  const range=fmt(wkMonday)+"–"+fmt(last);
+
+  const word = targets.length===1?'Eintrag':'Einträge';
+  if(!confirm(`${targets.length} ${word} in KW ${kw} (${range}) wirklich löschen?`)) return;
+
+  // Lokal + Server löschen
+  await Promise.all(targets.map(d=>{
+    delete emp.entries[d.key];
+    return fetch('/api/entry/'+d.key,{method:'DELETE'}).catch(err=>console.error('Fehler beim Löschen:',err));
+  }));
+
+  saveState();render();closeWeekSheet();
+  toast(`✓ ${targets.length} ${word} gelöscht`);
 }
 
 // ── EMP SHEET ────────────────────────────────────────────────────────────────
