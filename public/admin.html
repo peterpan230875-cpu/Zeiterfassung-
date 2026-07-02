@@ -111,15 +111,19 @@ body.dark .panel{box-shadow:0 1px 3px rgba(0,0,0,.4);}
 .user-item .name{font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:space-between;gap:6px;}
 .user-item .username{font-size:12px;color:var(--txt2);font-family:'JetBrains Mono',monospace;}
 .user-item .lock-ind{font-size:14px;line-height:1;flex-shrink:0;}
-/* Delete-Button: nur beim Hover sichtbar (versteckte Aktion) */
-.user-item .user-del{
-  opacity:0;transition:opacity .15s;
-  background:transparent;border:1px solid transparent;border-radius:6px;
-  padding:2px 8px;font-size:11px;font-weight:700;color:var(--k-t);
-  cursor:pointer;flex-shrink:0;
+/* Danger Zone (unten im rechten Panel) — deutlich getrennt vom Auswahl-UI */
+.danger-zone{
+  margin-top:40px;padding:16px;border:1.5px dashed var(--k-t);border-radius:10px;
+  background:var(--k-bg);
 }
-.user-item:hover .user-del{opacity:1;border-color:var(--k-t);}
-.user-item .user-del:hover{background:var(--k-bg);}
+.danger-zone .dz-title{font-size:13px;font-weight:800;color:var(--k-t);margin-bottom:6px;text-transform:uppercase;letter-spacing:.6px;}
+.danger-zone .dz-text{font-size:12px;color:var(--txt2);line-height:1.5;margin-bottom:12px;}
+.danger-zone .dz-btn{
+  padding:10px 16px;border:1.5px solid var(--k-t);border-radius:8px;
+  background:var(--sur);color:var(--k-t);font-family:'Figtree',sans-serif;
+  font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;
+}
+.danger-zone .dz-btn:hover{background:var(--k-t);color:#fff;}
 
 /* Status-Indikator: grün = abgeschlossen, rot = offen */
 .user-item.month-closed{
@@ -381,6 +385,14 @@ body.dark .el-item .el-tag.ended{background:#1F2937;color:#9CA3AF;border-color:#
     </div>
     <div id="stats" style="display:none;"></div>
     <div id="entries-area"></div>
+    <div id="danger-zone" class="danger-zone" style="display:none;">
+      <div class="dz-title">Mitarbeiter entfernen</div>
+      <div class="dz-text">
+        Falls <strong id="danger-name">dieser Mitarbeiter</strong> das Unternehmen verlässt, kann der Zugang hier gelöscht werden.
+        Alle Zeiterfassungs-Daten, Einstellungen und Sperren gehen dabei <strong style="color:var(--k-t);">unwiderruflich</strong> verloren.
+      </div>
+      <button class="dz-btn" onclick="startDeleteUser()">Mitarbeiter dauerhaft löschen</button>
+    </div>
   </div>
 </div>
 
@@ -736,13 +748,7 @@ function renderUsers(){
     const ico=closed?'zu':'offen';
     const d=document.createElement('div');
     d.className='user-item '+statusCls+(u.id===selectedUserId?' active':'');
-    d.innerHTML=`<div class="name">
-      <span>${u.name}</span>
-      <span style="display:flex;align-items:center;gap:8px;">
-        <button class="user-del" title="Mitarbeiter loeschen" onclick="event.stopPropagation();deleteUser('${u.id}','${(u.name||'').replace(/'/g,"\\'")}')">löschen</button>
-        <span class="lock-ind">${ico}</span>
-      </span>
-    </div>`;
+    d.innerHTML=`<div class="name">${u.name}<span class="lock-ind">${ico}</span></div>`;
     d.onclick=()=>selectUser(u.id);
     el.appendChild(d);
   });
@@ -773,6 +779,7 @@ async function deleteUser(uid, uname){
         document.getElementById('stats').style.display='none';
         document.getElementById('entries-area').innerHTML='';
         document.getElementById('lock-status').classList.remove('locked');
+        const dz=document.getElementById('danger-zone');if(dz)dz.style.display='none';
       }
       renderUsers();
       alert(`Mitarbeiter "${uname}" wurde gelöscht.`);
@@ -792,6 +799,12 @@ async function selectUser(uid){
   document.getElementById('selected-name').textContent=u.name+' — Zeiterfassung';
   document.getElementById('month-bar').style.display='flex';
   document.getElementById('stats').style.display='grid';
+  // Danger-Zone einblenden und mit Namen fuellen (erst nach Auswahl sichtbar)
+  const dz=document.getElementById('danger-zone');
+  if(dz){
+    dz.style.display='';
+    document.getElementById('danger-name').textContent=u.name;
+  }
 
   // Lade Einträge + Settings + Locks
   const [eRes,sRes,lRes]=await Promise.all([
@@ -803,6 +816,14 @@ async function selectUser(uid){
   if(sRes.ok){const d=await sRes.json();currentSettings=d.settings||null;}
   if(lRes.ok){const d=await lRes.json();currentLocks=d.locks||[];}
   renderMonth();
+}
+
+// Startet die dreistufige Loeschung fuer den aktuell ausgewaehlten Mitarbeiter
+function startDeleteUser(){
+  if(!selectedUserId){alert('Bitte zuerst einen Mitarbeiter auswählen.');return;}
+  const u=users.find(x=>x.id===selectedUserId);
+  if(!u) return;
+  deleteUser(selectedUserId, u.name);
 }
 
 function isMonthLocked(y,m){
