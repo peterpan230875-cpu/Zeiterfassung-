@@ -403,6 +403,17 @@ function daysIn(y,m){return new Date(y,m+1,0).getDate();}
 function isSun(y,m,d){return new Date(y,m,d).getDay()===0;}
 function isSat(y,m,d){return new Date(y,m,d).getDay()===6;}
 function wtDay(y,m,d){return WT[new Date(y,m,d).getDay()];}
+// Tages-Soll in Minuten fuer bestimmten Wochentag (0=So..6=Sa).
+// Sonderregel: 39h/w = Mo–Do 8h + Fr 7h. Sonst gleichmaessig.
+function getTagSollMin(wh, dow){
+  wh = parseFloat(wh) || 38.5;
+  if(Math.abs(wh - 39) < 0.001){
+    if(dow >= 1 && dow <= 4) return 8*60;
+    if(dow === 5)            return 7*60;
+    return Math.round(wh*60/5);
+  }
+  return Math.round(wh*60/5);
+}
 function getKW(y,m,d){
   const t=new Date(Date.UTC(y,m,d));
   t.setUTCDate(t.getUTCDate()+4-(t.getUTCDay()||7));
@@ -916,8 +927,9 @@ function renderMonth(){
     </tr>`;
   }
 
-  // Saldo berechnen
-  let sollArbeitstage=0,closedDays=0;
+  // Saldo berechnen. sollMin wird pro Tag via getTagSollMin summiert
+  // (bei 39 Wochenstunden Mo-Do 8h, Fr 7h; sonst gleichmaessig).
+  let sollArbeitstage=0,closedDays=0,sollMin=0;
   for(let d=1;d<=days;d++){
     const key=dk(viewYear,viewMonth,d);
     const sd2=getSpecialDay(key);
@@ -928,14 +940,14 @@ function renderMonth(){
     if(isClosed) closedDays++;
     if(isHb&&!FEIERTAGE[key]) closedDays++; // Heiligabend: volles Tagessoll gratis
     if(!isElt && !isSun(viewYear,viewMonth,d)&&!isSat(viewYear,viewMonth,d)&&!FEIERTAGE[key]&&!isClosed&&!isHb){
-      if(isSv) sollArbeitstage+=0.5; // Silvester: nur halber Tag Pflicht
-      else sollArbeitstage++;
+      const tag=getTagSollMin(wh, new Date(viewYear,viewMonth,d).getDay());
+      if(isSv){sollMin+=tag/2;sollArbeitstage+=0.5;}
+      else    {sollMin+=tag;sollArbeitstage++;}
     }
   }
   // Geschlossene Tage (inkl. Heiligabend) zählen als bezahlt.
   // Silvester-Urlaub zählt nur als halber Tag.
   const istMin=totalMin+(urlaub+krank+closedDays+urlaubHalf*0.5)*ts*60;
-  const sollMin=sollArbeitstage*ts*60;
   const saldo=istMin-sollMin;
   const sign=saldo>0?'+':saldo<0?'-':'±';
   const saldoStr=`${sign}${Math.abs(saldo/60).toFixed(2).replace('.',',')} h`;

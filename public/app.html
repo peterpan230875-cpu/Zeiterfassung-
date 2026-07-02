@@ -1314,7 +1314,7 @@ function calculateMonthSaldo(y,m){
   const wh=parseFloat(state.wochenstunden)||38.5;
   const tSoll=wh/5;
   const tSollMin=tSoll*60;
-  let totalMin=0,urlaub=0,urlaubHalf=0,krank=0,closedDays=0,sollArbeitstage=0;
+  let totalMin=0,urlaub=0,urlaubHalf=0,krank=0,closedDays=0,sollMin=0;
   for(let d=1;d<=days;d++){
     const key=dk(y,m,d);
     const holiday=FEIERTAGE[key];
@@ -1327,10 +1327,11 @@ function calculateMonthSaldo(y,m){
     const isElt=!!getParentalLeave(key);
     // Elternzeit: weder Soll noch Ist
     if(isElt) continue;
-    // Soll: Werktage. Heiligabend = 0, Silvester = 0.5
+    // Soll: Werktage. Heiligabend = 0, Silvester = 0.5. Tages-Soll pro Wochentag.
     if(!sun&&!holiday&&!sat&&!isHb){
-      if(isSv) sollArbeitstage+=0.5;
-      else sollArbeitstage++;
+      const tag=getTagSollMin(wh, new Date(y,m,d).getDay());
+      if(isSv) sollMin+=tag/2;
+      else     sollMin+=tag;
     }
     if(sun||holiday) continue;
     const e=emp.entries[key];
@@ -1348,7 +1349,6 @@ function calculateMonthSaldo(y,m){
       totalMin+=Math.max(0,total-pause);
     }
   }
-  const sollMin=sollArbeitstage*tSollMin;
   const istMin=totalMin+(urlaub+krank+urlaubHalf*0.5)*tSollMin;
   return (istMin-sollMin)/60;
 }
@@ -1846,7 +1846,7 @@ function renderStats(){
   const emp=curEmp();
   const y=state.year,m=state.month;
   const days=daysIn(y,m);
-  let work=0,urlaub=0,urlaubHalf=0,za=0,zaHalf=0,krank=0,nettoMinGesamt=0,sollArbeitstage=0,closedDays=0;
+  let work=0,urlaub=0,urlaubHalf=0,za=0,zaHalf=0,krank=0,nettoMinGesamt=0,closedDays=0,sollMin=0,sollArbeitstage=0;
   const wh=parseFloat(state.wochenstunden)||38.5;
   const tSoll=wh/5;
   const tSollMin=tSoll*60;
@@ -1867,8 +1867,9 @@ function renderStats(){
     if(isClosed) closedDays++;
     if(isHb&&!holiday) closedDays++; // Heiligabend: volles Tagessoll gratis
     if(!sun&&!holiday&&!sat&&!isClosed&&!isHb){
-      if(isSv) sollArbeitstage+=0.5; // Silvester: nur halber Tag Pflicht
-      else sollArbeitstage++;
+      const tag=getTagSollMin(wh, new Date(y,m,d).getDay());
+      if(isSv){sollMin+=tag/2;sollArbeitstage+=0.5;}
+      else    {sollMin+=tag;sollArbeitstage++;}
     }
     if(sun||holiday||isClosed||isHb)continue;
     const e=emp.entries[key];
@@ -1892,9 +1893,9 @@ function renderStats(){
     }
   }
 
-  const sollMin=sollArbeitstage*tSollMin;
   // Geschlossene Tage (inkl. Heiligabend) zählen wie Feiertage (bezahlt, kein Soll)
   // Silvester-Urlaub (urlaubHalf) zählt nur als halber Tag im Ist
+  // (sollMin wurde in der Schleife oben pro Tag mit getTagSollMin summiert)
   const istMin=nettoMinGesamt+(urlaub+krank+closedDays+urlaubHalf*0.5)*tSollMin; // ZA zählt nicht
   const saldoMin=istMin-sollMin;
   const saldoH=saldoMin/60;
@@ -2050,13 +2051,31 @@ function openSheet(key){
       // Samstag: immer 08:00–12:00, 0 min (fest)
       fvh="08";fvm="00";fbh="12";fbm="00";fpval="0";
     } else {
-      // Vorschlag NUR aus der gleichen Woche — keine wochenübergreifenden Muster
+      // Vorschlag: Wochenmuster nur uebernehmen wenn Netto ≈ Tagsoll (± 5 min)
       const wkFirst=getWeekFirstEntry(key);
-      if(wkFirst){
+      const wh=parseFloat(state.wochenstunden)||38.5;
+      const tagSoll=getTagSollMin(wh, new Date(y2,m2,d2).getDay());
+      let usePattern=false;
+      if(wkFirst&&wkFirst.von&&wkFirst.bis){
+        const [wvh,wvm]=wkFirst.von.split(":").map(Number);
+        const [wbh,wbm]=wkFirst.bis.split(":").map(Number);
+        const brutto=(wbh*60+wbm)-(wvh*60+wvm);
+        const pMin=parseInt(wkFirst.pause||"0")||0;
+        const netto=brutto-pMin;
+        if(Math.abs(netto-tagSoll)<=5) usePattern=true;
+      }
+      if(usePattern){
         const[bvh,bvm2]=(wkFirst.von||"").split(":");
         const[bbh,bbm2]=(wkFirst.bis||"").split(":");
         fvh=bvh||"";fvm=bvm2||"";fbh=bbh||"";fbm=bbm2||"";
         fpval=String(wkFirst.pause||state.defaultPause||30);
+      } else {
+        // Fallback: calcShift respektiert Wochenstunden + Wochentag
+        const s=calcShift('frueh', new Date(y2,m2,d2));
+        const [svh,svm]=s.von.split(":");
+        const [sbh,sbm]=s.bis.split(":");
+        fvh=svh;fvm=svm;fbh=sbh;fbm=sbm;
+        fpval=s.pause;
       }
     }
   }
@@ -2881,8 +2900,9 @@ function buildPrintHTML(){
 
   const totalH=totalMin>0?`${Math.floor(totalMin/60)}h ${Math.round(totalMin%60)}m`:"";
 
-  // Soll-Arbeitstage: alle Mo-Fr die kein Feiertag/Firmenregel-Freitag sind
-  let sollArbeitstage=0,closedPrint=0;
+  // Soll-Arbeitstage: alle Mo-Fr die kein Feiertag/Firmenregel-Freitag sind.
+  // sollMin wird jetzt pro Tag via getTagSollMin summiert (Wochentag-spezifisch).
+  let sollArbeitstage=0,closedPrint=0,sollMin=0;
   for(let d=1;d<=days;d++){
     const key=dk(y,m,d);
     const sd=getSpecialDay(key);
@@ -2892,12 +2912,12 @@ function buildPrintHTML(){
     if(isClosed) closedPrint++;
     if(isHb&&!FEIERTAGE[key]) closedPrint++;
     if(!isSun(y,m,d)&&!isSat(y,m,d)&&!FEIERTAGE[key]&&!isClosed&&!isHb){
-      if(isSv) sollArbeitstage+=0.5;
-      else sollArbeitstage++;
+      const tag=getTagSollMin(wh, new Date(y,m,d).getDay());
+      if(isSv){sollMin+=tag/2;sollArbeitstage+=0.5;}
+      else    {sollMin+=tag;sollArbeitstage++;}
     }
   }
   const istMin=totalMin+(urlaub+krank+closedPrint)*ts*60; // ZA zählt nicht; Heiligabend + Geschlossen bezahlt
-  const sollMin=sollArbeitstage*ts*60;
   const saldo=istMin-sollMin;
   const saldoSign=saldo>0?"+":saldo<0?"-":"±";
   const saldoStr=`${saldoSign}${Math.abs(saldo/60).toFixed(2).replace(".",",")} h`;
@@ -3166,6 +3186,18 @@ const OPEN_HOUR=6;
 const CLOSE_SUMMER="17:30"; // April–September
 const CLOSE_WINTER="17:00"; // Oktober–März
 
+// Tages-Soll in Minuten für einen bestimmten Wochentag (0=So, 1=Mo, …, 6=Sa).
+// Sonderregel: Bei genau 39 Wochenstunden Mo–Do 8h, Fr 7h (Summe 39). Sonst gleichmaessig.
+function getTagSollMin(wh, dow){
+  wh = parseFloat(wh) || 38.5;
+  if(Math.abs(wh - 39) < 0.001){
+    if(dow >= 1 && dow <= 4) return 8*60;   // Mo–Do: 8h
+    if(dow === 5)            return 7*60;   // Fr: 7h
+    return Math.round(wh*60/5);              // Sa/So: Standard-Anteil
+  }
+  return Math.round(wh*60/5);
+}
+
 function isSummerSeason(d){
   if(state.season==="summer") return true;
   if(state.season==="winter") return false;
@@ -3177,7 +3209,8 @@ function isSummerSeason(d){
 function calcShift(shiftType,refDate){
   const wh=parseFloat(state.wochenstunden)||38.5;
   const pause=parseInt(state.defaultPause)||30;
-  const dailyMin=Math.round(wh*60/5);          // Arbeitsminuten/Tag
+  const dow=(refDate instanceof Date?refDate:new Date()).getDay();
+  const dailyMin=getTagSollMin(wh,dow);        // Arbeitsminuten/Tag (Wochentag-spezifisch)
   const totalMin=dailyMin+pause;                // inkl. Pause
   let startH,startM,endH,endM;
   if(shiftType==="frueh"){
