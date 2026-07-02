@@ -1,6 +1,6 @@
 {
   "name": "zeiterfassung",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Zeiterfassungs-App mit Login",
   "main": "server.js",
   "scripts": {
