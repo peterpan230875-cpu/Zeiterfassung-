@@ -783,6 +783,42 @@ app.get('/api/admin/users', async (req, res) => {
   }
 });
 
+// Admin: Mitarbeiter komplett loeschen (mit allen zugehoerigen Daten via Cascade)
+app.delete('/api/admin/user/:userId', async (req, res) => {
+  if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.params.userId } });
+    if (!user) return res.status(404).json({ error: 'Mitarbeiter nicht gefunden' });
+    if (user.isAdmin || user.isSuperAdmin) {
+      return res.status(400).json({ error: 'Admin-Accounts koennen nicht ueber diesen Endpoint geloescht werden' });
+    }
+    // Cascade loescht Entry, Settings, MonthLock, ParentalLeave automatisch (via Prisma-Schema)
+    await prisma.user.delete({ where: { id: req.params.userId } });
+    res.json({ success: true, message: 'Mitarbeiter und alle zugehoerigen Daten wurden geloescht' });
+  } catch (err) {
+    console.error('Delete user error:', err);
+    res.status(500).json({ error: 'Fehler beim Loeschen: '+(err.message||err) });
+  }
+});
+
+// User loescht seinen eigenen Account
+app.delete('/api/self', async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.session.userId } });
+    if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+    if (user.isAdmin || user.isSuperAdmin) {
+      return res.status(400).json({ error: 'Admin- oder Super-Admin-Accounts koennen nicht auf diesem Weg geloescht werden' });
+    }
+    await prisma.user.delete({ where: { id: req.session.userId } });
+    req.session.destroy(() => {});
+    res.json({ success: true, message: 'Dein Konto wurde geloescht' });
+  } catch (err) {
+    console.error('Delete self error:', err);
+    res.status(500).json({ error: 'Fehler beim Loeschen: '+(err.message||err) });
+  }
+});
+
 // Einträge eines Mitarbeiters (read-only)
 app.get('/api/admin/entries/:userId', async (req, res) => {
   if (!req.session.isAdmin) return res.status(403).json({ error: 'Nicht autorisiert' });

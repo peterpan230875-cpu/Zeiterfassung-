@@ -111,6 +111,15 @@ body.dark .panel{box-shadow:0 1px 3px rgba(0,0,0,.4);}
 .user-item .name{font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:space-between;gap:6px;}
 .user-item .username{font-size:12px;color:var(--txt2);font-family:'JetBrains Mono',monospace;}
 .user-item .lock-ind{font-size:14px;line-height:1;flex-shrink:0;}
+/* Delete-Button: nur beim Hover sichtbar (versteckte Aktion) */
+.user-item .user-del{
+  opacity:0;transition:opacity .15s;
+  background:transparent;border:1px solid transparent;border-radius:6px;
+  padding:2px 8px;font-size:11px;font-weight:700;color:var(--k-t);
+  cursor:pointer;flex-shrink:0;
+}
+.user-item:hover .user-del{opacity:1;border-color:var(--k-t);}
+.user-item .user-del:hover{background:var(--k-bg);}
 
 /* Status-Indikator: grün = abgeschlossen, rot = offen */
 .user-item.month-closed{
@@ -727,10 +736,53 @@ function renderUsers(){
     const ico=closed?'zu':'offen';
     const d=document.createElement('div');
     d.className='user-item '+statusCls+(u.id===selectedUserId?' active':'');
-    d.innerHTML=`<div class="name">${u.name}<span class="lock-ind">${ico}</span></div>`;
+    d.innerHTML=`<div class="name">
+      <span>${u.name}</span>
+      <span style="display:flex;align-items:center;gap:8px;">
+        <button class="user-del" title="Mitarbeiter loeschen" onclick="event.stopPropagation();deleteUser('${u.id}','${(u.name||'').replace(/'/g,"\\'")}')">löschen</button>
+        <span class="lock-ind">${ico}</span>
+      </span>
+    </div>`;
     d.onclick=()=>selectUser(u.id);
     el.appendChild(d);
   });
+}
+
+// Dreistufige Loesch-Bestaetigung: Confirm, Confirm, Name eintippen.
+async function deleteUser(uid, uname){
+  // Stufe 1
+  if(!confirm(`Mitarbeiter "${uname}" wirklich löschen?\n\nAlle Zeiterfassungs-Einträge, Einstellungen, Monatssperren und Elternzeit-Daten dieses Mitarbeiters gehen verloren.`)) return;
+  // Stufe 2
+  if(!confirm(`Bist du dir absolut sicher?\n\nDiese Aktion kann NICHT rückgängig gemacht werden.\n\nMitarbeiter "${uname}" wirklich endgültig entfernen?`)) return;
+  // Stufe 3: Name muss exakt eingetippt werden
+  const typed=prompt(`Letzte Bestätigung.\n\nGib zur Bestätigung den Namen "${uname}" exakt ein:`);
+  if(typed===null) return;
+  if(typed.trim()!==uname){
+    alert('Der eingegebene Name stimmt nicht überein. Löschung abgebrochen.');
+    return;
+  }
+  // Ausfuehrung
+  try {
+    const res=await fetch('/api/admin/user/'+uid,{method:'DELETE'});
+    if(res.ok){
+      users=users.filter(x=>x.id!==uid);
+      if(selectedUserId===uid){
+        selectedUserId=null;
+        document.getElementById('selected-name').textContent='Bitte einen Mitarbeiter wählen';
+        document.getElementById('month-bar').style.display='none';
+        document.getElementById('stats').style.display='none';
+        document.getElementById('entries-area').innerHTML='';
+        document.getElementById('lock-status').classList.remove('locked');
+      }
+      renderUsers();
+      alert(`Mitarbeiter "${uname}" wurde gelöscht.`);
+    } else {
+      const err=await res.json().catch(()=>({}));
+      alert('Fehler beim Löschen: '+(err.error||'Unbekannt'));
+    }
+  } catch(e) {
+    alert('Netzwerk-Fehler: '+e.message);
+  }
 }
 
 async function selectUser(uid){

@@ -1049,6 +1049,18 @@ body.dark .tb-sp.ta{background:#6366F1;color:#fff;}
         Daten werden sicher auf dem Server gespeichert.
       </div>
     </div>
+    <hr class="divider"/>
+    <div class="sec">
+      <div class="sec-lbl" style="color:var(--red);">Konto löschen</div>
+      <p style="font-size:13px;color:var(--txt2);line-height:1.5;margin-bottom:12px;">
+        Falls du das Unternehmen verlässt, kannst du hier dein Konto komplett entfernen.
+        <strong style="color:var(--red);">Alle deine Daten</strong> (Zeiterfassung,
+        Einstellungen, Monatssperren) werden endgültig gelöscht.
+      </p>
+      <button onclick="deleteSelfAccount()" style="width:100%;padding:12px;border:1.5px solid var(--red);border-radius:var(--rs);background:var(--red-bg);color:var(--red);font-family:'Figtree',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">
+        Mein Konto löschen
+      </button>
+    </div>
   </div>
 </div>
 
@@ -3148,6 +3160,56 @@ async function handleLogout() {
     } catch (err) {
       console.error('Logout-Fehler:', err);
     }
+  }
+}
+
+// Dreistufige Selbst-Loeschung des eigenen Kontos
+async function deleteSelfAccount() {
+  // Stufe 1: Warn-Modal
+  const s1 = await showWarning(
+    'Konto wirklich löschen?',
+    'Alle deine Daten gehen verloren',
+    { icon: '⚠️', confirmLabel: 'Weiter' }
+  );
+  if (!s1) return;
+
+  // Stufe 2: Warn-Modal mit Konsequenz
+  const s2 = await showWarning(
+    'Diese Aktion ist endgültig',
+    'Kein Wiederherstellen möglich',
+    { icon: '🛑', confirmLabel: 'Trotzdem weiter' }
+  );
+  if (!s2) return;
+
+  // Stufe 3: Username eintippen zur Bestaetigung
+  let expected = '';
+  try {
+    const r = await fetch('/api/user');
+    if (r.ok) { const me = await r.json(); expected = me.username || ''; }
+  } catch(e) { }
+  const promptText = expected
+    ? `Letzte Bestätigung.\n\nGib zur Bestätigung deinen Benutzernamen "${expected}" exakt ein:`
+    : 'Letzte Bestätigung.\n\nGib zur Bestätigung deinen Benutzernamen exakt ein:';
+  const typed = prompt(promptText);
+  if (typed === null) return;
+  if (expected && typed.trim() !== expected) {
+    alert('Der eingegebene Benutzername stimmt nicht überein. Löschung abgebrochen.');
+    return;
+  }
+
+  // Ausfuehrung
+  try {
+    const res = await fetch('/api/self', { method: 'DELETE' });
+    if (res.ok) {
+      localStorage.removeItem('zt_v3');
+      alert('Dein Konto wurde gelöscht.');
+      window.location.href = '/';
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert('Fehler beim Löschen: ' + (err.error || 'Unbekannt'));
+    }
+  } catch(e) {
+    alert('Netzwerk-Fehler: ' + e.message);
   }
 }
 
