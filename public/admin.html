@@ -111,6 +111,9 @@ body.dark .panel{box-shadow:0 1px 3px rgba(0,0,0,.4);}
 .user-item .name{font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:space-between;gap:6px;}
 .user-item .username{font-size:12px;color:var(--txt2);font-family:'JetBrains Mono',monospace;}
 .user-item .lock-ind{font-size:14px;line-height:1;flex-shrink:0;}
+/* Puls-Animation fuer Live-Wochen-Indikator */
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
 /* Danger Zone (unten im rechten Panel) — deutlich getrennt vom Auswahl-UI */
 .danger-zone{
   margin-top:40px;padding:16px;border:1.5px dashed var(--k-t);border-radius:10px;
@@ -861,29 +864,43 @@ function renderMonth(){
   document.getElementById('month-lbl').textContent=MON[viewMonth]+' '+viewYear;
   if(!selectedUserId){return;}
 
-  // Daten werden erst sichtbar wenn der Mitarbeiter den Monat abgeschlossen hat
+  // Daten werden erst sichtbar wenn der Mitarbeiter den Monat abgeschlossen hat.
+  // AUSNAHME: Im laufenden Monat sieht der Admin eine Live-Ansicht der
+  // aktuellen Kalenderwoche (Mo–So), auch ohne Monatsabschluss.
   const isLocked=isMonthLocked(viewYear,viewMonth);
+  const today=new Date();
+  const isCurrentMonth=(viewYear===today.getFullYear()&&viewMonth===today.getMonth());
+  let liveWeekMode=false, liveWeekStart=null, liveWeekEnd=null, liveKW=0;
   if(!isLocked){
-    document.getElementById('stats').style.display='none';
-    document.getElementById('lock-status').classList.remove('locked');
-    const u=users.find(x=>x.id===selectedUserId);
-    document.getElementById('entries-area').innerHTML=`
-      <div style="text-align:center;padding:50px 20px;color:var(--muted);">
-        <div style="font-size:13px;font-weight:700;letter-spacing:2px;margin-bottom:14px;color:var(--txt2);">OFFEN</div>
-        <div style="font-size:16px;font-weight:700;color:var(--txt);margin-bottom:6px;">
-          Monat noch nicht abgeschlossen
+    if(isCurrentMonth){
+      liveWeekMode=true;
+      const dow=today.getDay();
+      const off=dow===0?-6:1-dow; // Montag der aktuellen Woche
+      liveWeekStart=new Date(today.getFullYear(),today.getMonth(),today.getDate()+off);
+      liveWeekEnd=new Date(liveWeekStart.getFullYear(),liveWeekStart.getMonth(),liveWeekStart.getDate()+6);
+      liveKW=getKW(liveWeekStart.getFullYear(),liveWeekStart.getMonth(),liveWeekStart.getDate());
+    } else {
+      document.getElementById('stats').style.display='none';
+      document.getElementById('lock-status').classList.remove('locked');
+      const u=users.find(x=>x.id===selectedUserId);
+      document.getElementById('entries-area').innerHTML=`
+        <div style="text-align:center;padding:50px 20px;color:var(--muted);">
+          <div style="font-size:13px;font-weight:700;letter-spacing:2px;margin-bottom:14px;color:var(--txt2);">OFFEN</div>
+          <div style="font-size:16px;font-weight:700;color:var(--txt);margin-bottom:6px;">
+            Monat noch nicht abgeschlossen
+          </div>
+          <div style="font-size:13px;line-height:1.6;">
+            ${u?u.name:'Der Mitarbeiter'} hat <strong>${MON[viewMonth]} ${viewYear}</strong> noch nicht freigegeben.<br>
+            Du siehst die Daten erst nach dem Monatsabschluss durch den Mitarbeiter.
+          </div>
         </div>
-        <div style="font-size:13px;line-height:1.6;">
-          ${u?u.name:'Der Mitarbeiter'} hat <strong>${MON[viewMonth]} ${viewYear}</strong> noch nicht freigegeben.<br>
-          Du siehst die Daten erst nach dem Monatsabschluss durch den Mitarbeiter.
-        </div>
-      </div>
-    `;
-    return;
+      `;
+      return;
+    }
   }
 
-  // Stats-Bereich wieder sichtbar
-  document.getElementById('stats').style.display='grid';
+  // Stats-Bereich: im Live-Wochen-Modus ausblenden (Monatswerte waeren irrefuehrend)
+  document.getElementById('stats').style.display=liveWeekMode?'none':'grid';
 
   const wh=parseFloat(currentSettings?.wochenstunden)||38.5;
   const ts=wh/5;
@@ -895,6 +912,11 @@ function renderMonth(){
 
   let rows='';
   for(let d=1;d<=days;d++){
+    // Live-Wochen-Modus: nur Tage der aktuellen Kalenderwoche zeigen
+    if(liveWeekMode){
+      const cur=new Date(viewYear,viewMonth,d);
+      if(cur<liveWeekStart||cur>liveWeekEnd) continue;
+    }
     const key=dk(viewYear,viewMonth,d);
     const dayWT=wtDay(viewYear,viewMonth,d);
     const holiday=FEIERTAGE[key];
@@ -1098,7 +1120,21 @@ function renderMonth(){
     <div class="stat"><div class="lbl">Saldo</div><div class="val" style="color:${saldoColor};">${(work+urlaub+urlaubHalf+krank+za+zaHalf)?saldoStr:'—'}</div></div>
   `;
 
+  // Live-Wochen-Banner (nur im laufenden, nicht abgeschlossenen Monat)
+  const fmtD=(dt)=>String(dt.getDate()).padStart(2,'0')+'.'+String(dt.getMonth()+1).padStart(2,'0')+'.';
+  const liveBanner=liveWeekMode?`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:12px;
+      background:var(--u-bg);border:1.5px solid var(--u-t);border-radius:8px;
+      font-size:13px;font-weight:700;color:var(--u-t);">
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--u-t);flex-shrink:0;animation:pulse 2s infinite;"></span>
+      Live-Ansicht · KW ${liveKW} (${fmtD(liveWeekStart)} – ${fmtD(liveWeekEnd)}${liveWeekEnd.getFullYear()})
+      <span style="font-weight:500;color:var(--txt2);margin-left:auto;font-size:12px;">
+        Monat noch nicht abgeschlossen — nur aktuelle Woche sichtbar
+      </span>
+    </div>`:'';
+
   document.getElementById('entries-area').innerHTML=`
+    ${liveBanner}
     <div style="overflow-x:auto;">
       <table>
         <thead><tr><th>Tag</th><th>WT</th><th>Von</th><th>Bis</th><th>Pause</th><th>Bemerkung</th><th>Netto</th></tr></thead>
