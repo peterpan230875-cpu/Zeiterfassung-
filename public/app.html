@@ -2375,17 +2375,36 @@ async function saveWeek(){
   const pause=customPause?customPause:(activePause?activePause.dataset.val:"30");
   const isShift=(wkTyp==="frueh"||wkTyp==="spaet");
 
-  // Arbeitszeitgesetz-Check (einmal pro Woche, da alle Tage gleiche Zeiten haben)
+  // Fuer Schichten: pruefen ob der User die Standard-Werte gelassen hat.
+  // Wenn ja, verwenden wir calcShift pro Tag (bei 39h Fr = 7h statt 8h).
+  // Wenn nein (manuelle Aenderung), verwenden wir die eingegebenen Werte einheitlich.
+  let useDailyShift=false;
+  if(isShift){
+    const std=calcShift(wkTyp, wkMonday);
+    const stdPauseNum=parseInt(std.pause)||0;
+    const curPauseNum=parseInt(pause)||0;
+    useDailyShift=(von===std.von && bis===std.bis && curPauseNum===stdPauseNum);
+  }
+
+  // Arbeitszeitgesetz-Check: bei manuellen Zeiten einmal, bei pro-Tag-Berechnung
+  // greift automatisch der laengste Tag (Mo–Do bei 39h ist strenger als Fr)
   if(isShift && von && bis){
     if(!await checkWorkTimeWarnings(von, bis, parseInt(pause)||0)) return;
   }
 
   let count=0;
+  let adjustedDays=0;
   wkWeekDays.forEach(d=>{
     if(d.skip||d.blocked)return;
     if(isShift){
       if(!von)return;
-      emp.entries[d.key]={von,bis,pause,bemerkung:"",typ:"normal"};
+      let dVon=von, dBis=bis, dPause=pause;
+      if(useDailyShift){
+        const s=calcShift(wkTyp, d.date);
+        if(s.von!==von || s.bis!==bis) adjustedDays++;
+        dVon=s.von; dBis=s.bis; dPause=s.pause;
+      }
+      emp.entries[d.key]={von:dVon,bis:dBis,pause:dPause,bemerkung:"",typ:"normal"};
     }
     else{
       emp.entries[d.key]={von:"",bis:"",pause:"",bemerkung:"",typ:wkTyp};
@@ -2393,7 +2412,9 @@ async function saveWeek(){
     syncEntryToServer(d.key, emp.entries[d.key]);
     count++;
   });
-  saveState();render();closeWeekSheet();toast("✓ "+count+" Tage eingetragen");
+  saveState();render();closeWeekSheet();
+  const suffix=adjustedDays>0?` (${adjustedDays} tagsspezifisch angepasst)`:"";
+  toast("✓ "+count+" Tage eingetragen"+suffix);
 }
 
 async function clearWeek(){
