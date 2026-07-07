@@ -865,20 +865,17 @@ function renderMonth(){
   if(!selectedUserId){return;}
 
   // Daten werden erst sichtbar wenn der Mitarbeiter den Monat abgeschlossen hat.
-  // AUSNAHME: Im laufenden Monat sieht der Admin eine Live-Ansicht der
-  // aktuellen Kalenderwoche (Mo–So), auch ohne Monatsabschluss.
+  // AUSNAHME: Im laufenden Monat sieht der Admin eine Live-Ansicht des Monats
+  // vom 1. bis EINSCHLIESSLICH heute. Zukuenftige Tage bleiben verdeckt und
+  // werden taeglich um 0 Uhr aufgedeckt.
   const isLocked=isMonthLocked(viewYear,viewMonth);
   const today=new Date();
   const isCurrentMonth=(viewYear===today.getFullYear()&&viewMonth===today.getMonth());
-  let liveWeekMode=false, liveWeekStart=null, liveWeekEnd=null, liveKW=0;
+  let liveMode=false, liveMaxDay=0;
   if(!isLocked){
     if(isCurrentMonth){
-      liveWeekMode=true;
-      const dow=today.getDay();
-      const off=dow===0?-6:1-dow; // Montag der aktuellen Woche
-      liveWeekStart=new Date(today.getFullYear(),today.getMonth(),today.getDate()+off);
-      liveWeekEnd=new Date(liveWeekStart.getFullYear(),liveWeekStart.getMonth(),liveWeekStart.getDate()+6);
-      liveKW=getKW(liveWeekStart.getFullYear(),liveWeekStart.getMonth(),liveWeekStart.getDate());
+      liveMode=true;
+      liveMaxDay=today.getDate(); // heutiger Tag im Monat (1..31)
     } else {
       document.getElementById('stats').style.display='none';
       document.getElementById('lock-status').classList.remove('locked');
@@ -899,8 +896,8 @@ function renderMonth(){
     }
   }
 
-  // Stats-Bereich: im Live-Wochen-Modus ausblenden (Monatswerte waeren irrefuehrend)
-  document.getElementById('stats').style.display=liveWeekMode?'none':'grid';
+  // Stats-Bereich: im Live-Modus ausblenden (Monatswerte waeren bei Teilansicht irrefuehrend)
+  document.getElementById('stats').style.display=liveMode?'none':'grid';
 
   const wh=parseFloat(currentSettings?.wochenstunden)||38.5;
   const ts=wh/5;
@@ -912,11 +909,8 @@ function renderMonth(){
 
   let rows='';
   for(let d=1;d<=days;d++){
-    // Live-Wochen-Modus: nur Tage der aktuellen Kalenderwoche zeigen
-    if(liveWeekMode){
-      const cur=new Date(viewYear,viewMonth,d);
-      if(cur<liveWeekStart||cur>liveWeekEnd) continue;
-    }
+    // Live-Modus: nur Tage vom 1. bis einschliesslich heute zeigen
+    if(liveMode && d>liveMaxDay) continue;
     const key=dk(viewYear,viewMonth,d);
     const dayWT=wtDay(viewYear,viewMonth,d);
     const holiday=FEIERTAGE[key];
@@ -1120,16 +1114,16 @@ function renderMonth(){
     <div class="stat"><div class="lbl">Saldo</div><div class="val" style="color:${saldoColor};">${(work+urlaub+urlaubHalf+krank+za+zaHalf)?saldoStr:'—'}</div></div>
   `;
 
-  // Live-Wochen-Banner (nur im laufenden, nicht abgeschlossenen Monat)
-  const fmtD=(dt)=>String(dt.getDate()).padStart(2,'0')+'.'+String(dt.getMonth()+1).padStart(2,'0')+'.';
-  const liveBanner=liveWeekMode?`
+  // Live-Banner (nur im laufenden, nicht abgeschlossenen Monat)
+  const heuteStr=String(liveMaxDay).padStart(2,'0')+'.'+String(viewMonth+1).padStart(2,'0')+'.'+viewYear;
+  const liveBanner=liveMode?`
     <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:12px;
       background:var(--u-bg);border:1.5px solid var(--u-t);border-radius:8px;
       font-size:13px;font-weight:700;color:var(--u-t);">
       <span style="width:8px;height:8px;border-radius:50%;background:var(--u-t);flex-shrink:0;animation:pulse 2s infinite;"></span>
-      Live-Ansicht · KW ${liveKW} (${fmtD(liveWeekStart)} – ${fmtD(liveWeekEnd)}${liveWeekEnd.getFullYear()})
+      Live-Ansicht · bis heute (${heuteStr})
       <span style="font-weight:500;color:var(--txt2);margin-left:auto;font-size:12px;">
-        Monat noch nicht abgeschlossen — nur aktuelle Woche sichtbar
+        Monat läuft — Tage bis heute sichtbar, kommende Tage folgen
       </span>
     </div>`:'';
 
