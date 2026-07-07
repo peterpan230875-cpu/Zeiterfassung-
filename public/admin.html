@@ -866,8 +866,8 @@ function renderMonth(){
 
   // Daten werden erst sichtbar wenn der Mitarbeiter den Monat abgeschlossen hat.
   // AUSNAHME: Im laufenden Monat sieht der Admin eine Live-Ansicht des Monats
-  // vom 1. bis EINSCHLIESSLICH heute. Zukuenftige Tage bleiben verdeckt und
-  // werden taeglich um 0 Uhr aufgedeckt.
+  // vom 1. bis EINSCHLIESSLICH GESTERN. Der heutige Tag ist noch nicht
+  // abgearbeitet und bleibt verdeckt - er wird erst morgen um 0 Uhr aufgedeckt.
   const isLocked=isMonthLocked(viewYear,viewMonth);
   const today=new Date();
   const isCurrentMonth=(viewYear===today.getFullYear()&&viewMonth===today.getMonth());
@@ -875,7 +875,25 @@ function renderMonth(){
   if(!isLocked){
     if(isCurrentMonth){
       liveMode=true;
-      liveMaxDay=today.getDate(); // heutiger Tag im Monat (1..31)
+      liveMaxDay=today.getDate()-1; // nur bis gestern; heute noch nicht sichtbar
+      // Sonderfall: heute ist der 1. -> noch kein abgeschlossener Tag im Monat
+      if(liveMaxDay<1){
+        document.getElementById('stats').style.display='none';
+        document.getElementById('lock-status').classList.remove('locked');
+        document.getElementById('entries-area').innerHTML=`
+          <div style="text-align:center;padding:50px 20px;color:var(--muted);">
+            <div style="font-size:13px;font-weight:700;letter-spacing:2px;margin-bottom:14px;color:var(--txt2);">MONATSANFANG</div>
+            <div style="font-size:16px;font-weight:700;color:var(--txt);margin-bottom:6px;">
+              Noch keine abgeschlossenen Tage
+            </div>
+            <div style="font-size:13px;line-height:1.6;">
+              Der erste Tag von <strong>${MON[viewMonth]} ${viewYear}</strong> ist noch nicht vorbei.<br>
+              Vergangene Tage erscheinen ab dem Folgetag um 0 Uhr.
+            </div>
+          </div>
+        `;
+        return;
+      }
     } else {
       document.getElementById('stats').style.display='none';
       document.getElementById('lock-status').classList.remove('locked');
@@ -1115,15 +1133,15 @@ function renderMonth(){
   `;
 
   // Live-Banner (nur im laufenden, nicht abgeschlossenen Monat)
-  const heuteStr=String(liveMaxDay).padStart(2,'0')+'.'+String(viewMonth+1).padStart(2,'0')+'.'+viewYear;
+  const gesternStr=String(liveMaxDay).padStart(2,'0')+'.'+String(viewMonth+1).padStart(2,'0')+'.'+viewYear;
   const liveBanner=liveMode?`
     <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:12px;
       background:var(--u-bg);border:1.5px solid var(--u-t);border-radius:8px;
       font-size:13px;font-weight:700;color:var(--u-t);">
       <span style="width:8px;height:8px;border-radius:50%;background:var(--u-t);flex-shrink:0;animation:pulse 2s infinite;"></span>
-      Live-Ansicht · bis heute (${heuteStr})
+      Live-Ansicht · bis gestern (${gesternStr})
       <span style="font-weight:500;color:var(--txt2);margin-left:auto;font-size:12px;">
-        Monat läuft — Tage bis heute sichtbar, kommende Tage folgen
+        Nur abgeschlossene Tage — heute erscheint morgen um 0 Uhr
       </span>
     </div>`:'';
 
