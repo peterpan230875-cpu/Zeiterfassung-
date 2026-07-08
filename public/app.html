@@ -2298,8 +2298,8 @@ function wkRenderWeek(){
     wkWeekDays.push({key,label:WT[d.getDay()]+" "+d.getDate()+".",date:d,blocked:isBlocked,skip:skipDef});
   }
   const mn=wkMonday;
-  const jan4=new Date(mn.getFullYear(),0,4);
-  const kw=Math.ceil(((mn-jan4)/86400000+jan4.getDay()+1)/7);
+  // Korrekte ISO-8601-Kalenderwoche (zentrale getKW-Funktion statt eigener Formel)
+  const kw=getKW(mn.getFullYear(),mn.getMonth(),mn.getDate());
   const sat=wkWeekDays[5].date;
   const mo2=["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
   document.getElementById("wk-nav-lbl").textContent=
