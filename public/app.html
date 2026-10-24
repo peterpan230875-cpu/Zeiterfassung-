@@ -3269,15 +3269,11 @@ const OPEN_HOUR=6;
 const CLOSE_SUMMER="17:30"; // April–September
 const CLOSE_WINTER="17:00"; // Oktober–März
 
-// Tages-Soll in Minuten für einen bestimmten Wochentag (0=So, 1=Mo, …, 6=Sa).
-// Sonderregel: Bei genau 39 Wochenstunden Mo–Do 8h, Fr 7h (Summe 39). Sonst gleichmaessig.
+// Tages-Soll in Minuten pro Werktag: EINHEITLICH Wochenstunden / 5.
+// Z.B. 39h/Woche -> 7,8h = 468 min, an JEDEM Werktag gleich (kein 8h/7h-Split).
+// Der Parameter dow bleibt fuer Aufruf-Kompatibilitaet erhalten, wird aber nicht mehr genutzt.
 function getTagSollMin(wh, dow){
   wh = parseFloat(wh) || 38.5;
-  if(Math.abs(wh - 39) < 0.001){
-    if(dow >= 1 && dow <= 4) return 8*60;   // Mo–Do: 8h
-    if(dow === 5)            return 7*60;   // Fr: 7h
-    return Math.round(wh*60/5);              // Sa/So: Standard-Anteil
-  }
   return Math.round(wh*60/5);
 }
 
