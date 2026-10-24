@@ -557,7 +557,22 @@ function renderMonth(){
     if(mk>=startMonthKey && mk<=ustK) urlaubInRange++;
   });
   const urlaubTotal=baseUrlaub+urlaubInRange;
-  const urlaubRest=Math.max(0,anspruch-urlaubTotal);
+  // Uebertragener Resturlaub aus Vorjahren (Urlaub verfaellt nicht).
+  const yearTaken=(yr)=>{
+    const yk=yr+"-";
+    const aKeys=Object.keys(urlaubMap).filter(x=>x.startsWith(yk)).sort();
+    let sMK=aKeys.length?aKeys[aKeys.length-1]:(yr+"-01"), base=aKeys.length?urlaubMap[aKeys[aKeys.length-1]]:0;
+    const endK=yr+"-12"; let inR=0;
+    currentEntries.forEach(e=>{ if(e.type!=='urlaub')return; const mk=e.date.substring(0,7); if(mk>=sMK && mk<=endK) inR++; });
+    return base+inR;
+  };
+  let carry=0; { let years=[];
+    Object.keys(urlaubMap).forEach(k=>{const y=parseInt(k.split('-')[0]);if(!isNaN(y))years.push(y);});
+    currentEntries.forEach(e=>{const y=parseInt(e.date.split('-')[0]);if(!isNaN(y))years.push(y);});
+    const firstY=years.length?Math.min(...years):viewYear;
+    for(let y=firstY;y<viewYear;y++) carry += anspruch - yearTaken(y);
+  }
+  const urlaubRest=Math.max(0,(anspruch+carry)-urlaubTotal);
   const urlaubMonthStr=urlaub>0?("-"+urlaub):"0";
   const urlaubStr=`<span style="display:flex;justify-content:space-between;align-items:baseline;width:100%;">
     <span style="color:var(--k-t);">${urlaubMonthStr}</span>

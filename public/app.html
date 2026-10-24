@@ -1295,6 +1295,27 @@ function getCumulativeUrlaub(year,month){
   return sum;
 }
 
+// Erstes Jahr mit Urlaubs-Daten (Anker oder Einträge) — Startpunkt der Übertrags-Kette
+function getUrlaubFirstYear(){
+  const emp=curEmp();
+  let years=[];
+  Object.keys(state.urlaubGenommen||{}).forEach(k=>{const yy=parseInt(k.split("-")[0]);if(!isNaN(yy))years.push(yy);});
+  Object.keys(emp.entries||{}).forEach(k=>{const yy=parseInt(k.split("-")[0]);if(!isNaN(yy))years.push(yy);});
+  return years.length?Math.min(...years):(new Date().getFullYear());
+}
+
+// Übertragener Resturlaub aus Vorjahren ins Jahr 'year' (Urlaub verfällt nicht).
+// = Summe über alle Vorjahre von (Anspruch − voller Jahresverbrauch).
+function getUrlaubCarryover(year){
+  const anspruch=parseInt(state.urlaubsanspruch)||30;
+  const firstY=getUrlaubFirstYear();
+  let carry=0;
+  for(let yy=firstY;yy<year;yy++){
+    carry += anspruch - getCumulativeUrlaub(yy,11); // Dez = voller Jahresverbrauch
+  }
+  return carry;
+}
+
 // Kumulativer Zeitkonto-Stand am ANFANG des angegebenen Monats:
 // = Übertrag aus Vormonaten (ohne aktuellen Monat)
 function getCumulativeZeitkonto(year,month){
@@ -1946,10 +1967,12 @@ function renderStats(){
      </span>`;
 
   // Urlaub: links = NUR dieser Monat genommen (rot), rechts = Jahres-Rest (grün)
-  // Silvester-Urlaub zählt nur als halber Tag
+  // Silvester-Urlaub zählt nur als halber Tag.
+  // Verfuegbar = Jahresanspruch + uebertragener Resturlaub aus Vorjahren (verfaellt nicht).
   const anspruch=parseInt(state.urlaubsanspruch)||30;
+  const verfuegbar=anspruch+getUrlaubCarryover(y);
   const urlaubTotal=getCumulativeUrlaub(y,m);
-  const urlaubRest=Math.max(0,anspruch-urlaubTotal);
+  const urlaubRest=Math.max(0,verfuegbar-urlaubTotal);
   const urlaubMonth=urlaub+urlaubHalf*0.5;
   const urlaubMonthStr=urlaubMonth>0?("-"+urlaubMonth.toString().replace(".",",")):"0";
   document.getElementById("st-urlaub").innerHTML=
