@@ -1260,7 +1260,11 @@ function countMonthUrlaub(y,m){
 function getCumulativeUrlaub(year,month){
   const targetKey=ustKey(year,month);
   const overrides=state.urlaubGenommen||{};
-  const keys=Object.keys(overrides).filter(k=>k<=targetKey).sort();
+  // JAHRES-RESET: nur Übertrags-Anker aus DEMSELBEN Kalenderjahr berücksichtigen.
+  // Dadurch startet jeder 1. Januar automatisch frisch (voller Urlaubsanspruch),
+  // der Vorjahres-Verbrauch wird NICHT ins neue Jahr mitgezogen.
+  const yearPrefix=year+"-";
+  const keys=Object.keys(overrides).filter(k=>k.startsWith(yearPrefix)&&k<=targetKey).sort();
   let startY,startM,baseValue;
 
   if(keys.length>0){
@@ -1269,13 +1273,12 @@ function getCumulativeUrlaub(year,month){
     const [ay,am1]=anchorKey.split("-").map(Number);
 
     // Anchor-Key repräsentiert: Urlaub bis Ende des VORmonats
-    // z.B. "2026-6" = Urlaub bis Ende Mai (für Anzeige in Juni)
-    // Also: Start-Monat für Zählung ist am1-1 (der Monat selbst)
+    // z.B. "2026-06" = Urlaub bis Ende Mai (für Anzeige in Juni)
     startY=ay;
-    startM=am1-1; // am1=6 (Juni) → startM=5 (Juni in 0-indexed)
+    startM=am1-1;
     if(startM<0){startM=11;startY--;}
   } else {
-    // Kein Override: zähle alle Urlaubstage ab Januar des Jahres
+    // Kein Anker in diesem Jahr: ab Januar des Jahres zählen (Reset)
     startY=year;
     startM=0;
     baseValue=0;

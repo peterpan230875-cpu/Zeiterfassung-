@@ -1093,8 +1093,9 @@ function renderMonth(){
   // Urlaub: links = NUR dieser Monat genommen (rot), rechts = Jahres-Rest (grün)
   const anspruch=(empArr[0]&&empArr[0].urlaubsanspruch)||30;
   const urlaubMap=(empArr[0]&&empArr[0].urlaubGenommen)||{};
-  // Anchor finden: letzter Override ≤ ustK, sonst Jahresanfang
-  const ovKeys=Object.keys(urlaubMap).filter(x=>x<=ustK).sort();
+  // JAHRES-RESET: nur Anker aus demselben Kalenderjahr (viewYear) zaehlen,
+  // sonst Jahresanfang. Urlaub setzt sich dadurch jedes Jahr am 1.1. zurueck.
+  const ovKeys=Object.keys(urlaubMap).filter(x=>x.startsWith(viewYear+"-")&&x<=ustK).sort();
   let startMonthKey, baseUrlaub;
   if(ovKeys.length>0){
     startMonthKey=ovKeys[ovKeys.length-1];
