@@ -954,7 +954,7 @@ function renderMonth(){
       vonTxt='Elternzeit';
       bemTxt=elt.note||'Elternzeit';
     }
-    else if(holiday){cls='r-hol';vonTxt=holiday;bemTxt='Feiertag';netto=ts.toFixed(2).replace('.',',');}
+    else if(holiday){cls='r-hol';vonTxt=holiday;bemTxt='Feiertag';if(!sun&&!sat)netto=ts.toFixed(2).replace('.',',');}
     else if(sun){cls='r-we';vonTxt='Sonntag';}
     else if(sat){
       // Samstag: wenn Eintrag mit Zeiten vorhanden, diese anzeigen

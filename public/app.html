@@ -1542,9 +1542,15 @@ function buildRow(d,key,dayWT,weekend,holiday,entry,typ,blocked){
   // Netto berechnen
   let nettoMin=0,nettoEl="";
   if(holiday||isHeiligabend){
-    const s=document.createElement("span");
-    s.className="nbadge nb-red";s.textContent=ts.toFixed(2).replace(".",",")+" h";
-    nettoEl=s.outerHTML;
+    // Feiertag auf einem Werktag: Tagessoll-Stunden anzeigen (bezahlt).
+    // Feiertag am Wochenende (Sa/So): KEIN Netto-Badge - waere optisch
+    // irrefuehrend, da an Sa/So ohnehin nichts gezaehlt wird.
+    const isWe=isSat(ky,km-1,d)||isSun(ky,km-1,d);
+    if(!isWe){
+      const s=document.createElement("span");
+      s.className="nbadge nb-red";s.textContent=ts.toFixed(2).replace(".",",")+" h";
+      nettoEl=s.outerHTML;
+    }
   } else if(sd&&sd.type==='closed'){
     const s=document.createElement("span");
     s.className="nbadge";s.style.cssText="background:#E5E7EB;color:#374151;border:1px solid #D1D5DB;";
@@ -2904,7 +2910,8 @@ function buildPrintHTML(){
     }
 
     let von="",bis="",pause="",bem="",netto="",nettoColor="#2563EB";
-    if(holiday){von=holiday;bem="Feiertag";netto=ts.toFixed(2).replace(".",",");}
+    // Feiertag am Wochenende (Sa/So): keine Netto-Stunden anzeigen (nur Werktags-Feiertage)
+    if(holiday){von=holiday;bem="Feiertag";if(!sun&&!sat)netto=ts.toFixed(2).replace(".",",");}
     else if(isHeiligabend){von="Heiligabend";bem="Feiertag";netto=ts.toFixed(2).replace(".",",");}
     else if(isClosed){von="🔒 Geschlossen"+(sd.label?" — "+sd.label:"");netto=ts.toFixed(2).replace(".",",");nettoColor="#374151";}
     else if(sun){von="Sonntag";}
